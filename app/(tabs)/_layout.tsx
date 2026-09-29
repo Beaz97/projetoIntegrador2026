@@ -1,30 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import InputBusca from "../components/inputBusca";
+import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: true,
-        headerTitleAlign: "left",
-        headerTitle: (props) => (
-          <View style={styles.headerContainer}>
-            <Text style={styles.headerTitleText}>{props.children}</Text>
-            <View style={styles.inputContainer}>
-              <InputBusca placeholder="Buscar..." />
-            </View>
-          </View>
-        ),
-        headerStyle: {
-          backgroundColor: "rgb(93, 0, 7)",
-          height: Platform.OS === "ios" ? 100 : 75,
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: "rgb(37, 6, 6)",
-        },
+        headerShown: false,
         tabBarActiveTintColor: "#007AFF",
         tabBarInactiveTintColor: "#8E8E93",
         tabBarStyle: {
@@ -55,6 +37,15 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Tela de recuperar senha (oculta do menu inferior com href: null) */}
+      <Tabs.Screen
+        name="recuperar-senha"
+        options={{
+          title: "Recuperar senha",
+          href: null,
+        }}
+      />
+
       {/* Rota de Busca dentro das abas (oculta do menu inferior com href: null) */}
       <Tabs.Screen
         name="rotas/busca/[query]"
@@ -75,23 +66,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingRight: 16,
-    gap: 12,
-  },
-  headerTitleText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    flexShrink: 1,
-  },
-  inputContainer: {
-    flex: 1,
-  },
-});

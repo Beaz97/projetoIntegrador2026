@@ -12,7 +12,7 @@ export default function LoginScreen() {
   const [senha, setSenha] = useState('');
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.welcomeText}>Olá!</Text>
         <Text style={styles.welcomeText}>Seja bem-vindo ao</Text>
@@ -49,13 +49,13 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Ainda não possue uma conta? </Text>
+          <Text style={styles.registerText}>Ainda não possui uma conta? </Text>
           <TouchableOpacity>
             <Text style={styles.registerLink}>cadastre-se</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: 60,
     paddingBottom: 30,
   },
   welcomeText: {
