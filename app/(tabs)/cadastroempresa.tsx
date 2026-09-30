@@ -1,90 +1,120 @@
-import { Link } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { useState, useRef } from 'react';
+import { Link, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Cadastro() {
-  const [tipo, setTipo] = useState("empresa");
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [documento, setDocumento] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const router = useRouter();
 
-  const alternarTipo = () => {
-    setTipo(tipo === "empresa" ? "pessoa" : "empresa");
-    setDocumento("");
-  };
+  const [nome, setNome] = useState('');
+  const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [senha, setSenha] = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+
+  const nomeRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const cpfRef = useRef<TextInput>(null);
+  const senhaRef = useRef<TextInput>(null);
+  const confirmarRef = useRef<TextInput>(null);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.welcomeText}>Olá!</Text>
-        <Text style={styles.welcomeText}>Seja bem-vindo ao</Text>
-        <Text style={styles.logo}>ECONOMiZE</Text>
-        <Text style={styles.slogan}>Economize hoje, aproveite amanhã!</Text>
+      <View style={styles.topo}>
+        <Text style={styles.boasVindas}>Seja{'\n'}bem-{'\n'}vinda(o) ao</Text>
+        <View style={styles.logo}>
+          <Ionicons name="cart" size={36} color="#fff" />
+          <Text style={styles.logoTexto}>Economize</Text>
+        </View>
       </View>
 
       <View style={styles.card}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Cadastro</Text>
-          <Pressable style={styles.tipoButton} onPress={alternarTipo}>
-            <Text style={styles.tipoButtonText}>
-              {tipo === "empresa" ? "Empresa" : "Pessoa"}
-            </Text>
+        <View style={styles.titulo}>
+          <Text style={styles.cadastro}>Cadastro</Text>
+          <Pressable style={styles.cliente}>
+            <Text style={styles.clienteTexto}>Cliente</Text>
           </Pressable>
         </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nome"
-          placeholderTextColor="#3f5c4c"
-          value={nome}
-          onChangeText={setNome}
-        />
+        <Pressable style={styles.campo} onPress={() => nomeRef.current?.focus()}>
+          <Ionicons name="person" size={32} color="#2f7a4b" style={styles.icone} />
+          <TextInput
+            ref={nomeRef}
+            style={styles.input}
+            placeholder="Nome"
+            placeholderTextColor="#2f7a4b"
+            value={nome}
+            onChangeText={setNome}
+          />
+        </Pressable>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#3f5c4c"
-          value={email}
-          onChangeText={setEmail}
-        />
+        <Pressable style={styles.campo} onPress={() => emailRef.current?.focus()}>
+          <Ionicons name="mail" size={28} color="#2f7a4b" style={styles.icone} />
+          <TextInput
+            ref={emailRef}
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#2f7a4b"
+            value={email}
+            onChangeText={setEmail}
+          />
+        </Pressable>
 
-        <TextInput
-          style={styles.input}
-          placeholder={tipo === "empresa" ? "CNPJ" : "CPF"}
-          placeholderTextColor="#3f5c4c"
-          value={documento}
-          onChangeText={setDocumento}
-        />
+        <Pressable style={styles.campo} onPress={() => cpfRef.current?.focus()}>
+          <Ionicons name="card" size={28} color="#2f7a4b" style={styles.icone} />
+          <TextInput
+            ref={cpfRef}
+            style={styles.input}
+            placeholder="CPF ou CNPJ"
+            placeholderTextColor="#2f7a4b"
+            value={cpf}
+            onChangeText={setCpf}
+          />
+        </Pressable>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          placeholderTextColor="#3f5c4c"
-          secureTextEntry
-          value={senha}
-          onChangeText={setSenha}
-        />
+        <Pressable style={styles.campo} onPress={() => senhaRef.current?.focus()}>
+          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
+          <TextInput
+            ref={senhaRef}
+            style={styles.input}
+            placeholder="Senha"
+            placeholderTextColor="#2f7a4b"
+            secureTextEntry={!mostrarSenha}
+            value={senha}
+            onChangeText={setSenha}
+          />
+          <Pressable onPress={() => setMostrarSenha((valor) => !valor)}>
+            <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
+          </Pressable>
+        </Pressable>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Confirmar senha"
-          placeholderTextColor="#3f5c4c"
-          secureTextEntry
-          value={confirmarSenha}
-          onChangeText={setConfirmarSenha}
-        />
+        <Pressable style={styles.campo} onPress={() => confirmarRef.current?.focus()}>
+          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
+          <TextInput
+            ref={confirmarRef}
+            style={styles.input}
+            placeholder="Confirmar senha"
+            placeholderTextColor="#2f7a4b"
+            secureTextEntry={!mostrarConfirmar}
+            value={confirmar}
+            onChangeText={setConfirmar}
+          />
+          <Pressable onPress={() => setMostrarConfirmar((valor) => !valor)}>
+            <Ionicons name={mostrarConfirmar ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
+          </Pressable>
+        </Pressable>
 
-        <Pressable style={styles.botao}>
+        <Pressable style={styles.botao} onPress={() => router.push('/(tabs)')}>
           <Text style={styles.botaoTexto}>Cadastrar</Text>
         </Pressable>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Já possui uma conta?{" "}
+            Já tem conta?{' '}
             <Link href="/" style={styles.footerLink}>
-              faça login
+              entrar
             </Link>
           </Text>
         </View>
@@ -96,94 +126,106 @@ export default function Cadastro() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#3d7a52",
+    backgroundColor: '#3d7a52',
   },
-  header: {
-    alignItems: "center",
+  topo: {
+    alignItems: 'center',
     paddingTop: 60,
-    paddingBottom: 30,
+    paddingBottom: 24,
   },
-  welcomeText: {
-    color: "#eaf7ee",
+  boasVindas: {
+    color: '#edf7ef',
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 26,
   },
   logo: {
-    color: "#a3e6b0",
-    fontSize: 34,
-    fontWeight: "800",
-    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
   },
-  slogan: {
-    color: "#eaf7ee",
-    fontSize: 13,
-    marginTop: 4,
+  logoTexto: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '800',
+    marginLeft: 8,
   },
   card: {
     flex: 1,
-    backgroundColor: "#ececec",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 25,
+    backgroundColor: '#f3f3f3',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 22,
+    paddingBottom: 14,
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+  titulo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#3d7a52",
+  cadastro: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#2f7a4b',
   },
-  tipoButton: {
-    flex: 1,
-    backgroundColor: "#3d7a52",
-    borderRadius: 25,
+  cliente: {
+    backgroundColor: '#2f7a4b',
+    borderRadius: 20,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    alignItems: "center",
   },
-  tipoButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
+  clienteTexto: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  campo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dfeae2',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  icone: {
+    marginRight: 10,
   },
   input: {
-    backgroundColor: "#c9d9cd",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flex: 1,
     fontSize: 16,
-    color: "#3d7a52",
-    fontWeight: "700",
-    marginBottom: 12,
+    color: '#2f7a4b',
+    fontWeight: '600',
+    paddingVertical: 4,
   },
   botao: {
-    backgroundColor: "#3d7a52",
-    borderRadius: 25,
+    backgroundColor: '#2f7a4b',
+    borderRadius: 22,
     paddingVertical: 14,
-    alignItems: "center",
+    alignItems: 'center',
     marginTop: 8,
+    marginBottom: 18,
   },
   botaoTexto: {
-    color: "#ffffff",
-    fontSize: 20,
-    fontWeight: "700",
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
   },
   footer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    alignItems: "center",
+    alignItems: 'center',
+    marginTop: 8,
     paddingBottom: 10,
   },
   footerText: {
-    fontSize: 13,
-    color: "#222",
-    fontWeight: "700",
+    color: '#2d2d2d',
+    fontSize: 14,
+    fontWeight: '600',
   },
   footerLink: {
-    color: "#3d7a52",
-    fontWeight: "700",
+    color: '#2f7a4b',
+    fontWeight: '700',
   },
 });

@@ -1,58 +1,51 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function LoginScreen() {
-  const [cpfCnpj, setCpfCnpj] = useState('');
-  const [senha, setSenha] = useState('');
+type BotaoProps = { titulo: string; onPress: () => void };
+
+function Botao({ titulo, onPress }: BotaoProps) {
+  return (
+    <Pressable style={styles.botao} onPress={onPress}>
+      <Text style={styles.botaoTexto}>{titulo}</Text>
+    </Pressable>
+  );
+}
+
+export default function Index() {
+  const router = useRouter();
+  const [pagina, setPagina] = useState(0); // qual bolinha está ativa
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.welcomeText}>Olá!</Text>
-        <Text style={styles.welcomeText}>Seja bem-vindo ao</Text>
-        <Text style={styles.logo}>ECONOMiZE</Text>
-        <Text style={styles.slogan}>Economize hoje, aproveite amanhã!</Text>
+      {/* Logo */}
+      <View style={styles.logo}>
+        <Ionicons name="cart" size={56} color="#1f4d2e" />
+        <Text style={styles.logoTexto}>Economize</Text>
+        <Text style={styles.slogan}>Compare. Escolha. Economize.</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Login</Text>
+      {/* Texto + ilustração */}
+      <View style={styles.meio}>
+        <Text style={styles.titulo}>
+          os melhores preços{'\n'}dos mercados bem{'\n'}perto de você
+        </Text>
+        <Ionicons name="basket-outline" size={150} color="#fff" />
+      </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="CPF/CNPJ"
-          placeholderTextColor="#3f5c4c"
-          value={cpfCnpj}
-          onChangeText={setCpfCnpj}
-        />
+      {/* Botão + bolinhas */}
+      <View style={styles.rodape}>
+        <Botao titulo="Começar" onPress={() => router.push('/')} />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          placeholderTextColor="#3f5c4c"
-          secureTextEntry
-          value={senha}
-          onChangeText={setSenha}
-        />
-
-        <TouchableOpacity style={styles.loginButton}>
-          <Text style={styles.loginButtonText}>Login</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity>
-          <Text style={styles.forgotText}>Esqueci minha senha</Text>
-        </TouchableOpacity>
-
-        <View style={styles.registerRow}>
-          <Text style={styles.registerText}>Ainda não possui uma conta? </Text>
-          <TouchableOpacity>
-            <Text style={styles.registerLink}>cadastre-se</Text>
-          </TouchableOpacity>
+        <View style={styles.bolinhas}>
+          {[0, 1, 2].map((i) => (
+            <Pressable
+              key={i}
+              onPress={() => setPagina(i)}
+              style={[styles.bolinha, pagina === i && styles.bolinhaAtiva]}
+            />
+          ))}
         </View>
       </View>
     </View>
@@ -62,85 +55,38 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#3d7a52',
-  },
-  header: {
+    backgroundColor: '#41805a',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingBottom: 30,
   },
-  welcomeText: {
-    color: '#eaf7ee',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  logo: {
-    color: '#a3e6b0',
-    fontSize: 34,
-    fontWeight: '800',
-    marginTop: 10,
-  },
-  slogan: {
-    color: '#eaf7ee',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#ececec',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 25,
-  },
-  title: {
+  logo: { alignItems: 'center' },
+  logoTexto: { fontSize: 44, fontWeight: 'bold', color: '#1f4d2e' },
+  slogan: { fontSize: 14, color: '#1f4d2e' },
+  meio: { alignItems: 'center', gap: 24 },
+  titulo: {
+    color: '#fff',
     fontSize: 24,
-    fontWeight: '700',
-    color: '#3d7a52',
-    marginBottom: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
-  input: {
-    backgroundColor: '#c9d9cd',
-    borderRadius: 25,
-    paddingHorizontal: 20,
+  rodape: { width: '100%', alignItems: 'center', gap: 16 },
+  botao: {
+    backgroundColor: '#fff',
+    borderRadius: 30,
     paddingVertical: 14,
-    fontSize: 15,
-    color: '#3d7a52',
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  loginButton: {
-    backgroundColor: '#3d7a52',
-    borderRadius: 25,
-    paddingVertical: 16,
+    width: '80%',
     alignItems: 'center',
-    marginTop: 8,
   },
-  loginButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+  botaoTexto: { color: '#2f7a4b', fontSize: 22, fontWeight: 'bold' },
+  bolinhas: { flexDirection: 'row', gap: 8 },
+  bolinha: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#1f4d2e',
   },
-  forgotText: {
-    color: '#3d7a52',
-    fontSize: 13,
-    textAlign: 'right',
-    marginTop: 12,
-    textDecorationLine: 'underline',
-  },
-  registerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  registerText: {
-    fontSize: 13,
-    color: '#222',
-    fontWeight: '600',
-  },
-  registerLink: {
-    fontSize: 13,
-    color: '#3d7a52',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
+  bolinhaAtiva: { backgroundColor: '#fff', borderColor: '#fff' },
 });
