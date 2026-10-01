@@ -19,6 +19,7 @@ export default function ProdutoDetalhe() {
         }}
       />
       <Text style={styles.texto}>Crie aqui sua página da rota!</Text>
+      <Text style={styles.texto}>Id do item: {id}</Text>
     </View>
   );
 }

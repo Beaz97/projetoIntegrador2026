@@ -19,35 +19,37 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      {/* Logo */}
-      <View style={styles.logo}>
-        <Ionicons name="cart" size={56} color="#1f4d2e" />
-        <Text style={styles.logoTexto}>Economize</Text>
-        <Text style={styles.slogan}>Compare. Escolha. Economize.</Text>
-      </View>
-
-      {/* Texto + ilustração */}
-      <View style={styles.meio}>
-        <Text style={styles.titulo}>
-          os melhores preços{'\n'}dos mercados bem{'\n'}perto de você
-        </Text>
-        <Ionicons name="basket-outline" size={150} color="#fff" />
-      </View>
-
-      {/* Botão + bolinhas */}
-      <View style={styles.rodape}>
-        <Botao titulo="Começar" onPress={() => router.push('/')} />
-
-        <View style={styles.bolinhas}>
-          {[0, 1, 2].map((i) => (
-            <Pressable
-              key={i}
-              onPress={() => setPagina(i)}
-              style={[styles.bolinha, pagina === i && styles.bolinhaAtiva]}
-            />
-          ))}
+     <view>
+        {/* Logo */}
+        <View style={styles.logo}>
+          <Ionicons name="cart" size={56} color="#1f4d2e" />
+          <Text style={styles.logoTexto}>Economize</Text>
+          <Text style={styles.slogan}>Compare. Escolha. Economize.</Text>
         </View>
-      </View>
+
+        {/* Texto + ilustração */}
+        <View style={styles.meio}>
+          <Text style={styles.titulo}>
+            os melhores preços{'\n'}dos mercados bem{'\n'}perto de você
+          </Text>
+          <Ionicons name="basket-outline" size={150} color="#fff" />
+        </View>
+
+        {/* Botão + bolinhas */}
+        <View style={styles.rodape}>
+          <Botao titulo="Começar" onPress={() => router.push('/senha')} />
+
+          <View style={styles.bolinhas}>
+            {[0, 1, 2].map((i) => (
+              <Pressable
+                key={i}
+                onPress={() => setPagina(i)}
+                style={[styles.bolinha, pagina === i && styles.bolinhaAtiva]}
+              />
+            ))}
+          </View>
+        </View>
+     </view>
     </View>
   );
 }

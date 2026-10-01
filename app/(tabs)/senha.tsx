@@ -14,13 +14,10 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      {/* Topo branco */}
+      {/* Topo branco com a logo centralizada */}
       <View style={styles.topo}>
-        <Text style={styles.boasVindas}>Seja{'\n'}bem-{'\n'}vinda(o) ao</Text>
-        <View style={styles.logo}>
-          <Ionicons name="cart" size={36} color="#1f4d2e" />
-          <Text style={styles.logoTexto}>Economize</Text>
-        </View>
+        <Ionicons name="cart" size={56} color="#1f4d2e" />
+        <Text style={styles.logoTexto}>Economize</Text>
       </View>
 
       {/* Cartão verde */}
@@ -68,12 +65,12 @@ export default function Index() {
         {/* Login */}
         <Pressable
           style={styles.botaoLogin}
-          onPress={() => router.replace('/')}
+          onPress={() => router.replace('/home')}
         >
           <Text style={styles.botaoLoginTexto}>Login</Text>
         </Pressable>
 
-        <Pressable style={styles.esqueci}>
+        <Pressable style={styles.esqueci} onPress={() => router.push('/recuperarsenha')}>
           <Text style={styles.esqueciTexto}>Esqueci minha senha</Text>
         </Pressable>
 
@@ -87,14 +84,14 @@ export default function Index() {
         {/* Cadastro */}
         <Pressable
           style={styles.botaoCadastro}
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/cadastroempresa')}
         >
           <Text style={styles.botaoCadastroTexto}>Cadastro</Text>
         </Pressable>
 
         <Text style={styles.rodape}>
           Ainda não possui uma conta?{' '}
-          <Link href="/" style={styles.link}>
+          <Link href="/cadastroempresa" style={styles.link}>
             cadastre-se
           </Link>
         </Text>
@@ -104,28 +101,41 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  topo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 20,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  boasVindas: { fontSize: 26, fontWeight: 'bold', color: '#1f4d2e' },
-  logo: { alignItems: 'center' },
-  logoTexto: { fontSize: 30, fontWeight: 'bold', color: '#1f4d2e' },
+  topo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 50,
+    paddingBottom: 30,
+  },
+  logoTexto: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#1f4d2e',
+  },
 
   card: {
     flex: 1,
     backgroundColor: '#41805a',
     borderTopLeftRadius: 70,
+    borderTopRightRadius: 70,
     paddingHorizontal: 24,
     paddingTop: 24,
   },
-  entrar: { fontSize: 34, fontWeight: 'bold', color: '#fff' },
-  subtitulo: { fontSize: 14, fontWeight: 'bold', color: '#fff', marginBottom: 30 },
+  entrar: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  subtitulo: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 30,
+  },
 
   campo: {
     flexDirection: 'row',
@@ -135,9 +145,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 50,
     marginBottom: 20,
-    gap: 10,
   },
-  input: { flex: 1, height: '100%', fontSize: 20, fontWeight: 'bold', color: '#2f7a4b' },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    height: 50,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2f7a4b',
+    marginLeft: 10,
+    marginRight: 10,
+  },
 
   botaoLogin: {
     borderWidth: 1,
@@ -147,13 +165,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  botaoLoginTexto: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  esqueci: { alignSelf: 'flex-end', marginTop: 8, marginRight: 20 },
-  esqueciTexto: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  botaoLoginTexto: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  esqueci: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    marginRight: 20,
+  },
+  esqueciTexto: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
 
-  ou: { flexDirection: 'row', alignItems: 'center', marginVertical: 24, gap: 12 },
-  linha: { flex: 1, height: 1, backgroundColor: '#000' },
-  ouTexto: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  ou: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  linha: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#000',
+  },
+  ouTexto: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginHorizontal: 12,
+  },
 
   botaoCadastro: {
     backgroundColor: '#fff',
@@ -164,7 +207,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  botaoCadastroTexto: { color: '#2f7a4b', fontSize: 24, fontWeight: 'bold' },
+  botaoCadastroTexto: {
+    color: '#2f7a4b',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
 
   rodape: {
     textAlign: 'center',
@@ -173,5 +220,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
-  link: { color: '#fff' },
+  link: {
+    color: '#fff',
+  },
 });

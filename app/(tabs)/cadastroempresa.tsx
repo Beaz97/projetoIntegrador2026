@@ -13,12 +13,26 @@ export default function Cadastro() {
   const [confirmar, setConfirmar] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const [empresa, setEmpresa] = useState(false); // false = Cliente, true = Empresa
 
   const nomeRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const cpfRef = useRef<TextInput>(null);
   const senhaRef = useRef<TextInput>(null);
   const confirmarRef = useRef<TextInput>(null);
+
+  // Textos que mudam conforme o tipo
+  let textoBotao = 'Cliente';
+  let textoDocumento = 'CPF';
+  if (empresa) {
+    textoBotao = 'Empresa';
+    textoDocumento = 'CNPJ';
+  }
+
+  function trocarTipo() {
+    setEmpresa(!empresa);
+    setCpf('');
+  }
 
   return (
     <View style={styles.container}>
@@ -33,8 +47,8 @@ export default function Cadastro() {
       <View style={styles.card}>
         <View style={styles.titulo}>
           <Text style={styles.cadastro}>Cadastro</Text>
-          <Pressable style={styles.cliente}>
-            <Text style={styles.clienteTexto}>Cliente</Text>
+          <Pressable style={styles.cliente} onPress={trocarTipo}>
+            <Text style={styles.clienteTexto}>{textoBotao}</Text>
           </Pressable>
         </View>
 
@@ -67,7 +81,7 @@ export default function Cadastro() {
           <TextInput
             ref={cpfRef}
             style={styles.input}
-            placeholder="CPF ou CNPJ"
+            placeholder={textoDocumento}
             placeholderTextColor="#2f7a4b"
             value={cpf}
             onChangeText={setCpf}
@@ -106,7 +120,7 @@ export default function Cadastro() {
           </Pressable>
         </Pressable>
 
-        <Pressable style={styles.botao} onPress={() => router.push('/(tabs)')}>
+        <Pressable style={styles.botao} onPress={() => router.push('/senha')}>
           <Text style={styles.botaoTexto}>Cadastrar</Text>
         </Pressable>
 

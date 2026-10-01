@@ -1,40 +1,69 @@
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Image } from 'react-native';
 import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Dados from '../rotaServidor/dados';
 
 /* ---------- Dados ---------- */
-const categorias = [
-  { id: '1', nome: 'Todas', icone: 'apps-outline' },
-  { id: '2', nome: 'Hortifruti', icone: 'leaf-outline' },
-  { id: '3', nome: 'Bebidas', icone: 'wine-outline' },
-  { id: '4', nome: 'Alimentos', icone: 'restaurant-outline' },
-];
+// Cole o link da foto em "imagem". Se ficar vazio ('') ou o link falhar, aparece o ícone.
 
-const ofertas = [
-  { id: '1', nome: 'Banana nanica', unidade: 'Kg', preco: 'R$ 3,49', icone: 'nutrition-outline' },
-  { id: '2', nome: 'Leite integral', unidade: '1L', preco: 'R$ 4,99', icone: 'water-outline' },
-  { id: '3', nome: 'Morango', unidade: 'Kg', preco: 'R$ 8,99', icone: 'nutrition-outline' },
-  { id: '4', nome: 'Arroz branco', unidade: '5Kg', preco: 'R$ 24,90', icone: 'restaurant-outline' },
-];
+const dados = Dados();
+const produtos= dados.produtos;
+const categorias= dados.categorias;
+
+const ofertas=produtos.filter(
+  (produto) => produto.oferta==true
+);
+
+
+  /* ---------- Imagem com fallback para ícone ---------- */
+type FotoProps = {
+  uri?: string;
+  icone: any;
+  tamanhoIcone: number;
+  corIcone: string;
+  estilo: any;
+};
+
+function Foto({ uri, icone, tamanhoIcone, corIcone, estilo }: FotoProps) {
+  const [erro, setErro] = useState(false);
+
+
+  if (uri && !erro) {
+    return <Image source={{ uri }} style={estilo} onError={() => setErro(true)} />;
+  }
+  return <Ionicons name={icone} size={tamanhoIcone} color={corIcone} />;
+}
 
 /* ---------- Componente do card de oferta ---------- */
 type CardProps = {
+  id: string;
   nome: string;
   unidade: string;
   preco: string;
   icone: any;
+  imagem?: string;
 };
 
-function CardOferta({ nome, unidade, preco, icone }: CardProps) {
+function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
+  const router = useRouter();
+
   return (
     <View style={styles.card}>
-      <View style={styles.cardImagem}>
-        <Ionicons name={icone} size={70} color="#41805a" />
-      </View>
-      <Text style={styles.cardNome}>{nome}</Text>
-      <Text style={styles.cardUnidade}>{unidade}</Text>
-      <Text style={styles.cardPreco}>{preco}</Text>
+      <Pressable onPress={() => router.push(`/rotas/produtos/${id}`)}>
+        <View style={styles.cardImagem}>
+          <Foto
+            uri={imagem}
+            icone={icone}
+            tamanhoIcone={70}
+            corIcone="#41805a"
+            estilo={styles.cardFoto}
+          />
+        </View>
+        <Text style={styles.cardNome}>{nome}</Text>
+        <Text style={styles.cardUnidade}>{unidade}</Text>
+        <Text style={styles.cardPreco}>{preco}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -43,8 +72,17 @@ function CardOferta({ nome, unidade, preco, icone }: CardProps) {
 export default function Home() {
   const router = useRouter();
   const [busca, setBusca] = useState('');
+  const [tituloDalista, setTituloDalista] = useState('Ofertas da semana');
   const [categoria, setCategoria] = useState('1');
   const buscaRef = useRef<TextInput>(null);
+  const [produtosLista, setProdutosLista] = useState(ofertas);
+
+  function atualizarTitulo(nomeCatergoria) {    
+      setTituloDalista(nomeCatergoria);
+      // ofertas=produtos.filter(
+      //   (produto) => produto.categoria==categoria
+      // );
+  }
 
   return (
     <View style={styles.container}>
@@ -80,17 +118,19 @@ export default function Home() {
           keyExtractor={(item) => item.id}
           horizontal={true}
           renderItem={({ item }) => (
-            <Pressable style={styles.categoria} onPress={() => setCategoria(item.id)}>
+            <Pressable style={styles.categoria} onPress={() => atualizarTitulo(item.nome)}>
               <View
                 style={[
                   styles.categoriaIcone,
                   categoria === item.id && styles.categoriaIconeAtiva,
                 ]}
               >
-                <Ionicons
-                  name={item.icone as any}
-                  size={40}
-                  color={categoria === item.id ? '#fff' : '#2f7a4b'}
+                <Foto
+                  uri={item.imagem}
+                  icone={item.icone}
+                  tamanhoIcone={40}
+                  corIcone={categoria === item.id ? '#fff' : '#2f7a4b'}
+                  estilo={styles.categoriaImagem}
                 />
               </View>
               <Text style={styles.categoriaTexto}>{item.nome}</Text>
@@ -100,7 +140,7 @@ export default function Home() {
 
         {/* Ofertas da semana */}
         <View style={styles.ofertasTopo}>
-          <Text style={styles.ofertasTitulo}>Ofertas da semana</Text>
+          <Text style={styles.ofertasTitulo}>{tituloDalista}</Text>
           <Pressable>
             <Text style={styles.verMais}>Ver mais</Text>
           </Pressable>
@@ -108,32 +148,47 @@ export default function Home() {
 
         {/* Carrossel */}
         <FlatList
-          data={ofertas}
+          data={produtosLista}
           keyExtractor={(item) => item.id}
           horizontal={true}
           renderItem={({ item }) => (
             <CardOferta
+              id={item.id}
               nome={item.nome}
               unidade={item.unidade}
               preco={item.preco}
               icone={item.icone}
+              imagem={item.imagem}
             />
           )}
         />
       </View>
 
       {/* Barra de baixo */}
-      <View style={styles.barra}>
-        <Pressable onPress={() => router.push('/home')}>
-          <Ionicons name="home" size={40} color="#fff" />
-        </Pressable>
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => pressed && styles.botaoPressionado}
+            onPress={() => router.push('/home')}
+          >
+            <Ionicons name="home" size={40} color="#fff" />
+          </Pressable>
 
-        <Pressable style={styles.carrinho} onPress={() => router.push('/')}>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => pressed && styles.botaoPressionado}
+            onPress={() => router.push('/perfil' as any)}
+          >
+            <Ionicons name="person" size={40} color="#fff" />
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [styles.carrinho, pressed && styles.botaoPressionado]}
+          onPress={() => router.push('/carrinho' as any)}
+        >
           <Ionicons name="cart-outline" size={44} color="#fff" />
-        </Pressable>
-
-        <Pressable onPress={() => router.push('/')}>
-          <Ionicons name="person" size={40} color="#fff" />
         </Pressable>
       </View>
     </View>
@@ -210,9 +265,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    overflow: 'hidden',
   },
   categoriaIconeAtiva: {
     backgroundColor: '#41805a',
+  },
+  categoriaImagem: {
+    width: 78,
+    height: 78,
+    resizeMode: 'cover',
   },
   categoriaTexto: {
     fontSize: 15,
@@ -248,6 +309,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardFoto: {
+    width: '100%',
+    height: 110,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
   cardNome: {
     fontSize: 16,
     color: '#000',
@@ -263,7 +330,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 4,
   },
+  barraContainer: {
+    height: 106,
+  },
   barra: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -272,9 +346,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     height: 70,
   },
+  botaoPressionado: {
+    opacity: 0.6,
+  },
   carrinho: {
     position: 'absolute',
-    top: -36,
+    top: 0,
     left: '50%',
     marginLeft: -40,
     width: 80,
