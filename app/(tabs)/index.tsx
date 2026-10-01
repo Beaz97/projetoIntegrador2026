@@ -18,11 +18,11 @@ const styles = StyleSheet.create({
     container: {
         alignItems: "center",
         flex: 1,
-        backgroundColor: "#6868f7ff",
+        backgroundColor: "#fff5dd",
         justifyContent: "center",
     },
     texto: {
-        color: "#FFFFFF",
+        color: "#000000",
         fontSize: 18,
         fontWeight: "600",
         alignItems: "center",
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
 
     },
     link: {
-        color: "#133a94ff",
+        color: "#46a111",
         fontSize: 18,
         fontWeight: "800",
         alignItems: "center",
