@@ -77,11 +77,12 @@ export default function Home() {
   const buscaRef = useRef<TextInput>(null);
   const [produtosLista, setProdutosLista] = useState(ofertas);
 
-  function atualizarTitulo(nomeCatergoria) {    
-      setTituloDalista(nomeCatergoria);
-      // ofertas=produtos.filter(
-      //   (produto) => produto.categoria==categoria
-      // );
+  function atualizarTitulo(categoriaSelecionada) {    
+      setTituloDalista(categoriaSelecionada.nome);
+      const produtosCategoria=produtos.filter(
+         (produto) => produto.categoria==categoriaSelecionada.id
+       );
+      setProdutosLista(produtosCategoria);
   }
 
   return (
@@ -118,7 +119,7 @@ export default function Home() {
           keyExtractor={(item) => item.id}
           horizontal={true}
           renderItem={({ item }) => (
-            <Pressable style={styles.categoria} onPress={() => atualizarTitulo(item.nome)}>
+            <Pressable style={styles.categoria} onPress={() => atualizarTitulo(item)}>
               <View
                 style={[
                   styles.categoriaIcone,
