@@ -1,37 +1,32 @@
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from "expo-router";
+
 
 export default function Carrinho() {
+
+    // Função que lê do disco e atualiza o estado.
+    async function atualizar() {
+        const lista = await AsyncStorage.getItem('carrinho');
+        if (lista) {
+            setProdutos(JSON.parse(lista));
+        }
+        
+    }
+    // Chama a função atualizar sempre que a tela ganha foco.
+    useFocusEffect(
+        useCallback(() => {
+            atualizar();
+        }, [])
+    );
+
+
   const router = useRouter();
 
-  const [produtos, setProdutos] = useState([
-    {
-      id: 1,
-      nome: 'Arroz branco Urbano',
-      descricao: '1Kg - Combo atacadista',
-      preco: 24.90,
-      quantidade: 2,
-      imagem: '',
-    },
-    {
-      id: 2,
-      nome: 'Banana Nanica',
-      descricao: '1Kg - Combo atacadista',
-      preco: 3.49,
-      quantidade: 1,
-      imagem: '',
-    },
-    {
-      id: 3,
-      nome: 'Leite integral',
-      descricao: '1L - Fort atacadista',
-      preco: 4.99,
-      quantidade: 3,
-      imagem: '',
-    },
-  ]);
+  const [produtos, setProdutos] = useState([]);
 
   // =========================
   // AUMENTAR QUANTIDADE
@@ -68,6 +63,7 @@ export default function Carrinho() {
           return produto;
         })
         .filter((produto) => produto.quantidade > 0);
+        
     });
   }
 
@@ -86,6 +82,7 @@ export default function Carrinho() {
   // LIMPAR CARRINHO
   // =========================
   function limparCarrinho() {
+    AsyncStorage.removeItem('carrinho');
     setProdutos([]);
   }
 

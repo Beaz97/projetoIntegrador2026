@@ -28,7 +28,7 @@ export default function Dados() {
       id: '1',
       nome: 'Banana nanica',
       unidade: 'Kg',
-      preco: 'R$ 3,49',
+      preco: 3.49,
       icone: 'nutrition-outline',
       imagem: 'https://img.freepik.com/premium-photo/close-up-photo-fresh-fruit-banana_983093-21.jpg',
       oferta: true,

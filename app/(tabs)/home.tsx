@@ -62,7 +62,7 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
         </View>
         <Text style={styles.cardNome}>{nome}</Text>
         <Text style={styles.cardUnidade}>{unidade}</Text>
-        <Text style={styles.cardPreco}>{preco}</Text>
+        <Text style={styles.cardPreco}>R$ {preco}</Text>
       </Pressable>
     </View>
   );

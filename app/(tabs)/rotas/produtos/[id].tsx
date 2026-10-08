@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Dados from "../../../rotaServidor/dadosProdutos";
+import asyncStorage from '@react-native-async-storage/async-storage';
 
 const { produtos, categorias } = Dados();
 
@@ -21,6 +22,28 @@ export default function ProdutoDetalhe() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const produto = produtos.find((item) => item.id === id);
   const categoria = categorias.find((item) => item.id === produto?.categoria);
+
+  const addItemCarrinho = async (item) => {
+    let listaCarrinho = await asyncStorage.getItem('carrinho');
+    if(!listaCarrinho){
+      listaCarrinho = [];
+    }else{
+      listaCarrinho = JSON.parse(listaCarrinho);
+      //procurar o produto e adicionar uma quantidade
+      const produtoIndex = listaCarrinho.findIndex((p) => p.id === produto.id);
+      if (produtoIndex >=0) {
+        listaCarrinho[produtoIndex].quantidade += 1;
+      } else {
+        listaCarrinho.push({ ...produto, quantidade: 1 });
+      }
+    }
+    console.log(listaCarrinho);
+    listaCarrinho = JSON.stringify(listaCarrinho);
+    await asyncStorage.setItem('carrinho', listaCarrinho);
+    router.push('/carrinho');
+
+  }
+
 
   if (!produto) {
     return (
@@ -91,12 +114,12 @@ export default function ProdutoDetalhe() {
 
       {/* Botão */}
       <Pressable
-  style={styles.botao}
-  onPress={() => router.push("/carrinho")}
->
-  <MaterialCommunityIcons name="cart-outline" size={20} color="#fff" />
-  <Text style={styles.botaoTexto}>Adicionar ao carrinho</Text>
-</Pressable>
+          style={styles.botao}
+          onPress={addItemCarrinho}
+      >
+        <MaterialCommunityIcons name="cart-outline" size={20} color="#fff" />
+        <Text style={styles.botaoTexto}>Adicionar ao carrinho</Text>
+      </Pressable>
     </ScrollView>
   );
 }
