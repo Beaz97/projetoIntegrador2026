@@ -59,8 +59,9 @@ export default function Dados() {
       unidade: '5Kg',
       preco: 'R$ 24,90',
       icone: 'restaurant-outline',
-      imagem: 'https://tse2.mm.bing.net/th/id/OIP.eCA1ztk1wz_2wKwwXC-2-2QHaJz?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
+      imagem: 'https://tse2.mm.bing.net/th/id/OIP.eCA1ztk1wz_2wKwwXC-2-QHaJz?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       oferta: true,
+      categoria: '3',
     },
   ];
 

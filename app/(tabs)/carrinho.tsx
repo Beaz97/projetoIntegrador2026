@@ -1,29 +1,108 @@
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useCarrinho } from '../carrinhocontent';
+import { useState } from 'react';
 
 export default function Carrinho() {
   const router = useRouter();
 
-  const {
-    itens: produtos,
-    aumentar: aumentarQuantidade,
-    diminuir: diminuirQuantidade,
-    remover: removerProduto,
-    limpar: limparCarrinho,
-  } = useCarrinho();
+  const [produtos, setProdutos] = useState([
+    {
+      id: 1,
+      nome: 'Arroz branco Urbano',
+      descricao: '1Kg - Combo atacadista',
+      preco: 24.90,
+      quantidade: 2,
+      imagem: '',
+    },
+    {
+      id: 2,
+      nome: 'Banana Nanica',
+      descricao: '1Kg - Combo atacadista',
+      preco: 3.49,
+      quantidade: 1,
+      imagem: '',
+    },
+    {
+      id: 3,
+      nome: 'Leite integral',
+      descricao: '1L - Fort atacadista',
+      preco: 4.99,
+      quantidade: 3,
+      imagem: '',
+    },
+  ]);
+
+  // =========================
+  // AUMENTAR QUANTIDADE
+  // =========================
+  function aumentarQuantidade(id) {
+    setProdutos((produtosAtuais) =>
+      produtosAtuais.map((produto) => {
+        if (produto.id === id) {
+          return {
+            ...produto,
+            quantidade: produto.quantidade + 1,
+          };
+        }
+
+        return produto;
+      })
+    );
+  }
+
+  // =========================
+  // DIMINUIR QUANTIDADE
+  // =========================
+  function diminuirQuantidade(id) {
+    setProdutos((produtosAtuais) => {
+      return produtosAtuais
+        .map((produto) => {
+          if (produto.id === id) {
+            return {
+              ...produto,
+              quantidade: produto.quantidade - 1,
+            };
+          }
+
+          return produto;
+        })
+        .filter((produto) => produto.quantidade > 0);
+    });
+  }
+
+  // =========================
+  // REMOVER PRODUTO
+  // =========================
+  function removerProduto(id) {
+    setProdutos((produtosAtuais) => {
+      return produtosAtuais.filter(
+        (produto) => produto.id !== id
+      );
+    });
+  }
+
+  // =========================
+  // LIMPAR CARRINHO
+  // =========================
+  function limparCarrinho() {
+    setProdutos([]);
+  }
 
   // =========================
   // VALORES
   // =========================
+
   const quantidadeTotal = produtos.reduce(
-    (total, produto) => total + produto.quantidade,
+    (total, produto) =>
+      total + produto.quantidade,
     0
   );
 
   const subtotal = produtos.reduce(
-    (total, produto) => total + produto.preco * produto.quantidade,
+    (total, produto) =>
+      total +
+      produto.preco * produto.quantidade,
     0
   );
 
@@ -31,7 +110,7 @@ export default function Carrinho() {
 
   const total = subtotal + taxaEntrega;
 
-  function formatarPreco(valor: number) {
+  function formatarPreco(valor) {
     return valor.toLocaleString('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -49,16 +128,27 @@ export default function Carrinho() {
         {/* SETA */}
         <Pressable
           style={styles.botaoVoltar}
-          onPress={() => router.push('/')}
+          onPress={() => router.push('/home')}
         >
-          <Ionicons name="arrow-back" size={32} color="#41805a" />
+          <Ionicons
+            name="arrow-back"
+            size={32}
+            color="#41805a"
+          />
         </Pressable>
 
-        <Text style={styles.titulo}>Carrinho</Text>
+        <Text style={styles.titulo}>
+          Carrinho
+        </Text>
 
         {/* LIMPAR */}
-        <Pressable onPress={limparCarrinho} hitSlop={10}>
-          <Text style={styles.limpar}>Limpar</Text>
+        <Pressable
+          onPress={limparCarrinho}
+          hitSlop={10}
+        >
+          <Text style={styles.limpar}>
+            Limpar
+          </Text>
         </Pressable>
 
       </View>
@@ -70,25 +160,34 @@ export default function Carrinho() {
         <>
           {produtos.map((produto) => (
 
-            <View style={styles.produto} key={produto.id}>
+            <View
+              style={styles.produto}
+              key={produto.id}
+            >
 
               {/* IMAGEM */}
-              {produto.imagem ? (
-                <Image
-                  source={{ uri: produto.imagem }}
-                  style={styles.imagem}
-                />
-              ) : (
-                <View style={styles.imagem} />
-              )}
+              <Image
+                source={{
+                  uri: produto.imagem,
+                }}
+                style={styles.imagem}
+              />
 
               {/* INFORMAÇÕES */}
               <View style={styles.informacoes}>
-                <Text style={styles.nome}>{produto.nome}</Text>
-                <Text style={styles.descricao}>{produto.descricao}</Text>
+
+                <Text style={styles.nome}>
+                  {produto.nome}
+                </Text>
+
+                <Text style={styles.descricao}>
+                  {produto.descricao}
+                </Text>
+
                 <Text style={styles.preco}>
                   {formatarPreco(produto.preco)}
                 </Text>
+
               </View>
 
               {/* AÇÕES */}
@@ -98,10 +197,14 @@ export default function Carrinho() {
                 <View style={styles.quantidade}>
 
                   <Pressable
-                    onPress={() => diminuirQuantidade(produto.id)}
+                    onPress={() =>
+                      diminuirQuantidade(produto.id)
+                    }
                     style={styles.botaoQuantidade}
                   >
-                    <Text style={styles.qtd}>-</Text>
+                    <Text style={styles.qtd}>
+                      -
+                    </Text>
                   </Pressable>
 
                   <Text style={styles.numeroQuantidade}>
@@ -109,20 +212,30 @@ export default function Carrinho() {
                   </Text>
 
                   <Pressable
-                    onPress={() => aumentarQuantidade(produto.id)}
+                    onPress={() =>
+                      aumentarQuantidade(produto.id)
+                    }
                     style={styles.botaoQuantidade}
                   >
-                    <Text style={styles.qtd}>+</Text>
+                    <Text style={styles.qtd}>
+                      +
+                    </Text>
                   </Pressable>
 
                 </View>
 
                 {/* LIXEIRA */}
                 <Pressable
-                  onPress={() => removerProduto(produto.id)}
+                  onPress={() =>
+                    removerProduto(produto.id)
+                  }
                   style={styles.botaoLixeira}
                 >
-                  <Ionicons name="trash-outline" size={28} color="#41805a" />
+                  <Ionicons
+                    name="trash-outline"
+                    size={28}
+                    color="#41805a"
+                  />
                 </Pressable>
 
               </View>
@@ -140,21 +253,30 @@ export default function Carrinho() {
               <Text style={styles.textoCinza}>
                 Subtotal ({quantidadeTotal} itens)
               </Text>
+
               <Text style={styles.textoCinza}>
                 {formatarPreco(subtotal)}
               </Text>
             </View>
 
             <View style={styles.linha}>
-              <Text style={styles.textoCinza}>Taxa de entrega</Text>
+              <Text style={styles.textoCinza}>
+                Taxa de entrega
+              </Text>
+
               <Text style={styles.textoCinza}>
                 {formatarPreco(taxaEntrega)}
               </Text>
             </View>
 
             <View style={styles.linha}>
-              <Text style={styles.total}>Total</Text>
-              <Text style={styles.total}>{formatarPreco(total)}</Text>
+              <Text style={styles.total}>
+                Total
+              </Text>
+
+              <Text style={styles.total}>
+                {formatarPreco(total)}
+              </Text>
             </View>
 
           </View>
@@ -166,8 +288,15 @@ export default function Carrinho() {
             style={styles.botaoPagamento}
             onPress={() => router.push('/')}
           >
-            <Text style={styles.textoPagamento}>Pagamento</Text>
-            <Ionicons name="arrow-forward" size={25} color="#fff" />
+            <Text style={styles.textoPagamento}>
+              Pagamento
+            </Text>
+
+            <Ionicons
+              name="arrow-forward"
+              size={25}
+              color="#fff"
+            />
           </Pressable>
 
         </>
@@ -180,9 +309,15 @@ export default function Carrinho() {
 
         <View style={styles.carrinhoVazio}>
 
-          <Ionicons name="cart-outline" size={80} color="#41805a" />
+          <Ionicons
+            name="cart-outline"
+            size={80}
+            color="#41805a"
+          />
 
-          <Text style={styles.tituloVazio}>Seu carrinho está vazio</Text>
+          <Text style={styles.tituloVazio}>
+            Seu carrinho está vazio
+          </Text>
 
           <Text style={styles.descricaoVazio}>
             Adicione produtos para continuar.
@@ -191,10 +326,17 @@ export default function Carrinho() {
           {/* CONTINUAR COMPRANDO */}
           <Pressable
             style={styles.botaoContinuar}
-            onPress={() => router.push('/')}
+            onPress={() => router.push('/home')}
           >
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-            <Text style={styles.textoContinuar}>Continuar comprando</Text>
+            <Ionicons
+              name="arrow-back"
+              size={22}
+              color="#fff"
+            />
+
+            <Text style={styles.textoContinuar}>
+              Continuar comprando
+            </Text>
           </Pressable>
 
         </View>
