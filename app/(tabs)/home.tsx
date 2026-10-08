@@ -2,7 +2,7 @@ import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Image } from 'r
 import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Dados from '../rotaServidor/dados';
+import Dados, { type Categoria } from '../rotaServidor/dadosProdutos';
 
 /* ---------- Dados ---------- */
 // Cole o link da foto em "imagem". Se ficar vazio ('') ou o link falhar, aparece o ícone.
@@ -77,7 +77,7 @@ export default function Home() {
   const buscaRef = useRef<TextInput>(null);
   const [produtosLista, setProdutosLista] = useState(ofertas);
 
-  function atualizarTitulo(categoriaSelecionada) {    
+  function atualizarTitulo(categoriaSelecionada: Categoria) {    
       setTituloDalista(categoriaSelecionada.nome);
       const produtosCategoria=produtos.filter(
          (produto) => produto.categoria==categoriaSelecionada.id
