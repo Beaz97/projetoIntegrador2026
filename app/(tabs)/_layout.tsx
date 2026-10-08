@@ -1,11 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
-import { CarrinhoProvider } from "../carrinhocontent";
 
 export default function TabLayout() {
   return (
-    <CarrinhoProvider>
+    <>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -72,6 +71,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </CarrinhoProvider>
+    </>
   );
 }
