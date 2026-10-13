@@ -29,53 +29,61 @@ export default function Carrinho() {
   const [produtos, setProdutos] = useState([]);
 
   // =========================
+  // SALVAR A LISTA (estado + disco)
+  // =========================
+  // Assim a quantidade não volta ao valor antigo quando a tela ganha foco.
+  function salvarLista(novaLista) {
+    setProdutos(novaLista);
+    AsyncStorage.setItem('carrinho', JSON.stringify(novaLista));
+  }
+
+  // =========================
   // AUMENTAR QUANTIDADE
   // =========================
   function aumentarQuantidade(id) {
-    setProdutos((produtosAtuais) =>
-      produtosAtuais.map((produto) => {
-        if (produto.id === id) {
-          return {
-            ...produto,
-            quantidade: produto.quantidade + 1,
-          };
-        }
+    const novaLista = produtos.map((produto) => {
+      if (produto.id === id) {
+        return {
+          ...produto,
+          quantidade: (Number(produto.quantidade) || 1) + 1,
+        };
+      }
 
-        return produto;
-      })
-    );
+      return produto;
+    });
+
+    salvarLista(novaLista);
   }
 
   // =========================
   // DIMINUIR QUANTIDADE
   // =========================
   function diminuirQuantidade(id) {
-    setProdutos((produtosAtuais) => {
-      return produtosAtuais
-        .map((produto) => {
-          if (produto.id === id) {
-            return {
-              ...produto,
-              quantidade: produto.quantidade - 1,
-            };
-          }
+    const novaLista = produtos
+      .map((produto) => {
+        if (produto.id === id) {
+          return {
+            ...produto,
+            quantidade: (Number(produto.quantidade) || 1) - 1,
+          };
+        }
 
-          return produto;
-        })
-        .filter((produto) => produto.quantidade > 0);
-        
-    });
+        return produto;
+      })
+      .filter((produto) => produto.quantidade > 0);
+
+    salvarLista(novaLista);
   }
 
   // =========================
   // REMOVER PRODUTO
   // =========================
   function removerProduto(id) {
-    setProdutos((produtosAtuais) => {
-      return produtosAtuais.filter(
-        (produto) => produto.id !== id
-      );
-    });
+    const novaLista = produtos.filter(
+      (produto) => produto.id !== id
+    );
+
+    salvarLista(novaLista);
   }
 
   // =========================
@@ -92,14 +100,15 @@ export default function Carrinho() {
 
   const quantidadeTotal = produtos.reduce(
     (total, produto) =>
-      total + produto.quantidade,
+      total + (Number(produto.quantidade) || 1),
     0
   );
 
   const subtotal = produtos.reduce(
     (total, produto) =>
       total +
-      produto.preco * produto.quantidade,
+      (Number(produto.preco) || 0) *
+        (Number(produto.quantidade) || 1),
     0
   );
 

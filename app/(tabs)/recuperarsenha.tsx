@@ -1,20 +1,42 @@
 import { View, Text, TextInput, Pressable, StyleSheet, Image, Alert } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { router, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 
 export default function RecuperarSenha() {
   const [email, setEmail] = useState('');
+  const [enviado, setEnviado] = useState(false);
+
+  // Quando "enviado" vira true: espera 2 segundos, tira a faixa e muda de página.
+  // O return limpa o timer se a pessoa sair da tela antes.
+  useEffect(() => {
+    if (!enviado) {
+      return;
+    }
+
+    const id = setTimeout(() => {
+      setEnviado(false);
+      router.push('/senha');
+    }, 2000);
+
+    return () => clearTimeout(id);
+  }, [enviado]);
 
 const enviar = () => {
-  Alert.alert('Pronto!', 'Enviamos um código para o seu email.', [
-    { text: 'OK', onPress: () => router.push('/senha') },
-  ]);
+  setEnviado(true);
 };
 
   return (
     <View style={styles.container}>
+      {/* Faixa de aviso lá em cima */}
+      {enviado && (
+        <View style={styles.faixa}>
+          <Ionicons name="checkmark-circle" size={28} color="#fff" />
+          <Text style={styles.faixaTexto}>Email enviado!</Text>
+        </View>
+      )}
+
       {/* Topo verde com o porquinho */}
       <View style={styles.topo}>
       </View>
@@ -57,6 +79,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#41805a',
+  },
+
+  /* Faixa de aviso no topo */
+  faixa: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#1f4d2e',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  faixaTexto: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
   },
 
   /* Topo */

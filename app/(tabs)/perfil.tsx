@@ -46,7 +46,7 @@ export default function Perfil() {
         <Pressable
           hitSlop={10}
           style={({ pressed }) => pressed && styles.botaoPressionado}
-          onPress={() => {}}
+          onPress={() => router.push('/configuracoes')}
         >
           <Ionicons name="settings-outline" size={38} color="#fff" />
         </Pressable>

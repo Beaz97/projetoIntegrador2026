@@ -11,6 +11,15 @@ const dados = Dados();
 const produtos= dados.produtos;
 const categorias= dados.categorias;
 
+const cidades = [
+  'Criciúma, SC',
+  'Içara, SC',
+  'Forquilhinha, SC',
+  'Siderópolis, SC',
+  'Nova Veneza, SC',
+  'Cocal do Sul, SC',
+];
+
 const ofertas=produtos.filter(
   (produto) => produto.oferta==true
 );
@@ -76,6 +85,8 @@ export default function Home() {
   const [categoria, setCategoria] = useState('1');
   const buscaRef = useRef<TextInput>(null);
   const [produtosLista, setProdutosLista] = useState(ofertas);
+  const [cidade, setCidade] = useState('Criciúma, SC');
+  const [mostrarCidades, setMostrarCidades] = useState(false);
 
   function atualizarTitulo(categoriaSelecionada: Categoria) {    
       setTituloDalista(categoriaSelecionada.nome);
@@ -83,6 +94,27 @@ export default function Home() {
          (produto) => produto.categoria==categoriaSelecionada.id
        );
       setProdutosLista(produtosCategoria);
+  }
+
+  function pesquisar(texto: string) {
+    setBusca(texto);
+
+    if (texto === '') {
+      setTituloDalista('Ofertas da semana');
+      setProdutosLista(ofertas);
+      return;
+    }
+
+    setTituloDalista('Resultados');
+    const resultado = produtos.filter(
+      (produto) => produto.nome.toLowerCase().includes(texto.toLowerCase())
+    );
+    setProdutosLista(resultado);
+  }
+
+  function escolherCidade(nome: string) {
+    setCidade(nome);
+    setMostrarCidades(false);
   }
 
   return (
@@ -93,11 +125,30 @@ export default function Home() {
         <Text style={styles.subtitulo}>Que bom te ver por aqui!</Text>
 
         {/* Localização */}
-        <Pressable style={styles.local}>
+        <Pressable style={styles.local} onPress={() => setMostrarCidades(!mostrarCidades)}>
           <Ionicons name="location" size={28} color="#2f7a4b" />
-          <Text style={styles.localTexto}>Criciúma, SC</Text>
-          <Ionicons name="chevron-forward" size={26} color="#2f7a4b" />
+          <Text style={styles.localTexto}>{cidade}</Text>
+          <Ionicons
+            name={mostrarCidades ? 'chevron-down' : 'chevron-forward'}
+            size={26}
+            color="#2f7a4b"
+          />
         </Pressable>
+
+        {/* Janela com as cidades */}
+        {mostrarCidades && (
+          <View style={styles.listaCidades}>
+            {cidades.map((nome) => (
+              <Pressable
+                key={nome}
+                style={[styles.cidadeItem, nome === cidade && styles.cidadeItemAtiva]}
+                onPress={() => escolherCidade(nome)}
+              >
+                <Text style={styles.cidadeTexto}>{nome}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* Busca */}
         <Pressable style={styles.busca} onPress={() => buscaRef.current?.focus()}>
@@ -108,7 +159,7 @@ export default function Home() {
             placeholder="O que você procura?"
             placeholderTextColor="#444"
             value={busca}
-            onChangeText={setBusca}
+            onChangeText={pesquisar}
           />
         </Pressable>
 
@@ -142,9 +193,7 @@ export default function Home() {
         {/* Ofertas da semana */}
         <View style={styles.ofertasTopo}>
           <Text style={styles.ofertasTitulo}>{tituloDalista}</Text>
-          <Pressable>
-            <Text style={styles.verMais}>Ver mais</Text>
-          </Pressable>
+         
         </View>
 
         {/* Carrossel */}
@@ -231,6 +280,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1f4d2e',
     marginLeft: 16,
+  },
+  listaCidades: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#2f7a4b',
+    borderRadius: 14,
+    marginRight: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  cidadeItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dcefe3',
+  },
+  cidadeItemAtiva: {
+    backgroundColor: '#dcefe3',
+  },
+  cidadeTexto: {
+    fontSize: 16,
+    color: '#1f4d2e',
   },
   busca: {
     flexDirection: 'row',
