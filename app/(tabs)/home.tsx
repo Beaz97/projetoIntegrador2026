@@ -89,6 +89,7 @@ export default function Home() {
   const [mostrarCidades, setMostrarCidades] = useState(false);
 
   function atualizarTitulo(categoriaSelecionada: Categoria) {    
+      setCategoria(categoriaSelecionada.id);
       setTituloDalista(categoriaSelecionada.nome);
       const produtosCategoria=produtos.filter(
          (produto) => produto.categoria==categoriaSelecionada.id

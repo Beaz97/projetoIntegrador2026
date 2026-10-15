@@ -9,8 +9,17 @@ const usuario = {
   email: 'Vic@gmail.com',
   compras: 12,
   // Cole aqui o link direto da imagem do mapa. Se ficar vazio, aparece um mapa de exemplo.
-  mapa: '',
+  mapa: 'https://tse3.mm.bing.net/th/id/OIP.fLAOcrZQ0T-hQaJSi9VC-AHaEs?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
 };
+
+// Lista do histórico. Troque pelos seus dados (mercado, data e total gasto).
+const historico = [
+  { id: '1', mercado: 'Supermercado Bistek', data: '10/10/2026', total: '152,90' },
+  { id: '2', mercado: 'Angeloni', data: '03/10/2026', total: '87,45' },
+  { id: '3', mercado: 'Giassi', data: '27/09/2026', total: '210,30' },
+  { id: '4', mercado: 'Fort Atacadista', data: '19/09/2026', total: '342,00' },
+  { id: '5', mercado: 'Supermercado Bistek', data: '12/09/2026', total: '64,80' },
+];
 
 /* ---------- Mapa com fallback ---------- */
 function Mapa({ uri }: { uri?: string }) {
@@ -29,6 +38,7 @@ function Mapa({ uri }: { uri?: string }) {
 /* ---------- Tela ---------- */
 export default function Perfil() {
   const router = useRouter();
+  const [mostrarHistorico, setMostrarHistorico] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -61,7 +71,7 @@ export default function Perfil() {
         {/* Histórico de compras */}
         <Pressable
           style={({ pressed }) => [styles.historico, pressed && styles.botaoPressionado]}
-          onPress={() => {}}
+          onPress={() => setMostrarHistorico(!mostrarHistorico)}
         >
           <Ionicons name="cart-outline" size={44} color="#2f7a4b" />
           <View style={styles.historicoTextos}>
@@ -70,13 +80,28 @@ export default function Perfil() {
           </View>
         </Pressable>
 
+        {/* Janela com o histórico */}
+        {mostrarHistorico && (
+          <View style={styles.listaHistorico}>
+            {historico.map((compra) => (
+              <View key={compra.id} style={styles.historicoItem}>
+                <View style={styles.historicoItemTextos}>
+                  <Text style={styles.historicoMercado}>{compra.mercado}</Text>
+                  <Text style={styles.historicoData}>{compra.data}</Text>
+                </View>
+                <Text style={styles.historicoPreco}>R$ {compra.total}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Mapa */}
         <Mapa uri={usuario.mapa} />
 
         {/* Alterar endereço */}
         <Pressable
           style={({ pressed }) => [styles.botaoEndereco, pressed && styles.botaoPressionado]}
-          onPress={() => {}}
+          onPress={() => router.push({ pathname: '/configuracoes', params: { tela: 'enderecos' } })}
         >
           <Text style={styles.botaoEnderecoTexto}>Alterar endereço</Text>
         </Pressable>
@@ -213,6 +238,41 @@ const styles = StyleSheet.create({
   historicoSub: {
     fontSize: 18,
     color: '#1f4d2e',
+  },
+
+  /* Janela do histórico */
+  listaHistorico: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#2f7a4b',
+    borderRadius: 14,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  historicoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dcefe3',
+  },
+  historicoItemTextos: {
+    flex: 1,
+  },
+  historicoMercado: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f4d2e',
+  },
+  historicoData: {
+    fontSize: 14,
+    color: '#777',
+  },
+  historicoPreco: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2f7a4b',
   },
 
   /* Mapa */

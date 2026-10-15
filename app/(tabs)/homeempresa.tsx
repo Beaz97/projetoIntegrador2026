@@ -8,49 +8,64 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 const VERDE = '#3D8054';
 const VERDE_ESCURO = '#245D39';
+const FUNDO = '#F7F9F7';
 
 type MenuCardProps = {
   titulo: string;
+  descricao: string;
   icone: keyof typeof Ionicons.glyphMap;
+  corFundo: string;
   onPress: () => void;
 };
 
 function MenuCard({
   titulo,
+  descricao,
   icone,
+  corFundo,
   onPress,
 }: MenuCardProps) {
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
+        { backgroundColor: corFundo },
         pressed && styles.cardPressed,
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={titulo}
+      accessibilityLabel={`${titulo}. ${descricao}`}
     >
-      <Ionicons
-        name={icone}
-        size={39}
-        color={VERDE_ESCURO}
-      />
+      <View style={styles.cardTopo}>
+        <View style={styles.iconeContainer}>
+          <Ionicons
+            name={icone}
+            size={30}
+            color={VERDE_ESCURO}
+          />
+        </View>
 
-      <View style={styles.cardRodape}>
+        <Ionicons
+          name="arrow-forward-circle"
+          size={32}
+          color={VERDE}
+        />
+      </View>
+
+      <View style={styles.cardTexto}>
         <Text style={styles.cardTitulo}>
           {titulo}
         </Text>
 
-        <Ionicons
-          name="chevron-forward"
-          size={31}
-          color={VERDE}
-        />
+        <Text style={styles.cardDescricao}>
+          {descricao}
+        </Text>
       </View>
     </Pressable>
   );
@@ -66,100 +81,177 @@ export default function HomeScreen() {
         backgroundColor={VERDE}
       />
 
+      {/* CABEÇALHO */}
+      <View style={styles.cabecalho}>
+        <View style={styles.cabecalhoLinha}>
+          <View>
+            <Text style={styles.boasVindas}>
+              Olá, Empresa!
+            </Text>
+
+            <Text style={styles.subtitulo}>
+              Gerencie seu negócio
+            </Text>
+          </View>
+
+          <View style={styles.logo}>
+            <Ionicons
+              name="storefront-outline"
+              size={35}
+              color={VERDE_ESCURO}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.textoCabecalho}>
+          Tudo o que você precisa em um só lugar.
+        </Text>
+      </View>
+
+      {/* CONTEÚDO */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
       >
-        {/* CABEÇALHO VERDE */}
-        <View style={styles.cabecalho}>
-          <Text style={styles.boasVindas}>
-            Olá, Empresa!
-          </Text>
-
-          <Text style={styles.subtitulo}>
-            Gerencie seus produtos
-          </Text>
-        </View>
-
-        {/* CONTEÚDO DA PÁGINA */}
-        <View style={styles.corpo}>
-
-          {/* TOTAL DE PRODUTOS */}
-          <View style={styles.totalCard}>
-            <View>
-              <Text style={styles.totalLabel}>
-                Total de produtos
-              </Text>
-
-              <Text style={styles.totalNumero}>
-                167
-              </Text>
-            </View>
-
+        {/* TOTAL DE PRODUTOS */}
+        <View style={styles.totalCard}>
+          <View style={styles.totalIcone}>
             <Ionicons
-              name="cube"
-              size={37}
+              name="cube-outline"
+              size={34}
               color={VERDE_ESCURO}
             />
           </View>
 
-          {/* MENU COM QUATRO CARDS */}
-          <View style={styles.grade}>
-            <MenuCard
-              titulo="Meus produtos"
-              icone="cube"
-              onPress={() => router.push('/')}
+          <View style={styles.totalInformacao}>
+            <Text style={styles.totalLabel}>
+              Total de produtos
+            </Text>
+
+            <Text style={styles.totalNumero}>
+              167
+            </Text>
+
+            <Text style={styles.totalDescricao}>
+              Produtos no seu catálogo
+            </Text>
+          </View>
+
+          <View style={styles.totalDecoracao}>
+            <Ionicons
+              name="layers-outline"
+              size={43}
+              color={VERDE}
             />
 
-            <MenuCard
-              titulo="Ofertas"
-              icone="pricetag-outline"
-              onPress={() => router.push('/')}
-            />
-
-            <MenuCard
-              titulo="Categorias"
-              icone="folder-outline"
-              onPress={() => router.push('/')}
-            />
-
-            <MenuCard
-              titulo="Relatório"
-              icone="bar-chart-outline"
-              onPress={() => router.push('/')}
-            />
-
-              {/* Barra de baixo */}
-                  <View style={styles.barraContainer}>
-                    <View style={styles.barra}>
-                      <Pressable
-                        hitSlop={10}
-                        style={({ pressed }) => pressed && styles.botaoPressionado}
-                        onPress={() => router.push('/home')}
-                      >
-                        <Ionicons name="home" size={40} color="#fff" />
-                      </Pressable>
-            
-                      <Pressable
-                        hitSlop={10}
-                        style={({ pressed }) => pressed && styles.botaoPressionado}
-                        onPress={() => router.push('/perfil' as any)}
-                      >
-                        <Ionicons name="person" size={40} color="#fff" />
-                      </Pressable>
-                    </View>
-            
-                    <Pressable
-                      style={({ pressed }) => [styles.carrinho, pressed && styles.botaoPressionado]}
-                      onPress={() => router.push('/carrinho' as any)}
-                    >
-                      <Ionicons name="cart-outline" size={44} color="#fff" />
-                    </Pressable>
-                  </View>
+            <Text style={styles.totalDecoracaoTexto}>
+              Catálogo
+            </Text>
           </View>
         </View>
+
+        {/* TÍTULO DO MENU */}
+        <View style={styles.tituloSecao}>
+          <View>
+            <Text style={styles.tituloMenu}>
+              Acesso rápido
+            </Text>
+
+            <Text style={styles.subtituloMenu}>
+              O que você deseja fazer?
+            </Text>
+          </View>
+
+          <Ionicons
+            name="grid-outline"
+            size={25}
+            color={VERDE}
+          />
+        </View>
+
+        {/* PRIMEIRA LINHA */}
+        <View style={styles.grade}>
+          <MenuCard
+            titulo="Meus produtos"
+            descricao="Consulte e edite seu catálogo."
+            icone="cube-outline"
+            corFundo="#EAF5ED"
+            onPress={() => router.push('/produtos' as any)}
+          />
+
+          <MenuCard
+            titulo="Ofertas"
+            descricao="Crie e gerencie promoções."
+            icone="pricetag-outline"
+            corFundo="#FFF6E4"
+            onPress={() => router.push('/ofertas' as any)}
+          />
+
+          {/* SEGUNDA LINHA */}
+       
+        <MenuCard
+          titulo="Adicionar produto"
+          descricao="Adicione novos produtos ao seu catálogo."
+          icone="add-circle-outline"
+          corFundo="#F0ECFA"
+          onPress={() => router.push('/produtos/criar' as any)}
+        />
+
+          <MenuCard
+            titulo="Criar oferta"
+            descricao="Crie promoções e destaque seus produtos."
+            icone="add-circle-outline"
+            corFundo="#F0ECFA"
+            onPress={() => router.push('/ofertas/criar' as any)}
+          />
+      </View>
       </ScrollView>
+
+      {/* NAVEGAÇÃO INFERIOR */}
+      <View style={styles.barraInferior}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.itemNavegacao,
+            pressed && styles.itemPressionado,
+          ]}
+          onPress={() => router.push('/home' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Início"
+        >
+          <Ionicons
+            name="home"
+            size={25}
+            color="#FFFFFF"
+          />
+
+          <Text style={styles.textoNavegacaoAtivo}>
+            Início
+          </Text>
+
+          <View style={styles.indicadorAtivo} />
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.itemNavegacao,
+            pressed && styles.itemPressionado,
+          ]}
+          onPress={() => router.push('/perfil' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Perfil"
+        >
+          <Ionicons
+            name="person-outline"
+            size={25}
+            color="#D9E9DD"
+          />
+
+          <Text style={styles.textoNavegacao}>
+            Perfil
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -167,143 +259,292 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: FUNDO,
   },
 
-  scroll: {
-    flex: 1,
-  },
-
-  conteudo: {
-    flexGrow: 1,
-    paddingBottom: 24,
-  },
-
-  // Cabeçalho verde com cantos inferiores arredondados
+  // CABEÇALHO
   cabecalho: {
     backgroundColor: VERDE,
-    minHeight: 190,
-    paddingTop: 45,
-    paddingHorizontal: 30,
-    paddingBottom: 65,
-    borderBottomLeftRadius: 70,
-    borderBottomRightRadius: 70,
+    paddingTop: 52,
+    paddingHorizontal: 24,
+    paddingBottom: 35,
+    borderBottomLeftRadius: 38,
+    borderBottomRightRadius: 38,
+  },
+
+  cabecalhoLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   boasVindas: {
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
 
   subtitulo: {
-    fontSize: 19,
+    fontSize: 16,
+    color: '#E7F2E9',
+    marginTop: 5,
+  },
+
+  logo: {
+    width: 62,
+    height: 62,
+    borderRadius: 22,
+    backgroundColor: '#D9ECDD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  textoCabecalho: {
+    fontSize: 14,
     color: '#FFFFFF',
-    marginTop: 2,
+    marginTop: 23,
+    opacity: 0.95,
   },
 
-  corpo: {
-    paddingHorizontal: 22,
-    marginTop: -43,
+  // ÁREA ROLÁVEL
+  scroll: {
+    flex: 1,
   },
 
-  // Cartão com o total de produtos
+  conteudo: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 25,
+  },
+
+  // RESUMO
   totalCard: {
-    minHeight: 115,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: '#B8B8B8',
-    paddingHorizontal: 25,
-    paddingVertical: 18,
+    borderColor: '#E4EBE5',
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    shadowColor: '#244D32',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+
+  totalIcone: {
+    width: 62,
+    height: 62,
+    borderRadius: 19,
+    backgroundColor: '#E3F1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  totalInformacao: {
+    flex: 1,
+    marginLeft: 14,
   },
 
   totalLabel: {
-    color: VERDE_ESCURO,
-    fontSize: 18,
+    fontSize: 14,
+    color: '#65736A',
   },
 
   totalNumero: {
-    color: VERDE_ESCURO,
-    fontSize: 39,
+    fontSize: 35,
     fontWeight: 'bold',
+    color: VERDE_ESCURO,
     marginTop: 1,
   },
 
-  // Organização dos quatro cards
+  totalDescricao: {
+    fontSize: 11,
+    color: '#758078',
+    marginTop: 1,
+  },
+
+  totalDecoracao: {
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+
+  totalDecoracaoTexto: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: VERDE,
+    marginTop: 4,
+  },
+
+  // TÍTULO DA SEÇÃO
+  tituloSecao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 29,
+    marginBottom: 17,
+  },
+
+  tituloMenu: {
+    fontSize: 23,
+    fontWeight: 'bold',
+    color: '#173E2B',
+  },
+
+  subtituloMenu: {
+    fontSize: 14,
+    color: '#778079',
+    marginTop: 4,
+  },
+
+  // CARDS
   grade: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 32,
+    justifyContent: 'space-between',
+    rowGap: 15,
   },
 
   card: {
-    width: '44%',
-    maxWidth: 190,
-    minWidth: 130,
-    height: 135,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#B8B8B8',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 15,
-    paddingVertical: 16,
+    width: '48%',
+    minHeight: 166,
+    borderRadius: 22,
+    padding: 15,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#E8EDE8',
+    shadowColor: '#1F3D29',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 7,
+    elevation: 2,
   },
 
   cardPressed: {
-    backgroundColor: '#EFF6F0',
-    opacity: 0.85,
+    opacity: 0.75,
+    transform: [{ scale: 0.98 }],
   },
 
-  cardRodape: {
+  cardTopo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 3,
+    marginBottom: 16,
+  },
+
+  iconeContainer: {
+    width: 49,
+    height: 49,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cardTexto: {
+    flex: 1,
+    justifyContent: 'flex-end',
   },
 
   cardTitulo: {
-    color: VERDE_ESCURO,
-    fontSize: 17,
-    flex: 1,
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#214B31',
+    lineHeight: 20,
   },
-   barraContainer: {
-    height: 106,
+
+  cardDescricao: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#68736B',
+    marginTop: 6,
   },
-  barra: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+
+  // DICA
+  dicaCard: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#41805a',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    height: 70,
+    backgroundColor: VERDE_ESCURO,
+    borderRadius: 22,
+    padding: 18,
+    marginTop: 24,
   },
-  botaoPressionado: {
-    opacity: 0.6,
-  },
-  carrinho: {
-    position: 'absolute',
-    top: 0,
-    left: '50%',
-    marginLeft: -40,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#41805a',
-    borderWidth: 4,
-    borderColor: '#fff',
+
+  dicaIcone: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#477D59',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 13,
+  },
+
+  dicaConteudo: {
+    flex: 1,
+  },
+
+  dicaTitulo: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  dicaTexto: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#E1EEE4',
+    marginTop: 5,
+  },
+
+  // BARRA INFERIOR
+  barraInferior: {
+    height: 76,
+    backgroundColor: VERDE_ESCURO,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 25,
+    paddingBottom: 5,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+  },
+
+  itemNavegacao: {
+    width: 100,
+    height: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+
+  itemPressionado: {
+    opacity: 0.65,
+  },
+
+  textoNavegacaoAtivo: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  textoNavegacao: {
+    fontSize: 12,
+    color: '#D9E9DD',
+  },
+
+  indicadorAtivo: {
+    width: 24,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
   },
 });

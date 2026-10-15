@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, FlatList, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
@@ -12,12 +12,13 @@ function Tela({ titulo, subtitulo, onVoltar, children }: TelaProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {onVoltar && (
+        <View style={styles.cabecalho}>
           <Pressable onPress={onVoltar} style={styles.voltar}>
-            <Ionicons name="arrow-back" size={26} color="#44805c" />
+            <Ionicons name="arrow-back" size={30} color="#44805c" />
           </Pressable>
-        )}
-        <Text style={styles.titulo}>{titulo}</Text>
+          <Text style={styles.titulo}>{titulo}</Text>
+          <View style={styles.voltar} />
+        </View>
         <Text style={styles.subtitulo}>{subtitulo}</Text>
       </View>
       {children}
@@ -263,10 +264,15 @@ const MENU: ItemMenu[] = [
 
 export default function Configuracoes() {
   const router = useRouter();
-  const [tela, setTela] = useState<Rota>('home');
+  const params = useLocalSearchParams<{ tela?: string }>();
+  const veioDoPerfil = params.tela === 'enderecos';
+
+  // Se veio do botão "Alterar endereço" do perfil, já abre em Meus endereços
+  const [tela, setTela] = useState<Rota>(veioDoPerfil ? 'enderecos' : 'home');
   const [saindo, setSaindo] = useState(false);
 
-  const voltar = () => setTela('home');
+  // Se veio do perfil, volta para o perfil; senão, volta para o menu de configurações
+  const voltar = () => (veioDoPerfil ? router.push('/perfil') : setTela('home'));
 
   if (tela === 'conta') return <Conta onVoltar={voltar} />;
   if (tela === 'enderecos') return <Enderecos onVoltar={voltar} />;
@@ -306,7 +312,11 @@ export default function Configuracoes() {
   );
 
   return (
-    <Tela titulo="Configurações" subtitulo="Gerencie sua conta e suas preferências.">
+    <Tela
+      titulo="Configurações"
+      subtitulo="Gerencie sua conta e suas preferências."
+      onVoltar={() => router.push('/perfil')}
+    >
       <FlatList
         data={MENU}
         keyExtractor={(item) => item.id}
@@ -324,9 +334,10 @@ const styles = StyleSheet.create({
   conteudo: { padding: 16, paddingBottom: 100 },
 
   header: { paddingTop: 50, paddingHorizontal: 16, paddingBottom: 8 },
-  voltar: { marginBottom: 8 },
-  titulo: { fontSize: 26, fontWeight: 'bold', color: '#000' },
-  subtitulo: { fontSize: 14, color: '#000' },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  voltar: { width: 40 },
+  titulo: { flex: 1, textAlign: 'center', fontSize: 24, fontWeight: 'bold', color: '#000' },
+  subtitulo: { fontSize: 14, color: '#000', textAlign: 'center', marginTop: 4 },
 
   item: {
     flexDirection: 'row',
