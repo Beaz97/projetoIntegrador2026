@@ -1,91 +1,96 @@
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from "expo-router";
+
 
 export default function Carrinho() {
+
+    // Função que lê do disco e atualiza o estado.
+    async function atualizar() {
+        const lista = await AsyncStorage.getItem('carrinho');
+        if (lista) {
+            setProdutos(JSON.parse(lista));
+        }
+        
+    }
+    // Chama a função atualizar sempre que a tela ganha foco.
+    useFocusEffect(
+        useCallback(() => {
+            atualizar();
+        }, [])
+    );
+
+
   const router = useRouter();
 
-  const [produtos, setProdutos] = useState([
-    {
-      id: 1,
-      nome: 'Arroz branco Urbano',
-      descricao: '1Kg - Combo atacadista',
-      preco: 24.90,
-      quantidade: 2,
-      imagem: '',
-    },
-    {
-      id: 2,
-      nome: 'Banana Nanica',
-      descricao: '1Kg - Combo atacadista',
-      preco: 3.49,
-      quantidade: 1,
-      imagem: '',
-    },
-    {
-      id: 3,
-      nome: 'Leite integral',
-      descricao: '1L - Fort atacadista',
-      preco: 4.99,
-      quantidade: 3,
-      imagem: '',
-    },
-  ]);
+  const [produtos, setProdutos] = useState([]);
+
+  // =========================
+  // SALVAR A LISTA (estado + disco)
+  // =========================
+  // Assim a quantidade não volta ao valor antigo quando a tela ganha foco.
+  function salvarLista(novaLista) {
+    setProdutos(novaLista);
+    AsyncStorage.setItem('carrinho', JSON.stringify(novaLista));
+  }
 
   // =========================
   // AUMENTAR QUANTIDADE
   // =========================
   function aumentarQuantidade(id) {
-    setProdutos((produtosAtuais) =>
-      produtosAtuais.map((produto) => {
-        if (produto.id === id) {
-          return {
-            ...produto,
-            quantidade: produto.quantidade + 1,
-          };
-        }
+    const novaLista = produtos.map((produto) => {
+      if (produto.id === id) {
+        return {
+          ...produto,
+          quantidade: (Number(produto.quantidade) || 1) + 1,
+        };
+      }
 
-        return produto;
-      })
-    );
+      return produto;
+    });
+
+    salvarLista(novaLista);
   }
 
   // =========================
   // DIMINUIR QUANTIDADE
   // =========================
   function diminuirQuantidade(id) {
-    setProdutos((produtosAtuais) => {
-      return produtosAtuais
-        .map((produto) => {
-          if (produto.id === id) {
-            return {
-              ...produto,
-              quantidade: produto.quantidade - 1,
-            };
-          }
+    const novaLista = produtos
+      .map((produto) => {
+        if (produto.id === id) {
+          return {
+            ...produto,
+            quantidade: (Number(produto.quantidade) || 1) - 1,
+          };
+        }
 
-          return produto;
-        })
-        .filter((produto) => produto.quantidade > 0);
-    });
+        return produto;
+      })
+      .filter((produto) => produto.quantidade > 0);
+
+    salvarLista(novaLista);
   }
 
   // =========================
   // REMOVER PRODUTO
   // =========================
   function removerProduto(id) {
-    setProdutos((produtosAtuais) => {
-      return produtosAtuais.filter(
-        (produto) => produto.id !== id
-      );
-    });
+    const novaLista = produtos.filter(
+      (produto) => produto.id !== id
+    );
+
+    salvarLista(novaLista);
   }
 
   // =========================
   // LIMPAR CARRINHO
   // =========================
   function limparCarrinho() {
+    AsyncStorage.removeItem('carrinho');
     setProdutos([]);
   }
 
@@ -95,14 +100,15 @@ export default function Carrinho() {
 
   const quantidadeTotal = produtos.reduce(
     (total, produto) =>
-      total + produto.quantidade,
+      total + (Number(produto.quantidade) || 1),
     0
   );
 
   const subtotal = produtos.reduce(
     (total, produto) =>
       total +
-      produto.preco * produto.quantidade,
+      (Number(produto.preco) || 0) *
+        (Number(produto.quantidade) || 1),
     0
   );
 
