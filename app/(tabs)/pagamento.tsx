@@ -1,15 +1,21 @@
 import { View, StyleSheet, Text, Pressable, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 
 export default function pagamento() {
+    const router = useRouter()
+    const [stateUm, setStateUm] = useState('Entrega');
+    const [stateDois, setStateDois] = useState('Pix');
     
     return (
         <View style={styles.parent}>
             <View style={styles.header}>
-                <Pressable style={[styles.voltar, {flex: 1}]}>
-                    <Ionicons name="chevron-back-sharp" color={'#315F3C'} size={35}></Ionicons>
-                </Pressable>
+                <View style={[styles.voltar, {flex: 1}]}>
+                    <Pressable onPress={router.back}>
+                        <Ionicons name="chevron-back-sharp" color={'#315F3C'} size={35}></Ionicons>
+                    </Pressable>
+                </View>
                 <Text style={[styles.titulo, {flex: 3, textAlign: 'center'}]}>Finalizar compra</Text>
                 <View style={{flex: 1}}></View>
             </View>
@@ -18,24 +24,30 @@ export default function pagamento() {
                     <Text style={styles.titulo}>Entrega ou retirada</Text>
                     <View style={styles.campo}>
                         <View style={styles.option}>
-                            <Pressable style={({pressed})=>[styles.normal, pressed && styles.yPress]}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateUm('Entrega')
+                                        }}>
                                 <View style={styles.align}>
-                                    <Pressable style={[styles.selection, {}]} onPress={()=>{}}/>
+                                    <View style={stateUm == 'Entrega'? styles.selected : styles.unselected}/>
                                 </View>
                                 <View style={styles.align}>
-                                    <Text style={styles.rotuloMaior}>Entrega</Text>
+                                    <Text style={styles.rotuloMaior}>Entrega em casa</Text>
                                     <Text style={styles.rotuloMenor}>Endereço</Text>
+                                    
                                 </View>
                             </Pressable>
                         </View>
                         <View style={styles.skip}>
-                            <Pressable style={({pressed})=>[styles.normal, pressed && styles.yPress]}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateUm('Retirar')
+                                        }}>
                                 <View style={styles.align}>
-                                    <Pressable style={styles.selection}/>
+                                    <View style={stateUm == 'Retirar'? styles.selected : styles.unselected}/>
                                 </View>
                                 <View style={styles.align}>
-                                    <Text style={styles.rotuloMaior}>Entrega</Text>
-                                    <Text style={styles.rotuloMenor}>Endereço</Text>
+                                    <Text style={styles.rotuloMaior}>Retirar na loja</Text>
+                                    <Text style={styles.rotuloMenor}>Encontre o mercado mais próximo</Text>
+                                    
                                 </View>
                             </Pressable>
                         </View>
@@ -44,7 +56,62 @@ export default function pagamento() {
                 <View style={styles.pagamento}>
                     <Text style={styles.titulo}>Forma de pagamento</Text>
                     <View style={styles.campo}>
-                        
+                        <View style={styles.option}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateDois('Pix')
+                                        }}>
+                                <View style={styles.align}>
+                                    <View style={stateDois == 'Pix'? styles.selected : styles.unselected}/>
+                                </View>
+                                <View style={styles.align}>
+                                    <Text style={styles.rotuloMaior}>Pix</Text>
+                                    <Text style={styles.rotuloMenor}>Pagamento Instantâneo</Text>
+                                    
+                                </View>
+                            </Pressable>
+                        </View>
+                        <View style={styles.option}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateDois('Credito')
+                                        }}>
+                                <View style={styles.align}>
+                                    <View style={stateDois == 'Credito'? styles.selected : styles.unselected}/>
+                                </View>
+                                <View style={styles.align}>
+                                    <Text style={styles.rotuloMaior}>Cartão de Crédito</Text>
+                                    <Text style={styles.rotuloMenor}>Em até 12x</Text>
+                                    
+                                </View>
+                            </Pressable>
+                        </View>
+                        <View style={styles.option}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateDois('Debito')
+                                        }}>
+                                <View style={styles.align}>
+                                    <View style={stateDois == 'Debito'? styles.selected : styles.unselected}/>
+                                </View>
+                                <View style={styles.align}>
+                                    <Text style={styles.rotuloMaior}>Cartão de Débito</Text>
+                                    <Text style={styles.rotuloMenor}></Text>
+                                    
+                                </View>
+                            </Pressable>
+                        </View>
+                        <View style={styles.skip}>
+                            <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
+                                        setStateDois('Dinheiro')
+                                        }}>
+                                <View style={styles.align}>
+                                    <View style={stateDois == 'Dinheiro'? styles.selected : styles.unselected}/>
+                                </View>
+                                <View style={styles.align}>
+                                    <Text style={styles.rotuloMaior}>Dinheiro</Text>
+                                    <Text style={styles.rotuloMenor}></Text>
+                                    
+                                </View>
+                            </Pressable>
+                        </View>
                     </View>
                 </View>
             </View>
@@ -53,20 +120,20 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            x itens
+                            <Text>itens</Text>
                             <span/>
-                            valor
+                            <Text>valor</Text>
                         </View>
                         <View style={styles.dados}>
-                            Entrega
+                            <Text>Entrega</Text>
                             <span/>
-                            Tipo entrega
+                            <Text>Tipo entrega</Text>
                         </View>
                     </View>
                 </View>
                 <View style={styles.areaBotao}>
                     <Pressable style={({pressed})=>[styles.botao, pressed && styles.yPress]}>
-                        Finalizar
+                        <Text style={styles.botaoText}>Finalizar</Text>
                     </Pressable>
                 </View>
                 
@@ -83,13 +150,15 @@ const styles = StyleSheet.create({
         fontFamily: 'Segoe UI'
     },
     header: {
+        flex: 1,
         flexDirection: 'row',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
         voltar: {
             flex: 1,
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
         },
     main: {
         flex: 8,
@@ -122,7 +191,7 @@ const styles = StyleSheet.create({
                 flex: 1,
                 borderBottomWidth: 0
             },
-                normal: {flex: 1, flexDirection: 'row', justifyContent: 'flex-start'},
+                nPress: {flex: 1, flexDirection: 'row', justifyContent: 'flex-start'},
                 yPress: {backgroundColor: '#43a062'},
     footer: {
         flex: 3,
@@ -145,12 +214,14 @@ const styles = StyleSheet.create({
         },
             botao: {
                 backgroundColor: '#3E8050',
-                color: '#fff',
                 borderRadius: 25,
+                padding: 10
+            },
+            botaoText: {
+                color: '#fff',
                 textAlign: 'center',
                 fontWeight: 600,
                 fontSize: 20,
-                padding: 10
             },
 
 
@@ -166,7 +237,7 @@ const styles = StyleSheet.create({
         textAlign: 'left'
     },
     rotuloMenor: {
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: '500',
         textAlign: 'left'
     },
@@ -175,8 +246,18 @@ const styles = StyleSheet.create({
         fontWeight: 'bold'
     },
     escuro:{color:'#000'}, claro:{color:'#fff'},
-    selection: {
+    unselected: {
         backgroundColor: '#ffffff',
+        borderColor: '#3E8050',
+        borderWidth: 2,
+        borderRadius: 100,
+        marginLeft: 10,
+        marginRight: 25,
+        width: 30,
+        height: 30
+    },
+    selected: {
+        backgroundColor: '#3E8050',
         borderColor: '#3E8050',
         borderWidth: 2,
         borderRadius: 100,
@@ -187,7 +268,7 @@ const styles = StyleSheet.create({
     },
     align: {
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'flex-start'
     }
 
 })
