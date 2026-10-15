@@ -23,7 +23,7 @@ export default function Dados() {
     { id: '4', nome: 'Carnes', icone: 'fish-outline' },
   ];
 
-  const produtos: Produto[] = [
+    const produtos: Produto[] = [
     {
       id: '1',
       nome: 'Banana nanica',

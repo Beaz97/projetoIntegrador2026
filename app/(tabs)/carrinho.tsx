@@ -292,7 +292,7 @@ export default function Carrinho() {
           ========================= */}
           <Pressable
             style={styles.botaoPagamento}
-            onPress={() => router.push('/')}
+            onPress={() => router.push('/(tabs)/pagamento')}
           >
             <Text style={styles.textoPagamento}>
               Pagamento
