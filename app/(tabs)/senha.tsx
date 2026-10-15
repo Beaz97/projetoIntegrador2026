@@ -24,7 +24,7 @@ export default function Index() {
       <View style={styles.card}>
         <Text style={styles.entrar}>Entrar</Text>
         <Text style={styles.subtitulo}>
-          Use seu CPF ou CNPJ para acessar sua conta
+          Use seu CPF ou CNPJ para acessar sua conta!
         </Text>
 
         {/* CPF ou CNPJ */}
