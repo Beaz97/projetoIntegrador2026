@@ -1,13 +1,32 @@
 import { View, StyleSheet, Text, Pressable, } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useState, useCallback } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Carrinho from "./carrinho";
 
 export default function pagamento() {
     const router = useRouter()
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
+
+    async function atualizar() {
+        const lista = await AsyncStorage.getItem('carrinho');
+        if (lista) {
+            setProdutos(JSON.parse(lista));
+        }
+        
+    }
+    // Chama a função atualizar sempre que a tela ganha foco.
+    useFocusEffect(
+        useCallback(() => {
+            atualizar();
+        }, [])
+    );
+
+  const [produtos, setProdutos] = useState([]);
     
+
     return (
         <View style={styles.parent}>
             <View style={styles.header}>
@@ -16,7 +35,7 @@ export default function pagamento() {
                         <Ionicons name="chevron-back-sharp" color={'#315F3C'} size={35}></Ionicons>
                     </Pressable>
                 </View>
-                <Text style={[styles.titulo, {flex: 3, textAlign: 'center'}]}>Finalizar compra</Text>
+                <Text style={[styles.titulo, {flex: 3, textAlign: 'center'}]}>Finalizar compra </Text>
                 <View style={{flex: 1}}></View>
             </View>
             <View style={styles.main}>
@@ -120,7 +139,7 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            <Text>itens</Text>
+                            <Text>{QuantidadeTotal} itens</Text>
                             <span/>
                             <Text>valor</Text>
                         </View>
