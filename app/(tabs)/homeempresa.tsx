@@ -177,7 +177,7 @@ export default function HomeScreen() {
             descricao="Consulte e edite seu catálogo."
             icone="cube-outline"
             corFundo="#EAF5ED"
-            onPress={() => router.push('/produtos' as any)}
+            onPress={() => router.push('/produtoempresa' as any)}
           />
 
           <MenuCard
