@@ -1,64 +1,29 @@
-import { apiRequest } from "./api";
-
-// Interface para o modelo de Usuário
-export interface Usuario {
-    id?: number | string;
+export interface User {
+    id: string;
     nome: string;
     email: string;
-    senha?: string;
-    avatarUrl?: string;
-    telefone?: string;
-    criadoEm?: string;
+    senha: string;
+    documento: string;
 }
 
-// Service com operações CRUD completas para Usuários
-export const userService = {
-    /**
-     * [READ ALL] Retorna a lista de todos os usuários
-     */
-    async listarTodos(): Promise<Usuario[]> {
-        return apiRequest<Usuario[]>("/users", {
-            method: "GET",
-        });
-    },
 
-    /**
-     * [READ BY ID] Retorna um usuário específico pelo ID
-     */
-    async buscarPorId(id: number | string): Promise<Usuario> {
-        return apiRequest<Usuario>(`/users/${id}`, {
-            method: "GET",
-        });
-    },
+export default function Users() {
 
-    /**
-     * [CREATE] Cria um novo usuário
-     */
-    async criar(usuario: Omit<Usuario, "id">): Promise<Usuario> {
-        return apiRequest<Usuario>("/users", {
-            method: "POST",
-            body: JSON.stringify(usuario),
-        });
-    },
-
-    /**
-     * [UPDATE] Atualiza os dados de um usuário existente
-     */
-    async atualizar(id: number | string, usuario: Partial<Usuario>): Promise<Usuario> {
-        return apiRequest<Usuario>(`/users/${id}`, {
-            method: "PUT",
-            body: JSON.stringify(usuario),
-        });
-    },
-
-    /**
-     * [DELETE] Remove um usuário pelo ID
-     */
-    async deletar(id: number | string): Promise<{ success: boolean; message?: string } | void> {
-        return apiRequest(`/users/${id}`, {
-            method: "DELETE",
-        });
-    },
-};
-
-export default userService;
+    const users: User[] = [
+        {
+            id: '1',
+            nome: 'Rodrigo',
+            email: 'rodrigo@prof.senac.br',
+            senha: 'asd@!#asd!@#',
+            documento: '1234567890'
+        },
+        {
+            id: '2',
+            nome: 'Vitoria',
+            email: 'vivica@gmail.com',
+            senha: 'asd@!#asd!@#',
+            documento: '1234567898'
+        }
+    ]
+    return users
+}

@@ -8,7 +8,7 @@ export interface Produto {
   id: string;
   nome: string;
   unidade: string;
-  preco: string;
+  preco: number;
   icone: string;
   imagem?: string;
   oferta?: boolean;
@@ -23,7 +23,7 @@ export default function Dados() {
     { id: '4', nome: 'Carnes', icone: 'fish-outline' },
   ];
 
-    const produtos: Produto[] = [
+  const produtos: Produto[] = [
     {
       id: '1',
       nome: 'Banana nanica',
@@ -38,7 +38,7 @@ export default function Dados() {
       id: '2',
       nome: 'Leite integral',
       unidade: '1L',
-      preco:  4.99,
+      preco: 4.99,
       icone: 'water-outline',
       imagem: 'https://images.tcdn.com.br/img/img_prod/1023690/leite_integral_1_lt_c_12_italac_451_1_0d91793cde338bf25e86c23efe22376c.png',
       oferta: true,
