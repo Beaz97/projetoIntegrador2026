@@ -237,9 +237,12 @@ export default function Index() {
 
         <Text style={styles.login}>
           Já tem uma conta?{' '}
-          <Text style={styles.loginVerde}>
-            Faça login
-          </Text>
+
+          <Pressable onPress={() => router.push('/senha')}>
+            <Text style={styles.loginVerde}>
+              Faça login
+            </Text>
+          </Pressable>
         </Text>
 
         {/* BOLINHAS */}

@@ -1,7 +1,8 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
 import { useState, useRef } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import userController from '@/app/rotaServidor/userController';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -34,10 +35,39 @@ export default function Cadastro() {
     setCpf('');
   }
 
+  async function handleCadastrar() {
+    if (!nome || !email || !cpf || !senha || !confirmar) {
+      alert('Preencha todos os campos!');
+      return;
+    }
+
+    if (senha !== confirmar) {
+      alert('As senhas não coincidem!');
+      return;
+    }
+
+    try {
+      const usuarioCriado = await userController.criar({
+        nome,
+        email,
+        documento: cpf,
+        senha,
+        tipo: empresa ? 'Empresa' : 'Cliente',
+      });
+
+      console.log('Usuário cadastrado com sucesso:', usuarioCriado);
+      alert('Cadastro realizado com sucesso!');
+      router.push('/senha');
+    } catch (error: any) {
+      console.error('Erro ao cadastrar usuário:', error);
+      alert(error.message || 'Erro ao cadastrar usuário.');
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.topo}>
-        <Text style={styles.boasVindas}>Seja{'\n'}bem-{'\n'}vinda(o) ao</Text>
+        <Text style={styles.boasVindas}>Seja bem vinda(o) ao</Text>
         <View style={styles.logo}>
           <Ionicons name="cart" size={36} color="#fff" />
           <Text style={styles.logoTexto}>Economize</Text>
@@ -120,7 +150,7 @@ export default function Cadastro() {
           </Pressable>
         </Pressable>
 
-        <Pressable style={styles.botao} onPress={() => router.push('/senha')}>
+        <Pressable style={styles.botao} onPress={handleCadastrar}>
           <Text style={styles.botaoTexto}>Cadastrar</Text>
         </Pressable>
 
