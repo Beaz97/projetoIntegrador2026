@@ -4,24 +4,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from "expo-router";
+import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas';
 
 
 export default function Carrinho() {
 
-    // Função que lê do disco e atualiza o estado.
-    async function atualizar() {
-        const lista = await AsyncStorage.getItem('carrinho');
-        if (lista) {
-            setProdutos(JSON.parse(lista));
-        }
-        
+  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
+  if (carregando || !autorizado) {
+    return null;
+  }
+
+
+  // Função que lê do disco e atualiza o estado.
+  async function atualizar() {
+    const lista = await AsyncStorage.getItem('carrinho');
+    if (lista) {
+      setProdutos(JSON.parse(lista));
     }
-    // Chama a função atualizar sempre que a tela ganha foco.
-    useFocusEffect(
-        useCallback(() => {
-            atualizar();
-        }, [])
-    );
+
+  }
+  // Chama a função atualizar sempre que a tela ganha foco.
+  useFocusEffect(
+    useCallback(() => {
+      atualizar();
+    }, [])
+  );
 
 
   const router = useRouter();
@@ -108,7 +115,7 @@ export default function Carrinho() {
     (total, produto) =>
       total +
       (Number(produto.preco) || 0) *
-        (Number(produto.quantidade) || 1),
+      (Number(produto.quantidade) || 1),
     0
   );
 

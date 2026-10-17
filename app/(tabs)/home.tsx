@@ -3,13 +3,14 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Dados, { type Categoria } from '../rotaServidor/dadosProdutos';
+import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas';
 
 /* ---------- Dados ---------- */
 // Cole o link da foto em "imagem". Se ficar vazio ('') ou o link falhar, aparece o ícone.
 
 const dados = Dados();
-const produtos= dados.produtos;
-const categorias= dados.categorias;
+const produtos = dados.produtos;
+const categorias = dados.categorias;
 
 const cidades = [
   'Criciúma, SC',
@@ -20,12 +21,12 @@ const cidades = [
   'Cocal do Sul, SC',
 ];
 
-const ofertas=produtos.filter(
-  (produto) => produto.oferta==true
+const ofertas = produtos.filter(
+  (produto) => produto.oferta == true
 );
 
 
-  /* ---------- Imagem com fallback para ícone ---------- */
+/* ---------- Imagem com fallback para ícone ---------- */
 type FotoProps = {
   uri?: string;
   icone: any;
@@ -80,6 +81,7 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
 /* ---------- Tela ---------- */
 export default function Home() {
   const router = useRouter();
+  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
   const [busca, setBusca] = useState('');
   const [tituloDalista, setTituloDalista] = useState('Ofertas da semana');
   const [categoria, setCategoria] = useState('1');
@@ -88,13 +90,17 @@ export default function Home() {
   const [cidade, setCidade] = useState('Criciúma, SC');
   const [mostrarCidades, setMostrarCidades] = useState(false);
 
-  function atualizarTitulo(categoriaSelecionada: Categoria) {    
-      setCategoria(categoriaSelecionada.id);
-      setTituloDalista(categoriaSelecionada.nome);
-      const produtosCategoria=produtos.filter(
-         (produto) => produto.categoria==categoriaSelecionada.id
-       );
-      setProdutosLista(produtosCategoria);
+  if (carregando || !autorizado) {
+    return null;
+  }
+
+  function atualizarTitulo(categoriaSelecionada: Categoria) {
+    setCategoria(categoriaSelecionada.id);
+    setTituloDalista(categoriaSelecionada.nome);
+    const produtosCategoria = produtos.filter(
+      (produto) => produto.categoria == categoriaSelecionada.id
+    );
+    setProdutosLista(produtosCategoria);
   }
 
   function pesquisar(texto: string) {
@@ -122,7 +128,7 @@ export default function Home() {
     <View style={styles.container}>
       <View style={styles.conteudo}>
         {/* Saudação */}
-        <Text style={styles.ola}>Olá, Vitória!</Text>
+        <Text style={styles.ola}>Olá, {usuario?.nome}!</Text>
         <Text style={styles.subtitulo}>Que bom te ver por aqui!</Text>
 
         {/* Localização */}
@@ -194,7 +200,7 @@ export default function Home() {
         {/* Ofertas da semana */}
         <View style={styles.ofertasTopo}>
           <Text style={styles.ofertasTitulo}>{tituloDalista}</Text>
-         
+
         </View>
 
         {/* Carrossel */}

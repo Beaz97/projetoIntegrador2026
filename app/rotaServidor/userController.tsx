@@ -19,6 +19,7 @@ export interface LoginResultado {
 import seedUsers from './user.json';
 
 const STORAGE_KEY = '@banco_usuarios';
+const STORAGE_KEY_LOGADO = '@usuario_logado';
 
 // Interface para compatibilidade com o formato do user.json
 interface RawUserMock {
@@ -46,6 +47,9 @@ function normalizarMockUsers(dados: RawUserMock[]): User[] {
 // Array em memória inicializado com os dados do user.json
 let usuariosEmMemoria: User[] = normalizarMockUsers(seedUsers as RawUserMock[]);
 let carregadoDoStorage = false;
+
+// Guarda o usuário autenticado em memória (sem a senha)
+let usuarioLogado: Omit<User, 'senha'> | null = null;
 
 
 /**
@@ -270,6 +274,7 @@ export async function login(
     senhaDigitada: string
 ): Promise<LoginResultado> {
     await sincronizarStorage();
+    console.log(usuariosEmMemoria)
 
     if (!identificador || !senhaDigitada) {
         return {
@@ -280,7 +285,6 @@ export async function login(
 
     const termo = identificador.trim().toLowerCase();
     const docLimpo = identificador.replace(/\D/g, '');
-
     const usuario = usuariosEmMemoria.find((u) => {
         const matchEmail = u.email.trim().toLowerCase() === termo;
         const uDocLimpo = u.documento.replace(/\D/g, '');
@@ -303,19 +307,85 @@ export async function login(
         };
     }
 
-    // Se a senha estava em texto plano (seed inicial), migra automaticamente para o hash
-    if (usuario.senha === senhaDigitada) {
-        usuario.senha = await hashSenha(senhaDigitada);
-        await persistirStorage();
-    }
-
     const { senha: _, ...usuarioSemSenha } = usuario;
+
+    // Guarda os dados do usuário autenticado em memória
+    usuarioLogado = usuarioSemSenha;
+
+    // Salva o usuário autenticado também no AsyncStorage para persistência entre telas/reloads
+    try {
+        await AsyncStorage.setItem(STORAGE_KEY_LOGADO, JSON.stringify(usuarioSemSenha));
+    } catch (e) {
+        console.warn('Erro ao salvar usuario logado no AsyncStorage:', e);
+    }
 
     return {
         sucesso: true,
         mensagem: 'Login realizado com sucesso!',
         usuario: usuarioSemSenha,
     };
+}
+
+/**
+ * Retorna os dados do usuário atualmente logado em memória (síncrono).
+ * Se a memória estiver vazia, tenta recuperar do AsyncStorage.
+ */
+export function getUsuarioLogado(): Omit<User, 'senha'> | null {
+    return usuarioLogado ? { ...usuarioLogado } : null;
+}
+
+/**
+ * Carrega e retorna o usuário logado do AsyncStorage de forma assíncrona.
+ */
+export async function carregarUsuarioLogado(): Promise<Omit<User, 'senha'> | null> {
+    if (usuarioLogado) {
+        return { ...usuarioLogado };
+    }
+    try {
+        const salvo = await AsyncStorage.getItem(STORAGE_KEY_LOGADO);
+        if (salvo) {
+            usuarioLogado = JSON.parse(salvo);
+            return usuarioLogado ? { ...usuarioLogado } : null;
+        }
+    } catch (e) {
+        console.warn('Erro ao carregar usuário logado do AsyncStorage:', e);
+    }
+    return null;
+}
+
+/**
+ * Define manualmente o usuário logado em memória e no AsyncStorage.
+ */
+export async function setUsuarioLogado(usuario: Omit<User, 'senha'> | null): Promise<void> {
+    if (!usuario) {
+        usuarioLogado = null;
+        try {
+            await AsyncStorage.removeItem(STORAGE_KEY_LOGADO);
+        } catch (e) {
+            console.warn('Erro ao remover usuário logado do AsyncStorage:', e);
+        }
+        return;
+    }
+
+    const { senha: _, ...semSenha } = usuario as any;
+    usuarioLogado = semSenha;
+    try {
+        await AsyncStorage.setItem(STORAGE_KEY_LOGADO, JSON.stringify(semSenha));
+    } catch (e) {
+        console.warn('Erro ao salvar usuário logado no AsyncStorage:', e);
+    }
+}
+
+/**
+ * Desloga o usuário atual, limpando os dados em memória e no AsyncStorage.
+ */
+export async function logout(): Promise<void> {
+    usuarioLogado = null;
+    try {
+        await AsyncStorage.removeItem(STORAGE_KEY_LOGADO);
+    } catch (e) {
+        console.warn('Erro ao limpar usuario_logado do AsyncStorage:', e);
+    }
 }
 
 /**
@@ -344,6 +414,10 @@ export const userController = {
     remover,
     deletar: remover,
     login,
+    logout,
+    getUsuarioLogado,
+    carregarUsuarioLogado,
+    setUsuarioLogado,
     hashSenha,
     verificarSenha,
     resetarBanco,

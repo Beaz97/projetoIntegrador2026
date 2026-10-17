@@ -1,16 +1,48 @@
-﻿import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useState, useRef } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import userController from '@/app/rotaServidor/userController';
 
 export default function Index() {
   const router = useRouter();
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
   const cpfRef = useRef<TextInput>(null);
   const senhaRef = useRef<TextInput>(null);
+
+  async function handleLogin() {
+    if (!cpf.trim() || !senha.trim()) {
+      alert('Por favor, informe seu CPF/CNPJ e a senha.');
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      const resultado = await userController.login(cpf, senha);
+
+      if (!resultado.sucesso || !resultado.usuario) {
+        alert(resultado.mensagem || 'Falha na autenticação.');
+        return;
+      }
+
+      const tipoUsuario = (resultado.usuario.tipo || 'cliente').toLowerCase();
+
+      if (tipoUsuario === 'empresa') {
+        router.replace('/homeempresa');
+      } else {
+        router.replace('/home');
+      }
+    } catch (error: any) {
+      console.error('Erro ao realizar login:', error);
+      alert(error.message || 'Erro inesperado ao realizar login.');
+    } finally {
+      setCarregando(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -64,10 +96,15 @@ export default function Index() {
 
         {/* Login */}
         <Pressable
-          style={styles.botaoLogin}
-          onPress={() => router.replace('/home')}
+          style={[styles.botaoLogin, carregando && { opacity: 0.7 }]}
+          onPress={handleLogin}
+          disabled={carregando}
         >
-          <Text style={styles.botaoLoginTexto}>Login</Text>
+          {carregando ? (
+            <ActivityIndicator color="#1f4d2e" />
+          ) : (
+            <Text style={styles.botaoLoginTexto}>Login</Text>
+          )}
         </Pressable>
 
         <Pressable style={styles.esqueci} onPress={() => router.push('/recuperarsenha')}>

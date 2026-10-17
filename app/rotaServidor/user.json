@@ -4,15 +4,15 @@
         "nome": "João da silva",
         "email": "",
         "documento": "12345678901",
-        "password": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
+        "senha": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
         "tipo": "cliente"
     },
     {
         "id": "2",
         "nome": "Maria Silva",
-        "email": "[EMAIL_ADDRESS]",
-        "documento": "12345678901",
-        "password": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
+        "email": "as@as",
+        "documento": "123452190122",
+        "senha": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
         "tipo": "empresa"
     }
 ]
