@@ -8,12 +8,9 @@ import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas
 
 
 export default function Carrinho() {
-
+  const router = useRouter();
   const { usuario, carregando, autorizado } = useAutenticacao('cliente');
-  if (carregando || !autorizado) {
-    return null;
-  }
-
+  const [produtos, setProdutos] = useState<any[]>([]);
 
   // Função que lê do disco e atualiza o estado.
   async function atualizar() {
@@ -21,8 +18,8 @@ export default function Carrinho() {
     if (lista) {
       setProdutos(JSON.parse(lista));
     }
-
   }
+
   // Chama a função atualizar sempre que a tela ganha foco.
   useFocusEffect(
     useCallback(() => {
@@ -30,10 +27,9 @@ export default function Carrinho() {
     }, [])
   );
 
-
-  const router = useRouter();
-
-  const [produtos, setProdutos] = useState([]);
+  if (carregando || !autorizado) {
+    return null;
+  }
 
   // =========================
   // SALVAR A LISTA (estado + disco)

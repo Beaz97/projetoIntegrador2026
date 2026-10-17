@@ -3,9 +3,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
 import { useRouter, useFocusEffect } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Carrinho from "./carrinho";
+import { useAutenticacao } from "../components/autenticaTelas";
+
 
 export default function pagamento() {
+    const { usuario, carregando, autorizado } = useAutenticacao('cliente');
     const router = useRouter()
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
@@ -23,8 +25,12 @@ export default function pagamento() {
             atualizar();
         }, [])
     );
-
     const [produtos, setProdutos] = useState([]);
+
+
+    if (carregando || !autorizado) {
+        return null;
+    }
 
 
     return (
