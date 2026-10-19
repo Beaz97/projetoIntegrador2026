@@ -1,76 +1,80 @@
+
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
-    <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: "#007AFF",
-          tabBarInactiveTintColor: "#8E8E93",
-          tabBarStyle: {
-            backgroundColor: "rgb(9, 9, 94)",
-            borderTopWidth: 1,
-            borderTopColor: "#F0F0F0",
-            height: Platform.OS === "ios" ? 88 : 64,
-            paddingBottom: Platform.OS === "ios" ? 30 : 80,
-            paddingTop: 10,
-          },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontWeight: "500",
-          },
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#FFFFFF",
+        tabBarInactiveTintColor: "#D5E7DA",
+        tabBarStyle: {
+          backgroundColor: "#286340",
+          borderTopWidth: 0,
+          height: Platform.OS === "ios" ? 85 : 65,
+          paddingBottom: Platform.OS === "ios" ? 25 : 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
         }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Projeto integrador!",
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons
-                name={focused ? "link" : "eye"}
-                size={24}
-                color={color}
-              />
-            ),
-          }}
-        />
+      />
 
-        <Tabs.Screen
-          name="recuperar-senha"
-          options={{
-            title: "Recuperar senha",
-            href: null,
-          }}
-        />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Início",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="rotas/busca/[query]"
-          options={{
-            title: "Busca",
-            href: null,
-          }}
-        />
+      <Tabs.Screen
+        name="perfil"
+        options={{
+          title: "Perfil",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        <Tabs.Screen
-          name="rotas/produtos/[id]"
-          options={{
-            title: "Produto",
-            href: null,
-          }}
-        />
+      <Tabs.Screen
+        name="carrinho"
+        options={{
+          title: "Carrinho",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "cart" : "cart-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
 
-        {/* Tela do carrinho (oculta do menu inferior) */}
-        <Tabs.Screen
-          name="carrinho"
-          options={{
-            title: "Carrinho",
-            href: null,
-          }}
-        />
-      </Tabs>
-    </>
+      <Tabs.Screen name="recuperar-senha" options={{ href: null }} />
+      <Tabs.Screen name="rotas/busca/[query]" options={{ href: null }} />
+      <Tabs.Screen name="rotas/produtos/[id]" options={{ href: null }} />
+    </Tabs>
   );
 }

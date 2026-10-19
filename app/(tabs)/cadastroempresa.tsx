@@ -1,245 +1,367 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
-import { useState, useRef } from 'react';
-import { Link, useRouter } from 'expo-router';
+
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+  StatusBar,
+  Alert,
+} from 'react-native';
+
+import { useState } from 'react';
+import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function Cadastro() {
+export default function CadastroEmpresa() {
   const router = useRouter();
 
-  const [nome, setNome] = useState('');
+  const [nomeEmpresa, setNomeEmpresa] = useState('');
+  const [responsavel, setResponsavel] = useState('');
   const [email, setEmail] = useState('');
-  const [cpf, setCpf] = useState('');
+  const [cnpj, setCnpj] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
-  const [empresa, setEmpresa] = useState(false); // false = Cliente, true = Empresa
 
-  const nomeRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
-  const cpfRef = useRef<TextInput>(null);
-  const senhaRef = useRef<TextInput>(null);
-  const confirmarRef = useRef<TextInput>(null);
+  function formatarCNPJ(valor: string) {
+    const numeros = valor.replace(/\D/g, '').slice(0, 14);
 
-  // Textos que mudam conforme o tipo
-  let textoBotao = 'Cliente';
-  let textoDocumento = 'CPF';
-  if (empresa) {
-    textoBotao = 'Empresa';
-    textoDocumento = 'CNPJ';
+    return numeros
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
   }
 
-  function trocarTipo() {
-    setEmpresa(!empresa);
-    setCpf('');
+  function cadastrarEmpresa() {
+    if (
+      !nomeEmpresa.trim() ||
+      !responsavel.trim() ||
+      !email.trim() ||
+      !cnpj.trim() ||
+      !senha ||
+      !confirmar
+    ) {
+      Alert.alert(
+        'Campos obrigatórios',
+        'Preencha todos os campos para continuar.'
+      );
+      return;
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+      Alert.alert('E-mail inválido', 'Digite um e-mail válido.');
+      return;
+    }
+
+    if (cnpj.replace(/\D/g, '').length !== 14) {
+      Alert.alert('CNPJ inválido', 'Digite os 14 números do CNPJ.');
+      return;
+    }
+
+    if (senha.length < 6) {
+      Alert.alert(
+        'Senha muito curta',
+        'A senha deve ter pelo menos 6 caracteres.'
+      );
+      return;
+    }
+
+    if (senha !== confirmar) {
+      Alert.alert('Senhas diferentes', 'As senhas não coincidem.');
+      return;
+    }
+
+    Alert.alert(
+      'Cadastro concluído!',
+      'Os dados foram validados. Você será direcionado para a área da empresa.',
+      [
+        {
+          text: 'Continuar',
+          onPress: () => router.replace('/homeempresa'),
+        },
+      ]
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topo}>
-        <Text style={styles.boasVindas}>Seja{'\n'}bem-{'\n'}vinda(o) ao</Text>
+    <View style={styles.tela}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f7f9f7" />
+
+      <ScrollView
+        contentContainerStyle={styles.conteudo}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          style={styles.voltar}
+          onPress={() => router.back()}
+          hitSlop={12}
+        >
+          <Ionicons name="arrow-back" size={23} color="#245b38" />
+        </Pressable>
+
         <View style={styles.logo}>
-          <Ionicons name="cart" size={36} color="#fff" />
+          <View style={styles.logoIcone}>
+            <Ionicons name="storefront-outline" size={30} color="#fff" />
+          </View>
           <Text style={styles.logoTexto}>Economize</Text>
         </View>
-      </View>
 
-      <View style={styles.card}>
-        <View style={styles.titulo}>
-          <Text style={styles.cadastro}>Cadastro</Text>
-          <Pressable style={styles.cliente} onPress={trocarTipo}>
-            <Text style={styles.clienteTexto}>{textoBotao}</Text>
-          </Pressable>
-        </View>
+        <Text style={styles.titulo}>Cadastre sua empresa</Text>
+        <Text style={styles.subtitulo}>
+          Faça parte do Economize e divulgue seus produtos.
+        </Text>
 
-        <Pressable style={styles.campo} onPress={() => nomeRef.current?.focus()}>
-          <Ionicons name="person" size={32} color="#2f7a4b" style={styles.icone} />
+        <View style={styles.formulario}>
+          <Text style={styles.label}>Nome da empresa</Text>
           <TextInput
-            ref={nomeRef}
             style={styles.input}
-            placeholder="Nome"
-            placeholderTextColor="#2f7a4b"
-            value={nome}
-            onChangeText={setNome}
+            placeholder="Digite o nome da empresa"
+            placeholderTextColor="#929a94"
+            value={nomeEmpresa}
+            onChangeText={setNomeEmpresa}
+            autoCapitalize="words"
+            returnKeyType="next"
           />
-        </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => emailRef.current?.focus()}>
-          <Ionicons name="mail" size={28} color="#2f7a4b" style={styles.icone} />
+          <Text style={styles.label}>Nome do responsável</Text>
           <TextInput
-            ref={emailRef}
             style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#2f7a4b"
+            placeholder="Digite seu nome"
+            placeholderTextColor="#929a94"
+            value={responsavel}
+            onChangeText={setResponsavel}
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="empresa@email.com"
+            placeholderTextColor="#929a94"
             value={email}
             onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="next"
           />
-        </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => cpfRef.current?.focus()}>
-          <Ionicons name="card" size={28} color="#2f7a4b" style={styles.icone} />
+          <Text style={styles.label}>CNPJ</Text>
           <TextInput
-            ref={cpfRef}
             style={styles.input}
-            placeholder={textoDocumento}
-            placeholderTextColor="#2f7a4b"
-            value={cpf}
-            onChangeText={setCpf}
+            placeholder="00.000.000/0000-00"
+            placeholderTextColor="#929a94"
+            value={cnpj}
+            onChangeText={(valor) => setCnpj(formatarCNPJ(valor))}
+            keyboardType="numeric"
+            maxLength={18}
+            returnKeyType="next"
           />
-        </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => senhaRef.current?.focus()}>
-          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={senhaRef}
-            style={styles.input}
-            placeholder="Senha"
-            placeholderTextColor="#2f7a4b"
-            secureTextEntry={!mostrarSenha}
-            value={senha}
-            onChangeText={setSenha}
-          />
-          <Pressable onPress={() => setMostrarSenha((valor) => !valor)}>
-            <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
-          </Pressable>
-        </Pressable>
+          <Text style={styles.label}>Senha</Text>
+          <View style={styles.inputSenha}>
+            <TextInput
+              style={styles.campoSenha}
+              placeholder="Mínimo de 6 caracteres"
+              placeholderTextColor="#929a94"
+              value={senha}
+              onChangeText={setSenha}
+              secureTextEntry={!mostrarSenha}
+              autoCapitalize="none"
+              returnKeyType="next"
+            />
+            <Pressable
+              onPress={() => setMostrarSenha(!mostrarSenha)}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
+                size={21}
+                color="#68766b"
+              />
+            </Pressable>
+          </View>
 
-        <Pressable style={styles.campo} onPress={() => confirmarRef.current?.focus()}>
-          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={confirmarRef}
-            style={styles.input}
-            placeholder="Confirmar senha"
-            placeholderTextColor="#2f7a4b"
-            secureTextEntry={!mostrarConfirmar}
-            value={confirmar}
-            onChangeText={setConfirmar}
-          />
-          <Pressable onPress={() => setMostrarConfirmar((valor) => !valor)}>
-            <Ionicons name={mostrarConfirmar ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
-          </Pressable>
-        </Pressable>
-
-        <Pressable style={styles.botao} onPress={() => router.push('/senha')}>
-          <Text style={styles.botaoTexto}>Cadastrar</Text>
-        </Pressable>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Já tem conta?{' '}
-            <Link href="/" style={styles.footerLink}>
-              entrar
-            </Link>
-          </Text>
+          <Text style={styles.label}>Confirmar senha</Text>
+          <View style={styles.inputSenha}>
+            <TextInput
+              style={styles.campoSenha}
+              placeholder="Digite a senha novamente"
+              placeholderTextColor="#929a94"
+              value={confirmar}
+              onChangeText={setConfirmar}
+              secureTextEntry={!mostrarConfirmar}
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
+            <Pressable
+              onPress={() => setMostrarConfirmar(!mostrarConfirmar)}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={
+                  mostrarConfirmar
+                    ? 'eye-off-outline'
+                    : 'eye-outline'
+                }
+                size={21}
+                color="#68766b"
+              />
+            </Pressable>
+          </View>
         </View>
-      </View>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.botao,
+            pressed && styles.botaoPressionado,
+          ]}
+          onPress={cadastrarEmpresa}
+          accessibilityRole="button"
+        >
+          <Text style={styles.botaoTexto}>Cadastrar empresa</Text>
+          <Ionicons name="arrow-forward" size={21} color="#fff" />
+        </Pressable>
+
+        <View style={styles.rodape}>
+          <Text style={styles.rodapeTexto}>Já tem uma conta? </Text>
+          <Link href="/login" style={styles.linkLogin}>
+            Fazer login
+          </Link>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  tela: {
     flex: 1,
-    backgroundColor: '#3d7a52',
+    backgroundColor: '#f7f9f7',
   },
-  topo: {
+  conteudo: {
+    flexGrow: 1,
+    paddingHorizontal: 25,
+    paddingTop: 48,
+    paddingBottom: 30,
+  },
+  voltar: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    backgroundColor: '#e8f0e9',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 24,
-  },
-  boasVindas: {
-    color: '#edf7ef',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 26,
+    justifyContent: 'center',
+    marginBottom: 22,
   },
   logo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'center',
+    gap: 9,
+    marginBottom: 28,
+  },
+  logoIcone: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#245b38',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoTexto: {
-    color: '#fff',
-    fontSize: 32,
+    fontSize: 25,
     fontWeight: '800',
-    marginLeft: 8,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: '#f3f3f3',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 22,
-    paddingBottom: 14,
+    color: '#245b38',
+    letterSpacing: -0.7,
   },
   titulo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    fontSize: 27,
+    fontWeight: '800',
+    color: '#1e3325',
+    marginBottom: 8,
   },
-  cadastro: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#2f7a4b',
-  },
-  cliente: {
-    backgroundColor: '#2f7a4b',
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  clienteTexto: {
-    color: '#fff',
+  subtitulo: {
     fontSize: 14,
+    lineHeight: 21,
+    color: '#788179',
+    marginBottom: 25,
+  },
+  formulario: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 13,
     fontWeight: '700',
-  },
-  campo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#dfeae2',
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 14,
-  },
-  icone: {
-    marginRight: 10,
+    color: '#33483a',
+    marginTop: 5,
   },
   input: {
+    height: 51,
+    borderWidth: 1,
+    borderColor: '#e0e7e0',
+    borderRadius: 13,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+    color: '#26372b',
+    fontSize: 14,
+  },
+  inputSenha: {
+    minHeight: 51,
+    borderWidth: 1,
+    borderColor: '#e0e7e0',
+    borderRadius: 13,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  campoSenha: {
     flex: 1,
-    fontSize: 16,
-    color: '#2f7a4b',
-    fontWeight: '600',
-    paddingVertical: 4,
+    height: 49,
+    color: '#26372b',
+    fontSize: 14,
+    paddingRight: 10,
   },
   botao: {
-    backgroundColor: '#2f7a4b',
-    borderRadius: 22,
-    paddingVertical: 14,
+    height: 55,
+    borderRadius: 16,
+    backgroundColor: '#245b38',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 18,
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 25,
+    elevation: 3,
+  },
+  botaoPressionado: {
+    opacity: 0.8,
+    transform: [{ scale: 0.99 }],
   },
   botaoTexto: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
   },
-  footer: {
+  rodape: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    paddingBottom: 10,
+    marginTop: 22,
   },
-  footerText: {
-    color: '#2d2d2d',
+  rodapeTexto: {
+    color: '#788179',
     fontSize: 14,
-    fontWeight: '600',
   },
-  footerLink: {
-    color: '#2f7a4b',
-    fontWeight: '700',
+  linkLogin: {
+    color: '#245b38',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
