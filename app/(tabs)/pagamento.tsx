@@ -1,14 +1,18 @@
-import { View, StyleSheet, Text, Pressable, } from "react-native";
+import { View, StyleSheet, Text, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useState, useCallback } from "react";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, Link } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Carrinho from "./carrinho";
+import ProdutoDetalhe from "../rotaServidor/produtos";
 
 export default function pagamento() {
+    const tipoEntrega = ('Grátis')
     const router = useRouter()
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
+
+    
 
     async function atualizar() {
         const lista = await AsyncStorage.getItem('carrinho');
@@ -17,7 +21,6 @@ export default function pagamento() {
         }
         
     }
-    // Chama a função atualizar sempre que a tela ganha foco.
     useFocusEffect(
         useCallback(() => {
             atualizar();
@@ -40,7 +43,7 @@ export default function pagamento() {
             </View>
             <View style={styles.main}>
                 <View style={styles.entrega}>
-                    <Text style={styles.titulo}>Entrega ou retirada</Text>
+                    <Text style={[styles.titulo, {marginBottom: 2}]}>Entrega ou retirada</Text>
                     <View style={styles.campo}>
                         <View style={styles.option}>
                             <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
@@ -73,7 +76,7 @@ export default function pagamento() {
                     </View>
                 </View>
                 <View style={styles.pagamento}>
-                    <Text style={styles.titulo}>Forma de pagamento</Text>
+                    <Text style={[styles.titulo, {marginBottom: 2}]}>Forma de pagamento</Text>
                     <View style={styles.campo}>
                         <View style={styles.option}>
                             <Pressable style={({pressed})=>[styles.nPress, pressed && styles.yPress]} onPress={()=>{
@@ -82,6 +85,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Pix'? styles.selected : styles.unselected}/>
                                 </View>
+                                <Image source={require('../../assets/images/icons8-foto-100.png')} style={styles.icon}/>
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Pix</Text>
                                     <Text style={styles.rotuloMenor}>Pagamento Instantâneo</Text>
@@ -96,6 +100,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Credito'? styles.selected : styles.unselected}/>
                                 </View>
+                                <Ionicons name="card" color={'#315F3C'} size={45} style={styles.icon}></Ionicons>
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Cartão de Crédito</Text>
                                     <Text style={styles.rotuloMenor}>Em até 12x</Text>
@@ -110,6 +115,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Debito'? styles.selected : styles.unselected}/>
                                 </View>
+                                <Ionicons name="card" color={'#315F3C'} size={45} style={styles.icon}></Ionicons>
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Cartão de Débito</Text>
                                     <Text style={styles.rotuloMenor}></Text>
@@ -124,6 +130,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Dinheiro'? styles.selected : styles.unselected}/>
                                 </View>
+                                <Image source={require('../../assets/images/money.png')} style={styles.icon}/>
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Dinheiro</Text>
                                     <Text style={styles.rotuloMenor}></Text>
@@ -139,19 +146,17 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            <Text>{QuantidadeTotal} itens</Text>
-                            <span/>
+                            <Text>{} itens </Text>
                             <Text>valor</Text>
                         </View>
                         <View style={styles.dados}>
                             <Text>Entrega</Text>
-                            <span/>
-                            <Text>Tipo entrega</Text>
+                            <Text style={styles.tipoEntrega}>{tipoEntrega}</Text>
                         </View>
                     </View>
                 </View>
                 <View style={styles.areaBotao}>
-                    <Pressable style={({pressed})=>[styles.botao, pressed && styles.yPress]}>
+                    <Pressable style={({pressed})=>[styles.botao, pressed && styles.yPress]} onPress={()=>console.log(produtos)}>
                         <Text style={styles.botaoText}>Finalizar</Text>
                     </Pressable>
                 </View>
@@ -270,8 +275,8 @@ const styles = StyleSheet.create({
         borderColor: '#3E8050',
         borderWidth: 2,
         borderRadius: 100,
-        marginLeft: 10,
-        marginRight: 25,
+        marginLeft: 20,
+        marginRight: 10,
         width: 30,
         height: 30
     },
@@ -280,14 +285,27 @@ const styles = StyleSheet.create({
         borderColor: '#3E8050',
         borderWidth: 2,
         borderRadius: 100,
-        marginLeft: 10,
-        marginRight: 25,
+        marginLeft: 20,
+        marginRight: 10,
         width: 30,
         height: 30
     },
     align: {
         justifyContent: 'center',
         alignItems: 'flex-start'
+    },
+    icon: {
+        backgroundColor: '#00000000',
+        alignSelf: 'center',
+        marginLeft: 10,
+        marginRight: 10,
+        width: 45,
+        height: 45
+    },
+    tipoEntrega: {
+        fontSize: 15,
+        fontWeight: 500,
+        color: '#3E8050'
     }
 
 })
