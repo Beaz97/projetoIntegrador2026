@@ -12,13 +12,25 @@ export default function pagamento() {
     const router = useRouter()
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
-
+    const [valorTotal, setValorTotal] = useState('0,00');
+    const [produtos, setProdutos] = useState([]);
 
 
     async function atualizar() {
         const lista = await AsyncStorage.getItem('carrinho');
         if (lista) {
-            setProdutos(JSON.parse(lista));
+            let prod = JSON.parse(lista)
+            setProdutos(prod);
+            let total = 0;
+            console.log(prod)
+            // percorrer produtos e somar o total, produtos
+            total = prod.reduce((total, produto) =>
+                total +
+                (Number(produto.preco) || 0) *
+                (Number(produto.quantidade) || 1),
+                0
+            )
+            setValorTotal(total)
         }
 
     }
@@ -27,7 +39,7 @@ export default function pagamento() {
             atualizar();
         }, [])
     );
-    const [produtos, setProdutos] = useState([]);
+
 
 
     if (carregando || !autorizado) {
@@ -151,9 +163,8 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            <Text>10 itens</Text>
-                            <span />
-                            <Text>valor</Text>
+                            <Text>{produtos.length} Itens</Text>
+                            <Text>R$ {valorTotal}</Text>
                         </View>
                         <View style={styles.dados}>
                             <Text>Entrega</Text>
