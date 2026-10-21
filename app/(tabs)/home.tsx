@@ -70,9 +70,15 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
             estilo={styles.cardFoto}
           />
         </View>
-        <Text style={styles.cardNome}>{nome}</Text>
-        <Text style={styles.cardUnidade}>{unidade}</Text>
-        <Text style={styles.cardPreco}>R$ {preco}</Text>
+        <View>
+          <Text style={styles.cardNome} numberOfLines={1} ellipsizeMode="tail">
+            {nome && nome.length > 14 ? `${nome.substring(0, 14)}...` : nome}
+          </Text>
+          <Text style={styles.cardUnidade}>
+            {unidade}
+            <Text style={styles.cardPreco}> R$ {preco}</Text>
+          </Text>
+        </View>
       </Pressable>
     </View>
   );
@@ -81,7 +87,6 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
 /* ---------- Tela ---------- */
 export default function Home() {
   const router = useRouter();
-  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
   const [busca, setBusca] = useState('');
   const [tituloDalista, setTituloDalista] = useState('Ofertas da semana');
   const [categoria, setCategoria] = useState('1');
@@ -90,6 +95,7 @@ export default function Home() {
   const [cidade, setCidade] = useState('Criciúma, SC');
   const [mostrarCidades, setMostrarCidades] = useState(false);
 
+  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
   if (carregando || !autorizado) {
     return null;
   }
@@ -260,10 +266,10 @@ const styles = StyleSheet.create({
   conteudo: {
     flex: 1,
     paddingLeft: 20,
-    paddingTop: 50,
+    paddingTop: 5,
   },
   ola: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#000',
   },
@@ -376,12 +382,13 @@ const styles = StyleSheet.create({
     color: '#2f7a4b',
   },
   card: {
-    width: 142,
+    height: 180,
+    width: 140,
     borderWidth: 1,
     borderColor: '#aaa',
     borderRadius: 10,
     padding: 8,
-    marginRight: 14,
+    marginRight: 5,
   },
   cardImagem: {
     height: 110,
@@ -390,7 +397,7 @@ const styles = StyleSheet.create({
   },
   cardFoto: {
     width: '100%',
-    height: 110,
+    height: 100,
     borderRadius: 8,
     resizeMode: 'cover',
   },
@@ -406,8 +413,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#2f7a4b',
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 4,
   },
   barraContainer: {
     height: 106,

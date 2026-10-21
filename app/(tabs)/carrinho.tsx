@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useCallback } from 'react';
@@ -166,7 +166,7 @@ export default function Carrinho() {
           CARRINHO COM PRODUTOS
       ========================= */}
       {produtos.length > 0 && (
-        <>
+        <ScrollView>
           {produtos.map((produto) => (
 
             <View
@@ -308,7 +308,7 @@ export default function Carrinho() {
             />
           </Pressable>
 
-        </>
+        </ScrollView>
       )}
 
       {/* =========================

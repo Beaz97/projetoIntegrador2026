@@ -144,14 +144,12 @@ export default function RecuperarSenha() {
         <Pressable
           style={styles.voltar}
           onPress={() => router.back()}
-          disabled={enviando}
         >
           <Ionicons
             name="arrow-back"
             size={19}
             color="#41805a"
           />
-
           <Text style={styles.voltarTexto}>
             Voltar
           </Text>
@@ -171,11 +169,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 35,
+    paddingTop: 1,
   },
 
   iconeTopo: {
-    marginBottom: 12,
+    marginBottom: 1,
   },
 
   subtituloTopo: {
@@ -185,7 +183,7 @@ const styles = StyleSheet.create({
   },
 
   conteudo: {
-    flex: 1.5,
+    flex: 3,
     backgroundColor: '#fff',
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,

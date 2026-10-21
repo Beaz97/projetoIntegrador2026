@@ -145,8 +145,8 @@ const styles = StyleSheet.create({
   topo: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 50,
-    paddingBottom: 30,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   logoTexto: {
     fontSize: 40,

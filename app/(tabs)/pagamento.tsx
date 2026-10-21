@@ -40,6 +40,14 @@ export default function pagamento() {
         }, [])
     );
 
+    function formatarPreco(valor) {
+        return valor.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        });
+    }
+
+
 
 
     if (carregando || !autorizado) {
@@ -47,11 +55,13 @@ export default function pagamento() {
     }
 
 
+
     return (
         <View style={styles.parent}>
             <View style={styles.header}>
                 <View style={[styles.voltar, { flex: 1 }]}>
-                    <Pressable onPress={router.back}>
+                    {/* voltar para página anterior */}
+                    <Pressable onPress={() => router.push('/carrinho')}>
                         <Ionicons name="chevron-back-sharp" color={'#315F3C'} size={35}></Ionicons>
                     </Pressable>
                 </View>
@@ -164,7 +174,7 @@ export default function pagamento() {
                     <View>
                         <View style={styles.dados}>
                             <Text>{produtos.length} Itens</Text>
-                            <Text>R$ {valorTotal}</Text>
+                            <Text>{formatarPreco(valorTotal)}</Text>
                         </View>
                         <View style={styles.dados}>
                             <Text>Entrega</Text>

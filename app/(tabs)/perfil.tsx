@@ -2,24 +2,8 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Image } from 'react-nati
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas';
 
-/* ---------- Dados ---------- */
-const usuario = {
-  nome: 'Vitória D.',
-  email: 'Vic@gmail.com',
-  compras: 12,
-  // Cole aqui o link direto da imagem do mapa. Se ficar vazio, aparece um mapa de exemplo.
-  mapa: 'https://tse3.mm.bing.net/th/id/OIP.fLAOcrZQ0T-hQaJSi9VC-AHaEs?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
-};
-
-// Lista do histórico. Troque pelos seus dados (mercado, data e total gasto).
-const historico = [
-  { id: '1', mercado: 'Supermercado Bistek', data: '10/10/2026', total: '152,90' },
-  { id: '2', mercado: 'Angeloni', data: '03/10/2026', total: '87,45' },
-  { id: '3', mercado: 'Giassi', data: '27/09/2026', total: '210,30' },
-  { id: '4', mercado: 'Fort Atacadista', data: '19/09/2026', total: '342,00' },
-  { id: '5', mercado: 'Supermercado Bistek', data: '12/09/2026', total: '64,80' },
-];
 
 /* ---------- Mapa com fallback ---------- */
 function Mapa({ uri }: { uri?: string }) {
@@ -39,18 +23,24 @@ function Mapa({ uri }: { uri?: string }) {
 export default function Perfil() {
   const router = useRouter();
   const [mostrarHistorico, setMostrarHistorico] = useState(false);
+  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
+  if (carregando || !autorizado) {
+    return null;
+  }
+  // Lista do histórico. Troque pelos seus dados (mercado, data e total gasto).
+  const historico = usuario?.historicoCompras
 
   return (
     <View style={styles.container}>
       {/* Cabeçalho verde */}
       <View style={styles.cabecalho}>
         <View style={styles.avatar}>
-          <Ionicons name="person" size={80} color="#fff" style={styles.avatarIcone} />
+          <Ionicons name="person" size={50} color="#fff" style={styles.avatarIcone} />
         </View>
 
         <View style={styles.cabecalhoTextos}>
-          <Text style={styles.nome}>{usuario.nome}</Text>
-          <Text style={styles.email}>{usuario.email}</Text>
+          <Text style={styles.nome}>{usuario?.nome}</Text>
+          <Text style={styles.email}>{usuario?.email}</Text>
         </View>
 
         <Pressable
@@ -76,7 +66,7 @@ export default function Perfil() {
           <Ionicons name="cart-outline" size={44} color="#2f7a4b" />
           <View style={styles.historicoTextos}>
             <Text style={styles.historicoTitulo}>Histórico de compras</Text>
-            <Text style={styles.historicoSub}>{usuario.compras} compras</Text>
+            <Text style={styles.historicoSub}>{usuario?.historicoCompras?.length} compras</Text>
           </View>
         </Pressable>
 
@@ -171,13 +161,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#41805a',
-    paddingTop: 50,
-    paddingBottom: 50,
+    paddingTop: 10,
+    paddingBottom: 30,
     paddingHorizontal: 24,
   },
   avatar: {
-    width: 96,
-    height: 96,
+    width: 50,
+    height: 50,
     borderRadius: 48,
     borderWidth: 4,
     borderColor: '#fff',

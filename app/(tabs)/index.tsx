@@ -8,6 +8,7 @@ import {
 
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { resetarUsuariosStorage } from '../rotaServidor/userController'
 
 type BotaoProps = {
   titulo: string;
@@ -44,7 +45,7 @@ export default function Index() {
   // =====================================================
   // PRIMEIRA PÁGINA
   // =====================================================
-
+  resetarUsuariosStorage();
   if (pagina === 0) {
     return (
       <View style={styles.containerVerde}>

@@ -8,6 +8,9 @@ export interface User {
     senha: string;
     documento: string;
     tipo?: string;
+    mapa?: string;
+    historicoCompras?: any[];
+    [key: string]: any;
 }
 
 export interface LoginResultado {
@@ -30,11 +33,13 @@ interface RawUserMock {
     senha?: string;
     password?: string;
     tipo?: string;
+    [key: string]: any;
 }
 
-// Normaliza os dados mockados do user.json
+// Normaliza os dados mockados do user.json preservando todos os atributos
 function normalizarMockUsers(dados: RawUserMock[]): User[] {
     return dados.map((u, index) => ({
+        ...u,
         id: String(u.id ?? index + 1),
         nome: u.nome || '',
         email: u.email || '',
@@ -395,6 +400,23 @@ export async function resetarBanco(): Promise<User[]> {
     usuariosEmMemoria = normalizarMockUsers(seedUsers as RawUserMock[]);
     await persistirStorage();
     return [...usuariosEmMemoria];
+}
+
+/**
+ * Limpa o AsyncStorage dos usuários e recarrega os dados a partir do user.json
+ */
+export async function resetarUsuariosStorage(): Promise<void> {
+    try {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        await AsyncStorage.removeItem(STORAGE_KEY_LOGADO);
+        usuariosEmMemoria = normalizarMockUsers(seedUsers as RawUserMock[]);
+        carregadoDoStorage = false;
+        usuarioLogado = null;
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(usuariosEmMemoria));
+        console.log('✅ AsyncStorage resetado com os novos dados do user.json!');
+    } catch (error) {
+        console.warn('Erro ao resetar AsyncStorage:', error);
+    }
 }
 
 /**

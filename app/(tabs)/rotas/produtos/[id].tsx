@@ -28,6 +28,14 @@ export default function ProdutoDetalhe() {
     return null;
   }
 
+  function formatarPreco(valor) {
+    return valor.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  }
+
+
   const addItemCarrinho = async (item) => {
     let listaCarrinho = await asyncStorage.getItem('carrinho');
     if (!listaCarrinho) {
@@ -65,7 +73,7 @@ export default function ProdutoDetalhe() {
 
       {/* Cabeçalho */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.push('/home')} hitSlop={12}>
           <Ionicons name="chevron-back" size={30} color={VERDE} />
         </Pressable>
         <Text style={styles.headerTitulo}>Produto</Text>
@@ -82,7 +90,7 @@ export default function ProdutoDetalhe() {
         <View style={styles.info}>
           <Text style={styles.nome}>{produto.nome}</Text>
           <Text style={styles.unidade}>{produto.unidade}</Text>
-          <Text style={styles.preco}>{produto.preco}</Text>
+          <Text style={styles.preco}>{formatarPreco(produto.preco)}</Text>
           {categoria ? (
             <Text style={styles.categoria}>{categoria.nome}</Text>
           ) : null}
