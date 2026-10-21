@@ -4,17 +4,16 @@ import { useState, useCallback } from "react";
 import { useRouter, useFocusEffect, Link } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAutenticacao } from "../components/autenticaTelas";
-import ProdutoDetalhe from "../rotaServidor/produtos";
 
 
 export default function pagamento() {
-    const { usuario, carregando, autorizado } = useAutenticacao('cliente');
     const tipoEntrega = ('Grátis')
+    const { usuario, carregando, autorizado } = useAutenticacao('cliente');
     const router = useRouter()
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
 
-    
+
 
     async function atualizar() {
         const lista = await AsyncStorage.getItem('carrinho');
@@ -49,7 +48,7 @@ export default function pagamento() {
             </View>
             <View style={styles.main}>
                 <View style={styles.entrega}>
-                    <Text style={[styles.titulo, {marginBottom: 2}]}>Entrega ou retirada</Text>
+                    <Text style={[styles.titulo, { marginBottom: 2 }]}>Entrega ou retirada</Text>
                     <View style={styles.campo}>
                         <View style={styles.option}>
                             <Pressable style={({ pressed }) => [styles.nPress, pressed && styles.yPress]} onPress={() => {
@@ -82,7 +81,7 @@ export default function pagamento() {
                     </View>
                 </View>
                 <View style={styles.pagamento}>
-                    <Text style={[styles.titulo, {marginBottom: 2}]}>Forma de pagamento</Text>
+                    <Text style={[styles.titulo, { marginBottom: 2 }]}>Forma de pagamento</Text>
                     <View style={styles.campo}>
                         <View style={styles.option}>
                             <Pressable style={({ pressed }) => [styles.nPress, pressed && styles.yPress]} onPress={() => {
@@ -91,7 +90,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Pix' ? styles.selected : styles.unselected} />
                                 </View>
-                                <Image source={require('../../assets/images/icons8-foto-100.png')} style={styles.icon}/>
+                                <Image source={require('../../assets/images/icons8-foto-100.png')} style={styles.icon} />
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Pix</Text>
                                     <Text style={styles.rotuloMenor}>Pagamento Instantâneo</Text>
@@ -136,7 +135,7 @@ export default function pagamento() {
                                 <View style={styles.align}>
                                     <View style={stateDois == 'Dinheiro' ? styles.selected : styles.unselected} />
                                 </View>
-                                <Image source={require('../../assets/images/money.png')} style={styles.icon}/>
+                                <Image source={require('../../assets/images/money.png')} style={styles.icon} />
                                 <View style={styles.align}>
                                     <Text style={styles.rotuloMaior}>Dinheiro</Text>
                                     <Text style={styles.rotuloMenor}></Text>
@@ -152,19 +151,18 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            <Text>{QuantidadeTotal} itens</Text>
-                            <span/>
+                            <Text>10 itens</Text>
+                            <span />
                             <Text>valor</Text>
                         </View>
                         <View style={styles.dados}>
                             <Text>Entrega</Text>
-                            <span/>
-                            <Text>Tipo entrega</Text>
+                            <Text style={styles.tipoEntrega}>{tipoEntrega}</Text>
                         </View>
                     </View>
                 </View>
                 <View style={styles.areaBotao}>
-                    <Pressable style={({pressed})=>[styles.botao, pressed && styles.yPress]}>
+                    <Pressable style={({ pressed }) => [styles.botao, pressed && styles.yPress]} onPress={() => console.log(produtos)}>
                         <Text style={styles.botaoText}>Finalizar</Text>
                     </Pressable>
                 </View>
