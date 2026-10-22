@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   TextInput,
@@ -7,16 +8,23 @@ import {
   FlatList,
   StyleSheet,
   SafeAreaView,
+  type KeyboardTypeOptions,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { useAutenticacao } from '../components/autenticaTelas';
+import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
 const VERDE = '#3E7B4F';
 const CATEGORIAS = ['Alimentos', 'Bebidas', 'Limpeza', 'Higiene', 'Outros'];
+const PRODUTOS_STORAGE_KEY = 'produtos';
+
+type ProdutoArmazenado = Produto & { descricao?: string };
 
 /* ---------- Componentes ---------- */
 
-function Cabecalho({ titulo, onVoltar }) {
+function Cabecalho({ titulo, onVoltar }: { titulo: string; onVoltar: () => void }) {
   return (
     <View style={styles.cabecalho}>
       <TouchableOpacity onPress={onVoltar}>
@@ -27,19 +35,17 @@ function Cabecalho({ titulo, onVoltar }) {
   );
 }
 
-function AdicionarImagem({ onPress }) {
-  return (
-    <TouchableOpacity style={styles.caixaImagem} onPress={onPress}>
-      <View style={styles.quadradoIcone}>
-        <Ionicons name="camera" size={64} color="#555" />
-      </View>
-      <Text style={styles.textoImagem}>Adicionar imagem</Text>
-      <Text style={styles.textoFormato}>(JPG, PNG)</Text>
-    </TouchableOpacity>
-  );
-}
-
-function Campo({ placeholder, value, onChangeText, teclado }) {
+function Campo({
+  placeholder,
+  value,
+  onChangeText,
+  teclado,
+}: {
+  placeholder: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  teclado?: KeyboardTypeOptions;
+}) {
   return (
     <TextInput
       style={styles.input}
@@ -48,11 +54,19 @@ function Campo({ placeholder, value, onChangeText, teclado }) {
       value={value}
       onChangeText={onChangeText}
       keyboardType={teclado}
+      autoCapitalize={teclado === 'url' ? 'none' : undefined}
+      autoCorrect={teclado === 'url' ? false : undefined}
     />
   );
 }
 
-function SeletorCategoria({ valor, onSelecionar }) {
+function SeletorCategoria({
+  valor,
+  onSelecionar,
+}: {
+  valor: string;
+  onSelecionar: (value: string) => void;
+}) {
   const [aberto, setAberto] = useState(false);
 
   return (
@@ -91,7 +105,12 @@ function SeletorCategoria({ valor, onSelecionar }) {
   );
 }
 
-function BarraInferior({ abaAtiva, onMudarAba }) {
+function BarraInferior({
+  onMudarAba,
+}: {
+  abaAtiva: string;
+  onMudarAba: (aba: string) => void;
+}) {
   return (
     <View style={styles.barra}>
       <TouchableOpacity onPress={() => onMudarAba('home')}>
@@ -115,16 +134,74 @@ function BarraInferior({ abaAtiva, onMudarAba }) {
 /* ---------- Tela ---------- */
 
 export default function App() {
+  const router = useRouter();
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
   const [preco, setPreco] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [imagem, setImagem] = useState('');
   const [aba, setAba] = useState('produtos');
+  const [salvando, setSalvando] = useState(false);
   const { usuario, carregando, autorizado } = useAutenticacao('empresa');
 
-  function salvar() {
-    const produto = { nome, categoria, preco, descricao };
-    console.log('Produto salvo:', produto);
+  async function salvar() {
+    const precoNumerico = Number(preco.replace(',', '.'));
+    const empresaId = Number(usuario?.id);
+
+    if (!nome.trim() || !categoria || !preco.trim() || !Number.isFinite(precoNumerico) || precoNumerico <= 0) {
+      Alert.alert('Dados inválidos', 'Informe o nome, a categoria e um preço válido para o produto.');
+      return;
+    }
+
+    if (!Number.isFinite(empresaId)) {
+      Alert.alert('Erro', 'Não foi possível identificar a empresa autenticada.');
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      const dadosSalvos = await AsyncStorage.getItem(PRODUTOS_STORAGE_KEY);
+      let produtos: ProdutoArmazenado[];
+
+      if (dadosSalvos === null) {
+        produtos = Dados().produtos;
+      } else {
+        const dadosParseados: unknown = JSON.parse(dadosSalvos);
+        if (!Array.isArray(dadosParseados)) {
+          throw new Error('Os dados de produtos armazenados não estão em formato de lista.');
+        }
+        produtos = dadosParseados as ProdutoArmazenado[];
+      }
+
+      const proximoId = Math.max(0, ...produtos.map((item) => Number(item.id) || 0)) + 1;
+      const novoProduto: ProdutoArmazenado = {
+        id: String(proximoId),
+        nome: nome.trim(),
+        unidade: 'Un',
+        preco: precoNumerico,
+        icone: 'basket-outline',
+        imagem: imagem.trim() || undefined,
+        categoria,
+        empresa: empresaId,
+        descricao: descricao.trim() || undefined,
+      };
+
+      await AsyncStorage.setItem(
+        PRODUTOS_STORAGE_KEY,
+        JSON.stringify([...produtos, novoProduto])
+      );
+      Alert.alert('Produto cadastrado', 'O produto foi adicionado ao catálogo.');
+      setNome('');
+      setCategoria('');
+      setPreco('');
+      setDescricao('');
+      setImagem('');
+    } catch (error) {
+      console.error('Erro ao salvar produto no AsyncStorage:', error);
+      Alert.alert('Erro ao salvar', 'Não foi possível salvar o produto. Tente novamente.');
+    } finally {
+      setSalvando(false);
+    }
   }
   if (carregando || !autorizado) {
       return null;
@@ -133,9 +210,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.tela}>
       <View style={styles.conteudo}>
-        <Cabecalho titulo="Novo produto" onVoltar={() => console.log('voltar')} />
-
-        <AdicionarImagem onPress={() => console.log('abrir galeria')} />
+        <Cabecalho titulo="Novo produto" onVoltar={() => router.back()} />
 
         <Campo placeholder="Nome do produto" value={nome} onChangeText={setNome} />
         <SeletorCategoria valor={categoria} onSelecionar={setCategoria} />
@@ -146,13 +221,23 @@ export default function App() {
           teclado="numeric"
         />
         <Campo
+          placeholder="URL da imagem (opcional)"
+          value={imagem}
+          onChangeText={setImagem}
+          teclado="url"
+        />
+        <Campo
           placeholder="Descrição (opcional)"
           value={descricao}
           onChangeText={setDescricao}
         />
 
-        <TouchableOpacity style={styles.botaoSalvar} onPress={salvar}>
-          <Text style={styles.textoSalvar}>Salvar</Text>
+        <TouchableOpacity
+          style={styles.botaoSalvar}
+          onPress={salvar}
+          disabled={salvando}
+        >
+          <Text style={styles.textoSalvar}>{salvando ? 'Salvando...' : 'Salvar'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -169,25 +254,6 @@ const styles = StyleSheet.create({
 
   cabecalho: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   titulo: { fontSize: 26, fontWeight: 'bold', marginLeft: 14 },
-
-  caixaImagem: {
-    backgroundColor: '#E3E3E3',
-    borderRadius: 14,
-    alignItems: 'center',
-    paddingVertical: 28,
-    marginBottom: 14,
-  },
-  quadradoIcone: {
-    backgroundColor: '#C4C4C4',
-    width: 122,
-    height: 114,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  textoImagem: { fontWeight: 'bold', fontSize: 16 },
-  textoFormato: { fontSize: 11 },
 
   input: {
     borderWidth: 1,

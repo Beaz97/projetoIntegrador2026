@@ -1,16 +1,32 @@
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Image } from 'react-native';
-import { useState, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Image, Alert } from 'react-native';
+import { useState, useRef, useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Dados, { type Categoria } from '../rotaServidor/dadosProdutos';
-import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Dados, { type Categoria, type Produto } from '../rotaServidor/dadosProdutos';
+import { useAutenticacao } from '@/app/components/autenticaTelas';
 
 /* ---------- Dados ---------- */
 // Cole o link da foto em "imagem". Se ficar vazio ('') ou o link falhar, aparece o ícone.
 
 const dados = Dados();
-const produtos = dados.produtos;
 const categorias = dados.categorias;
+const PRODUTOS_STORAGE_KEY = 'produtos';
+
+function isProduto(value: unknown): value is Produto {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const produto = value as Record<string, unknown>;
+  return (
+    typeof produto.id === 'string' &&
+    typeof produto.nome === 'string' &&
+    typeof produto.unidade === 'string' &&
+    typeof produto.preco === 'number' &&
+    typeof produto.icone === 'string'
+  );
+}
 
 const cidades = [
   'Criciúma, SC',
@@ -20,11 +36,6 @@ const cidades = [
   'Nova Veneza, SC',
   'Cocal do Sul, SC',
 ];
-
-const ofertas = produtos.filter(
-  (produto) => produto.oferta == true
-);
-
 
 /* ---------- Imagem com fallback para ícone ---------- */
 type FotoProps = {
@@ -50,7 +61,7 @@ type CardProps = {
   id: string;
   nome: string;
   unidade: string;
-  preco: string;
+  preco: number;
   icone: any;
   imagem?: string;
 };
@@ -76,7 +87,7 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
           </Text>
           <Text style={styles.cardUnidade}>
             {unidade}
-            <Text style={styles.cardPreco}> R$ {preco}</Text>
+            <Text style={styles.cardPreco}> R$ {preco.toFixed(2).replace('.', ',')}</Text>
           </Text>
         </View>
       </Pressable>
@@ -88,14 +99,63 @@ function CardOferta({ id, nome, unidade, preco, icone, imagem }: CardProps) {
 export default function Home() {
   const router = useRouter();
   const [busca, setBusca] = useState('');
-  const [tituloDalista, setTituloDalista] = useState('Ofertas da semana');
+  const [tituloDalista, setTituloDalista] = useState('Produtos');
   const [categoria, setCategoria] = useState('1');
+  const [modoLista, setModoLista] = useState<'todos' | 'categoria' | 'busca'>('todos');
   const buscaRef = useRef<TextInput>(null);
-  const [produtosLista, setProdutosLista] = useState(ofertas);
+  const [produtos, setProdutos] = useState<Produto[]>(dados.produtos);
   const [cidade, setCidade] = useState('Criciúma, SC');
   const [mostrarCidades, setMostrarCidades] = useState(false);
 
   const { usuario, carregando, autorizado } = useAutenticacao('cliente');
+
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+
+      async function carregarProdutos() {
+        try {
+          const produtosSalvos = await AsyncStorage.getItem(PRODUTOS_STORAGE_KEY);
+          const produtosCarregados: unknown = produtosSalvos
+            ? JSON.parse(produtosSalvos)
+            : dados.produtos;
+
+          if (!Array.isArray(produtosCarregados) || !produtosCarregados.every(isProduto)) {
+            throw new Error('A lista de produtos armazenada não está em formato válido.');
+          }
+
+          if (ativo) {
+            setProdutos(produtosCarregados);
+          }
+        } catch (error) {
+          console.error('Erro ao carregar produtos do AsyncStorage:', error);
+          if (ativo) {
+            Alert.alert('Erro ao carregar produtos', 'Não foi possível atualizar a lista de produtos.');
+          }
+        }
+      }
+
+      carregarProdutos();
+      return () => {
+        ativo = false;
+      };
+    }, [])
+  );
+
+  const produtosLista = produtos.filter((produto) => {
+    if (modoLista === 'busca') {
+      return produto.nome.toLowerCase().includes(busca.toLowerCase());
+    }
+    if (modoLista === 'categoria') {
+      const categoriaSelecionada = categorias.find((item) => item.id === categoria);
+      return (
+        produto.categoria === categoria ||
+        produto.categoria?.toLowerCase() === categoriaSelecionada?.nome.toLowerCase()
+      );
+    }
+    return true;
+  });
+
   if (carregando || !autorizado) {
     return null;
   }
@@ -103,26 +163,20 @@ export default function Home() {
   function atualizarTitulo(categoriaSelecionada: Categoria) {
     setCategoria(categoriaSelecionada.id);
     setTituloDalista(categoriaSelecionada.nome);
-    const produtosCategoria = produtos.filter(
-      (produto) => produto.categoria == categoriaSelecionada.id
-    );
-    setProdutosLista(produtosCategoria);
+    setModoLista('categoria');
   }
 
   function pesquisar(texto: string) {
     setBusca(texto);
 
     if (texto === '') {
-      setTituloDalista('Ofertas da semana');
-      setProdutosLista(ofertas);
+      setTituloDalista('Produtos');
+      setModoLista('todos');
       return;
     }
 
     setTituloDalista('Resultados');
-    const resultado = produtos.filter(
-      (produto) => produto.nome.toLowerCase().includes(texto.toLowerCase())
-    );
-    setProdutosLista(resultado);
+    setModoLista('busca');
   }
 
   function escolherCidade(nome: string) {
@@ -191,7 +245,6 @@ export default function Home() {
                 ]}
               >
                 <Foto
-                  uri={item.imagem}
                   icone={item.icone}
                   tamanhoIcone={40}
                   corIcone={categoria === item.id ? '#fff' : '#2f7a4b'}
