@@ -13,6 +13,7 @@ export default function pagamento() {
     const [stateUm, setStateUm] = useState('Entrega');
     const [stateDois, setStateDois] = useState('Pix');
     const [valorTotal, setValorTotal] = useState('0,00');
+    const [qtdadeTotal, setQtdadeTotal] = useState('0');
     const [produtos, setProdutos] = useState([]);
 
 
@@ -22,6 +23,7 @@ export default function pagamento() {
             let prod = JSON.parse(lista)
             setProdutos(prod);
             let total = 0;
+            let totalqtdade=0
             console.log(prod)
             // percorrer produtos e somar o total, produtos
             total = prod.reduce((total, produto) =>
@@ -31,6 +33,13 @@ export default function pagamento() {
                 0
             )
             setValorTotal(total)
+
+            totalqtdade = prod.reduce((total, produto) =>
+                total + Number(produto.quantidade) || 1,
+                0
+            )
+
+            setQtdadeTotal(totalqtdade)
         }
 
     }
@@ -45,7 +54,8 @@ export default function pagamento() {
             style: 'currency',
             currency: 'BRL',
         });
-    }
+    };
+
 
 
 
@@ -173,7 +183,7 @@ export default function pagamento() {
                     <Text style={styles.textoForte}>Resumo do pedido</Text>
                     <View>
                         <View style={styles.dados}>
-                            <Text>{produtos.length} Itens</Text>
+                            <Text>{qtdadeTotal} Itens</Text>
                             <Text>{formatarPreco(valorTotal)}</Text>
                         </View>
                         <View style={styles.dados}>
