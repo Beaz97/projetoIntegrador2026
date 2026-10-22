@@ -13,6 +13,7 @@ export interface Produto {
   imagem?: string;
   oferta?: boolean;
   categoria?: string;
+  empresa?: number;
 }
 
 export default function Dados() {
@@ -33,6 +34,7 @@ export default function Dados() {
       imagem: 'https://img.freepik.com/premium-photo/close-up-photo-fresh-fruit-banana_983093-21.jpg',
       oferta: true,
       categoria: '1',
+      empresa: 2,
     },
     {
       id: '2',
@@ -43,6 +45,7 @@ export default function Dados() {
       imagem: 'https://images.tcdn.com.br/img/img_prod/1023690/leite_integral_1_lt_c_12_italac_451_1_0d91793cde338bf25e86c23efe22376c.png',
       oferta: true,
       categoria: '2',
+      empresa: 2,
     },
     {
       id: '3',
@@ -52,6 +55,7 @@ export default function Dados() {
       icone: 'nutrition-outline',
       imagem: 'https://media.guiame.com.br/archives/2014/12/19/1556727865-morango.jpg',
       categoria: '1',
+      empresa: 2,
     },
     {
       id: '4',
@@ -62,6 +66,7 @@ export default function Dados() {
       imagem: 'https://tse2.mm.bing.net/th/id/OIP.eCA1ztk1wz_2wKwwXC-2-QHaJz?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       oferta: true,
       categoria: '3',
+      empresa: 2,
     },
 
     // ===== HORTIFRUTI =====
@@ -74,6 +79,7 @@ export default function Dados() {
       imagem: 'https://tse4.mm.bing.net/th/id/OIP.uk4sqGbS9N3gCaG1mqOqcQHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       oferta: true,
       categoria: '1',
+      empresa: 2,
     },
     {
       id: '6',
@@ -83,6 +89,7 @@ export default function Dados() {
       icone: 'leaf-outline',
       imagem: 'https://tse4.mm.bing.net/th/id/OIP.9XpYZuQ4u0WnNQrrOdK2cQHaE6?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '1',
+      empresa: 2,
     },
     {
       id: '7',
@@ -92,6 +99,7 @@ export default function Dados() {
       icone: 'leaf-outline',
       imagem: 'https://tse1.mm.bing.net/th/id/OIP.4-H-nntg_Si0-DmJTmcOLgHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '1',
+      empresa: 2,
     },
     {
       id: '8',
@@ -101,6 +109,7 @@ export default function Dados() {
       icone: 'nutrition-outline',
       imagem: 'https://tse3.mm.bing.net/th/id/OIP.FLk5OC9exYggVsXoGCEyXAHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '1',
+      empresa: 2,
     },
 
     // ===== BEBIDAS =====
@@ -112,6 +121,7 @@ export default function Dados() {
       icone: 'water-outline',
       imagem: 'https://tse4.mm.bing.net/th/id/OIP.DXX8_G3kJTSQKNcxBIbVGQHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '2',
+      empresa: 2,
     },
     {
       id: '10',
@@ -122,6 +132,7 @@ export default function Dados() {
       imagem: 'https://tse1.mm.bing.net/th/id/OIP.PS6pSkpYvOnlb_zl5-F9RQHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       oferta: true,
       categoria: '2',
+      empresa: 2,
     },
     {
       id: '11',
@@ -131,6 +142,7 @@ export default function Dados() {
       icone: 'water-outline',
       imagem: 'https://static.paodeacucar.com/img/uploads/1/626/24660626.png',
       categoria: '2',
+      empresa: 2,
     },
     {
       id: '12',
@@ -140,6 +152,7 @@ export default function Dados() {
       icone: 'beer-outline',
       imagem: 'https://static.paodeacucar.com/img/uploads/1/635/12963635.jpg',
       categoria: '2',
+      empresa: 2,
     },
 
     // ===== ALIMENTOS =====
@@ -152,6 +165,7 @@ export default function Dados() {
       imagem: 'https://tse3.mm.bing.net/th/id/OIP.kB6NTeiXqMUeYFwGAnCZuAAAAA?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       oferta: true,
       categoria: '3',
+      empresa: 2,
     },
     {
       id: '14',
@@ -161,6 +175,7 @@ export default function Dados() {
       icone: 'restaurant-outline',
       imagem: 'https://cdn.awsli.com.br/2500x2500/1775/1775051/produto/217811761/7896417204017-498icg5i9d.jpg',
       categoria: '3',
+      empresa: 2,
     },
     {
       id: '15',
@@ -170,6 +185,7 @@ export default function Dados() {
       icone: 'egg-outline',
       imagem: 'https://tse4.mm.bing.net/th/id/OIP.V5VL5wlVNmKXyzNkl0bm7AHaE7?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '3',
+      empresa: 2,
     },
     {
       id: '16',
@@ -179,6 +195,7 @@ export default function Dados() {
       icone: 'fast-food-outline',
       imagem: 'https://images.tcdn.com.br/img/img_prod/462274/kit_com_1_000_sacos_28x50cm_para_pao_de_forma_grande_3972_2_cd099c5e57e406ab49553cc3ec266fab.jpg',
       categoria: '3',
+      empresa: 2,
     },
 
     // ===== CARNES =====
@@ -191,6 +208,7 @@ export default function Dados() {
       imagem: 'https://mercantilnovaera.vteximg.com.br/arquivos/ids/172884-1000-1000/File-de-Peito-de-Frango-SADIA-Na-Medida-Temperado-Saco-1kg.jpg?v=637448734028330000',
       oferta: true,
       categoria: '4',
+      empresa: 2,
     },
     {
       id: '18',
@@ -200,6 +218,7 @@ export default function Dados() {
       icone: 'fish-outline',
       imagem: 'https://cdn.b4c.inf.br/storage/acouguebg/original/carne-moida-400gr-carne-bovina-best-beef-1732301177.webp',
       categoria: '4',
+      empresa: 2,
     },
     {
       id: '19',
@@ -209,6 +228,7 @@ export default function Dados() {
       icone: 'fish-outline',
       imagem: 'https://tse3.mm.bing.net/th/id/OIP.YCZNkZ_lnqQGAul1Xhh8xgHaIa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3',
       categoria: '4',
+      empresa: 2,
     },
     {
       id: '20',
@@ -218,6 +238,7 @@ export default function Dados() {
       icone: 'flame-outline',
       imagem: 'https://www.sadia.com.br/assets/images/_/products/39721c564ca143c8caeb442f2a2d833c6c5aa0a9.webp',
       categoria: '4',
+      empresa: 2,
     },
   ];
 

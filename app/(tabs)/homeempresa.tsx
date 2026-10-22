@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAutenticacao } from '@/app/components/autenticaTelas';
+import Dados from '../rotaServidor/dadosProdutos';
 
 const VERDE = '#3D8054';
 const VERDE_ESCURO = '#245D39';
@@ -74,6 +75,11 @@ function MenuCard({
 export default function HomeScreen() {
   const router = useRouter();
   const { usuario, carregando, autorizado } = useAutenticacao('empresa');
+  const { produtos } = Dados();
+  const totalProdutos = produtos.filter(
+    (produto) => String(produto.empresa) === usuario?.id
+  ).length;
+
   if (carregando || !autorizado) {
     return null;
   }
@@ -134,7 +140,7 @@ export default function HomeScreen() {
               </Text>
 
               <Text style={styles.totalNumero}>
-                167
+                {totalProdutos}
               </Text>
 
               <Text style={styles.totalDescricao}>
@@ -199,7 +205,7 @@ export default function HomeScreen() {
               descricao="Adicione novos produtos ao seu catálogo."
               icone="add-circle-outline"
               corFundo="#F0ECFA"
-              onPress={() => router.push('/produtos/criar' as any)}
+              onPress={() => router.push('/novoproduto' as any)}
             />
 
             <MenuCard

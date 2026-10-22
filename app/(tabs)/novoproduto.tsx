@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAutenticacao } from '../components/autenticaTelas';
 
 const VERDE = '#3E7B4F';
 const CATEGORIAS = ['Alimentos', 'Bebidas', 'Limpeza', 'Higiene', 'Outros'];
@@ -119,11 +120,15 @@ export default function App() {
   const [preco, setPreco] = useState('');
   const [descricao, setDescricao] = useState('');
   const [aba, setAba] = useState('produtos');
+  const { usuario, carregando, autorizado } = useAutenticacao('empresa');
 
   function salvar() {
     const produto = { nome, categoria, preco, descricao };
     console.log('Produto salvo:', produto);
   }
+  if (carregando || !autorizado) {
+      return null;
+    }
 
   return (
     <SafeAreaView style={styles.tela}>
