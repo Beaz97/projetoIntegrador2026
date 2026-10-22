@@ -11,6 +11,9 @@ export default function Index() {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
+  const [focusCPF, setFocusCPF] = useState(false);
+  const [focusSenha, setFocusSenha] = useState(false);
+
   const cpfRef = useRef<TextInput>(null);
   const senhaRef = useRef<TextInput>(null);
 
@@ -60,30 +63,34 @@ export default function Index() {
         </Text>
 
         {/* CPF ou CNPJ */}
-        <Pressable style={styles.campo} onPress={() => cpfRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusCPF ? 'solid' : 'none'}, styles.campo]} onPress={() => cpfRef.current?.focus()}>
           <Ionicons name="person" size={32} color="#2f7a4b" />
           <TextInput
             ref={cpfRef}
-            style={styles.input}
-            placeholder="CPF ou CNPJ"
+            style={[styles.input]}
+            placeholder={focusCPF ? "" : "CPF e CNPJ"}
             placeholderTextColor="#2f7a4b"
             keyboardType="numeric"
             value={cpf}
             onChangeText={setCpf}
+            onFocus={()=>{setFocusCPF(true)}}
+            onBlur={()=>{setFocusCPF(false)}}
           />
         </Pressable>
 
         {/* Senha */}
-        <Pressable style={styles.campo} onPress={() => senhaRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusSenha ? 'solid' : 'none'}, styles.campo]} onPress={() => senhaRef.current?.focus()}>
           <Ionicons name="lock-closed" size={32} color="#2f7a4b" />
           <TextInput
             ref={senhaRef}
             style={styles.input}
-            placeholder="Senha"
+            placeholder={focusSenha ? "" : "Senha"}
             placeholderTextColor="#2f7a4b"
             secureTextEntry={!mostrarSenha}
             value={senha}
             onChangeText={setSenha}
+            onFocus={()=>{setFocusSenha(true)}}
+            onBlur={()=>{setFocusSenha(false)}}
           />
           <Pressable onPress={() => setMostrarSenha(!mostrarSenha)}>
             <Ionicons
@@ -182,6 +189,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 50,
     marginBottom: 20,
+    outlineWidth: 2
   },
   input: {
     flex: 1,
@@ -192,6 +200,7 @@ const styles = StyleSheet.create({
     color: '#2f7a4b',
     marginLeft: 10,
     marginRight: 10,
+    outlineStyle: 'none'
   },
 
   botaoLogin: {

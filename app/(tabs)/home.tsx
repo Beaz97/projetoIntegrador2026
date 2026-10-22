@@ -1,5 +1,5 @@
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Image } from 'react-native';
-import { useState, useRef } from 'react';
+import { useState, useRef, Fragment } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Dados, { type Categoria } from '../rotaServidor/dadosProdutos';
@@ -89,7 +89,7 @@ export default function Home() {
   const router = useRouter();
   const [busca, setBusca] = useState('');
   const [tituloDalista, setTituloDalista] = useState('Ofertas da semana');
-  const [categoria, setCategoria] = useState('1');
+  const [categoria, setCategoria] = useState('0');
   const buscaRef = useRef<TextInput>(null);
   const [produtosLista, setProdutosLista] = useState(ofertas);
   const [cidade, setCidade] = useState('Criciúma, SC');
@@ -175,6 +175,14 @@ export default function Home() {
             onChangeText={pesquisar}
           />
         </Pressable>
+        
+        <View style={[{marginRight: 20, marginBottom: 16, flexDirection: 'row'}]}>
+          <View style={[{flex:1}]}/>
+          <Pressable style={styles.limpar} onPress={()=>{setProdutosLista(ofertas), setCategoria('0')}}>
+            <Text style={styles.textoLimpar}>Limpar filtro</Text>
+          </Pressable>
+          <View style={[{flex:1}]}/>
+        </View>
 
         {/* Categorias */}
         <FlatList
@@ -202,6 +210,7 @@ export default function Home() {
             </Pressable>
           )}
         />
+        
 
         {/* Ofertas da semana */}
         <View style={styles.ofertasTopo}>
@@ -334,6 +343,15 @@ const styles = StyleSheet.create({
     color: '#222',
     marginLeft: 16,
   },
+  limpar: {
+    backgroundColor: '#dcefe3',
+    borderRadius: 15,
+    flex: 1
+  },
+    textoLimpar: {
+      fontWeight: 500,
+      textAlign: 'center'
+    },
   listaCategorias: {
     flexGrow: 0,
     marginBottom: 12,

@@ -16,6 +16,12 @@ export default function Cadastro() {
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [empresa, setEmpresa] = useState(false); // false = Cliente, true = Empresa
 
+  const [focusNome, setFocusNome] = useState(false);
+  const [focusEmail, setFocusEmail] = useState(false);
+  const [focusCpf, setFocusCpf] = useState(false);
+  const [focusSenha, setFocusSenha] = useState(false);
+  const [focusConfirmar, setFocusConfirmar] = useState(false);
+
   const nomeRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const cpfRef = useRef<TextInput>(null);
@@ -82,68 +88,78 @@ export default function Cadastro() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.campo} onPress={() => nomeRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusNome ? 'solid' : 'none'}, styles.campo]} onPress={() => nomeRef.current?.focus()}>
           <Ionicons name="person" size={32} color="#2f7a4b" style={styles.icone} />
           <TextInput
             ref={nomeRef}
             style={styles.input}
-            placeholder="Nome"
+            placeholder={focusNome ? "" : "Nome"}
             placeholderTextColor="#2f7a4b"
             value={nome}
             onChangeText={setNome}
+            onFocus={()=>{setFocusNome(true)}}
+            onBlur={()=>{setFocusNome(false)}}
           />
         </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => emailRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusEmail ? 'solid' : 'none'}, styles.campo]} onPress={() => emailRef.current?.focus()}>
           <Ionicons name="mail" size={28} color="#2f7a4b" style={styles.icone} />
           <TextInput
             ref={emailRef}
             style={styles.input}
-            placeholder="Email"
+            placeholder={focusEmail ? "" : "Email"}
             placeholderTextColor="#2f7a4b"
             value={email}
             onChangeText={setEmail}
+            onFocus={()=>{setFocusEmail(true)}}
+            onBlur={()=>{setFocusEmail(false)}}
           />
         </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => cpfRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusCpf ? 'solid' : 'none'}, styles.campo]} onPress={() => cpfRef.current?.focus()}>
           <Ionicons name="card" size={28} color="#2f7a4b" style={styles.icone} />
           <TextInput
             ref={cpfRef}
             style={styles.input}
-            placeholder={textoDocumento}
+            placeholder={focusCpf ? "" : textoDocumento}
             placeholderTextColor="#2f7a4b"
             value={cpf}
             onChangeText={setCpf}
+            onFocus={()=>{setFocusCpf(true)}}
+            onBlur={()=>{setFocusCpf(false)}}
           />
         </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => senhaRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusSenha ? 'solid' : 'none'}, styles.campo]} onPress={() => senhaRef.current?.focus()}>
           <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
           <TextInput
             ref={senhaRef}
             style={styles.input}
-            placeholder="Senha"
+            placeholder={focusSenha ? "" : "Senha"}
             placeholderTextColor="#2f7a4b"
             secureTextEntry={!mostrarSenha}
             value={senha}
             onChangeText={setSenha}
+            onFocus={()=>{setFocusSenha(true)}}
+            onBlur={()=>{setFocusSenha(false)}}
           />
           <Pressable onPress={() => setMostrarSenha((valor) => !valor)}>
             <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
           </Pressable>
         </Pressable>
 
-        <Pressable style={styles.campo} onPress={() => confirmarRef.current?.focus()}>
+        <Pressable style={[{outlineStyle: focusConfirmar ? 'solid' : 'none'}, styles.campo]} onPress={() => confirmarRef.current?.focus()}>
           <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
           <TextInput
             ref={confirmarRef}
             style={styles.input}
-            placeholder="Confirmar senha"
+            placeholder={focusConfirmar ? "" : "Confirmar senha"}
             placeholderTextColor="#2f7a4b"
             secureTextEntry={!mostrarConfirmar}
             value={confirmar}
             onChangeText={setConfirmar}
+            onFocus={()=>{setFocusConfirmar(true)}}
+            onBlur={()=>{setFocusConfirmar(false)}}
           />
           <Pressable onPress={() => setMostrarConfirmar((valor) => !valor)}>
             <Ionicons name={mostrarConfirmar ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
@@ -234,6 +250,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 14,
+    outlineWidth: 2,
+    outlineColor: '#2f7a4b'
   },
   icone: {
     marginRight: 10,
@@ -244,6 +262,7 @@ const styles = StyleSheet.create({
     color: '#2f7a4b',
     fontWeight: '600',
     paddingVertical: 4,
+    outlineStyle: 'none'
   },
   botao: {
     backgroundColor: '#2f7a4b',
