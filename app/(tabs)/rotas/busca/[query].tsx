@@ -14,7 +14,7 @@ export default function Busca() {
                     title: `Busca: ${query}`,
                 }}
             />
-            <Text style={styles.texto}>Termo buscado: {query}</Text>
+            <Text style={styles.texto}>Termo buscado:. {query}</Text>
         </View>
     );
 }
