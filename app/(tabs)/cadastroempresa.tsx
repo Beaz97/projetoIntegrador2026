@@ -93,8 +93,8 @@ export default function Cadastro() {
           <TextInput
             ref={nomeRef}
             style={styles.input}
-            placeholder={focusNome ? "" : "Nome"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"Nome"}
+            placeholderTextColor={focusNome ? "#2f7a4a7e" : "#2f7a4b"}
             value={nome}
             onChangeText={setNome}
             onFocus={()=>{setFocusNome(true)}}
@@ -107,8 +107,8 @@ export default function Cadastro() {
           <TextInput
             ref={emailRef}
             style={styles.input}
-            placeholder={focusEmail ? "" : "Email"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"Email"}
+            placeholderTextColor={focusEmail ? "#2f7a4a7e" : "#2f7a4b"}
             value={email}
             onChangeText={setEmail}
             onFocus={()=>{setFocusEmail(true)}}
@@ -121,8 +121,8 @@ export default function Cadastro() {
           <TextInput
             ref={cpfRef}
             style={styles.input}
-            placeholder={focusCpf ? "" : textoDocumento}
-            placeholderTextColor="#2f7a4b"
+            placeholder={textoDocumento}
+            placeholderTextColor={focusCpf ? "#2f7a4a7e" : "#2f7a4b"}
             value={cpf}
             onChangeText={setCpf}
             onFocus={()=>{setFocusCpf(true)}}
@@ -135,8 +135,8 @@ export default function Cadastro() {
           <TextInput
             ref={senhaRef}
             style={styles.input}
-            placeholder={focusSenha ? "" : "Senha"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"Senha"}
+            placeholderTextColor={focusSenha ? "#2f7a4a7e" : "#2f7a4b"}
             secureTextEntry={!mostrarSenha}
             value={senha}
             onChangeText={setSenha}
@@ -153,8 +153,8 @@ export default function Cadastro() {
           <TextInput
             ref={confirmarRef}
             style={styles.input}
-            placeholder={focusConfirmar ? "" : "Confirmar senha"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"Confirmar senha"}
+            placeholderTextColor={focusConfirmar ? "#2f7a4a7e" : "#2f7a4b"}
             secureTextEntry={!mostrarConfirmar}
             value={confirmar}
             onChangeText={setConfirmar}

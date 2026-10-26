@@ -68,8 +68,8 @@ export default function Index() {
           <TextInput
             ref={cpfRef}
             style={[styles.input]}
-            placeholder={focusCPF ? "" : "CPF e CNPJ"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"CPF e CNPJ"}
+            placeholderTextColor={focusCPF ? "#2f7a4a7e" : "#2f7a4b"}
             keyboardType="numeric"
             value={cpf}
             onChangeText={setCpf}
@@ -84,8 +84,8 @@ export default function Index() {
           <TextInput
             ref={senhaRef}
             style={styles.input}
-            placeholder={focusSenha ? "" : "Senha"}
-            placeholderTextColor="#2f7a4b"
+            placeholder={"Senha"}
+            placeholderTextColor={focusSenha ? "#2f7a4a7e" : "#2f7a4b"}
             secureTextEntry={!mostrarSenha}
             value={senha}
             onChangeText={setSenha}
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 50,
     marginBottom: 20,
-    outlineWidth: 2
+    outlineWidth: 1
   },
   input: {
     flex: 1,
