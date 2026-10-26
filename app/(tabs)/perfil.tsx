@@ -1,149 +1,428 @@
-import { View, Text, Pressable, ScrollView, StyleSheet, Image } from 'react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+} from 'react-native';
+
+import { useState, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import AutenticaTelas, { useAutenticacao } from '@/app/components/autenticaTelas';
+import { useAutenticacao } from '@/app/components/autenticaTelas';
 
+const VERDE = '#41805a';
+const VERDE_ESCURO = '#245D39';
+const VERDE_CLARO = '#E5F1E8';
 
-/* ---------- Mapa com fallback ---------- */
-function Mapa({ uri }: { uri?: string }) {
-  const [erro, setErro] = useState(false);
+const CHAVE_USUARIOS = '@banco_usuarios';
+const CHAVE_USUARIO_LOGADO = '@usuario_logado';
 
-  if (uri && !erro) {
-    return <Image source={{ uri }} style={styles.mapaImagem} onError={() => setErro(true)} />;
-  }
-  return (
-    <View style={[styles.mapaImagem, styles.mapaFallback]}>
-      <Ionicons name="location" size={40} color="#e5202e" />
-    </View>
-  );
-}
-
-/* ---------- Tela ---------- */
 export default function Perfil() {
   const router = useRouter();
+
   const [mostrarHistorico, setMostrarHistorico] = useState(false);
-  const { usuario, carregando, autorizado } = useAutenticacao('cliente');
+  const [historicoAtualizado, setHistoricoAtualizado] = useState<any[]>([]);
+  const [nomeAtualizado, setNomeAtualizado] = useState('');
+  const [emailAtualizado, setEmailAtualizado] = useState('');
+
+  const { usuario, carregando, autorizado } =
+    useAutenticacao('cliente');
+
+  const carregarHistorico = useCallback(async () => {
+    try {
+      const usuarioSalvoTexto = await AsyncStorage.getItem(
+        CHAVE_USUARIO_LOGADO
+      );
+
+      if (!usuarioSalvoTexto) {
+        setHistoricoAtualizado([]);
+        return;
+      }
+
+      const usuarioSalvo = JSON.parse(usuarioSalvoTexto);
+
+      const usuariosTexto = await AsyncStorage.getItem(
+        CHAVE_USUARIOS
+      );
+
+      let usuarioAtualizado = usuarioSalvo;
+
+      if (usuariosTexto) {
+        const usuarios = JSON.parse(usuariosTexto);
+
+        if (Array.isArray(usuarios)) {
+          const usuarioBanco = usuarios.find((u: any) => {
+            return (
+              (usuarioSalvo.id != null &&
+                String(u.id) === String(usuarioSalvo.id)) ||
+              (usuarioSalvo.email &&
+                u.email?.toLowerCase() ===
+                  usuarioSalvo.email.toLowerCase())
+            );
+          });
+
+          if (usuarioBanco) {
+            usuarioAtualizado = usuarioBanco;
+          }
+        }
+      }
+
+      setHistoricoAtualizado(
+        Array.isArray(usuarioAtualizado.historicoCompras)
+          ? usuarioAtualizado.historicoCompras
+          : []
+      );
+
+      setNomeAtualizado(usuarioAtualizado.nome || '');
+      setEmailAtualizado(usuarioAtualizado.email || '');
+    } catch (erro) {
+      console.error('Erro ao carregar histórico de compras:', erro);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarHistorico();
+    }, [carregarHistorico])
+  );
+
   if (carregando || !autorizado) {
     return null;
   }
-  // Lista do histórico. Troque pelos seus dados (mercado, data e total gasto).
-  const historico = usuario?.historicoCompras
+
+  const historico = historicoAtualizado;
+  const nome = nomeAtualizado || usuario?.nome || 'Meu perfil';
+  const email =
+    emailAtualizado || usuario?.email || 'E-mail não informado';
+
+  function abrirConfiguracoes() {
+    router.push('/configuracoes');
+  }
+
+  function abrirEnderecos() {
+    router.push({
+      pathname: '/configuracoes',
+      params: { tela: 'enderecos' },
+    });
+  }
 
   return (
     <View style={styles.container}>
-      {/* Cabeçalho verde */}
-      <View style={styles.cabecalho}>
-        <View style={styles.avatar}>
-          <Ionicons name="person" size={50} color="#fff" style={styles.avatarIcone} />
-        </View>
-
-        <View style={styles.cabecalhoTextos}>
-          <Text style={styles.nome}>{usuario?.nome}</Text>
-          <Text style={styles.email}>{usuario?.email}</Text>
-        </View>
-
-        <Pressable
-          hitSlop={10}
-          style={({ pressed }) => pressed && styles.botaoPressionado}
-          onPress={() => router.push('/configuracoes')}
-        >
-          <Ionicons name="settings-outline" size={38} color="#fff" />
-        </Pressable>
-      </View>
-
-      {/* Conteúdo branco */}
       <ScrollView
-        style={styles.conteudo}
-        contentContainerStyle={styles.conteudoInterno}
+        style={styles.scroll}
+        contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
       >
-        {/* Histórico de compras */}
-        <Pressable
-          style={({ pressed }) => [styles.historico, pressed && styles.botaoPressionado]}
-          onPress={() => setMostrarHistorico(!mostrarHistorico)}
-        >
-          <Ionicons name="cart-outline" size={44} color="#2f7a4b" />
-          <View style={styles.historicoTextos}>
-            <Text style={styles.historicoTitulo}>Histórico de compras</Text>
-            <Text style={styles.historicoSub}>{usuario?.historicoCompras?.length} compras</Text>
-          </View>
-        </Pressable>
+        <View style={styles.cabecalho}>
+          <View style={styles.cabecalhoSuperior}>
+            <View>
+              <Text style={styles.tituloCabecalho}>
+                Meu perfil
+              </Text>
 
-        {/* Janela com o histórico */}
-        {mostrarHistorico && (
-          <View style={styles.listaHistorico}>
-            {historico.map((compra) => (
-              <View key={compra.id} style={styles.historicoItem}>
-                <View style={styles.historicoItemTextos}>
-                  <Text style={styles.historicoMercado}>{compra.mercado}</Text>
-                  <Text style={styles.historicoData}>{compra.data}</Text>
+              <Text style={styles.subtituloCabecalho}>
+                Suas informações e preferências
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={abrirConfiguracoes}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.botaoConfiguracoes,
+                pressed && styles.botaoPressionado,
+              ]}
+            >
+              <Ionicons
+                name="settings-outline"
+                size={23}
+                color="#FFFFFF"
+              />
+            </Pressable>
+          </View>
+
+          <View style={styles.perfilUsuario}>
+            <View style={styles.avatar}>
+              <Ionicons
+                name="person"
+                size={38}
+                color={VERDE}
+              />
+            </View>
+
+            <View style={styles.informacoesUsuario}>
+              <Text style={styles.nome} numberOfLines={1}>
+                {nome}
+              </Text>
+
+              <Text style={styles.email} numberOfLines={1}>
+                {email}
+              </Text>
+
+              <View style={styles.seloCliente}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={14}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.seloClienteTexto}>
+                  Cliente Economize
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.conteudoPrincipal}>
+          <Text style={styles.tituloSecao}>
+            Minha conta
+          </Text>
+
+          <Text style={styles.descricaoSecao}>
+            Gerencie seus dados e acompanhe suas compras.
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.cartao,
+              pressed && styles.cartaoPressionado,
+            ]}
+            onPress={abrirConfiguracoes}
+          >
+            <View style={styles.iconeCartao}>
+              <Ionicons
+                name="settings-outline"
+                size={24}
+                color={VERDE}
+              />
+            </View>
+
+            <View style={styles.textosCartao}>
+              <Text style={styles.tituloCartao}>
+                Configurações
+              </Text>
+
+              <Text style={styles.descricaoCartao}>
+                Gerencie seus dados e preferências
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={21}
+              color="#8B968C"
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.cartao,
+              pressed && styles.cartaoPressionado,
+            ]}
+            onPress={abrirEnderecos}
+          >
+            <View style={styles.iconeCartao}>
+              <Ionicons
+                name="location-outline"
+                size={25}
+                color={VERDE}
+              />
+            </View>
+
+            <View style={styles.textosCartao}>
+              <Text style={styles.tituloCartao}>
+                Meu endereço
+              </Text>
+
+              <Text style={styles.descricaoCartao}>
+                Consulte ou altere seu endereço
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={21}
+              color="#8B968C"
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.cartao,
+              pressed && styles.cartaoPressionado,
+            ]}
+            onPress={() =>
+              setMostrarHistorico(!mostrarHistorico)
+            }
+          >
+            <View style={styles.iconeCartao}>
+              <Ionicons
+                name="receipt-outline"
+                size={24}
+                color={VERDE}
+              />
+            </View>
+
+            <View style={styles.textosCartao}>
+              <Text style={styles.tituloCartao}>
+                Histórico de compras
+              </Text>
+
+              <Text style={styles.descricaoCartao}>
+                {historico.length}{' '}
+                {historico.length === 1
+                  ? 'compra realizada'
+                  : 'compras realizadas'}
+              </Text>
+            </View>
+
+            <Ionicons
+              name={
+                mostrarHistorico
+                  ? 'chevron-up'
+                  : 'chevron-down'
+              }
+              size={21}
+              color="#8B968C"
+            />
+          </Pressable>
+
+          {mostrarHistorico && (
+            <View style={styles.listaHistorico}>
+              {historico.length > 0 ? (
+                historico.map((compra: any, index: number) => (
+                  <View
+                    key={compra.id ?? index}
+                    style={[
+                      styles.itemHistorico,
+                      index === historico.length - 1 &&
+                        styles.ultimoItemHistorico,
+                    ]}
+                  >
+                    <View style={styles.historicoIcone}>
+                      <Ionicons
+                        name="bag-check-outline"
+                        size={20}
+                        color={VERDE}
+                      />
+                    </View>
+
+                    <View style={styles.historicoTextos}>
+                      <Text style={styles.historicoMercado}>
+                        {compra.mercado || 'Compra realizada'}
+                      </Text>
+
+                      <Text style={styles.historicoData}>
+                        {compra.data || 'Data não informada'}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.historicoPreco}>
+                      R${' '}
+                      {typeof compra.total === 'number'
+                        ? compra.total
+                            .toFixed(2)
+                            .replace('.', ',')
+                        : compra.total ?? '0,00'}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.historicoVazio}>
+                  <Ionicons
+                    name="bag-outline"
+                    size={28}
+                    color="#8B968C"
+                  />
+
+                  <Text style={styles.historicoVazioTexto}>
+                    Você ainda não realizou compras.
+                  </Text>
                 </View>
-                <Text style={styles.historicoPreco}>R$ {compra.total}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+              )}
+            </View>
+          )}
 
-        {/* Mapa */}
-        <Mapa uri={usuario.mapa} />
-
-        {/* Alterar endereço */}
-        <Pressable
-          style={({ pressed }) => [styles.botaoEndereco, pressed && styles.botaoPressionado]}
-          onPress={() => router.push({ pathname: '/configuracoes', params: { tela: 'enderecos' } })}
-        >
-          <Text style={styles.botaoEnderecoTexto}>Alterar endereço</Text>
-        </Pressable>
-
-        {/* Economize por um futuro melhor */}
-        <View style={styles.dica}>
-          <Text style={styles.dicaTitulo}>Economize por um futuro melhor!</Text>
-
-          <View style={styles.dicaLinha}>
-            <View style={styles.ods}>
-              <Text style={styles.odsNumero}>12</Text>
-              <Text style={styles.odsTexto}>RESPONSIBLE{'\n'}CONSUMPTION{'\n'}AND PRODUCTION</Text>
-              <View style={styles.odsIcone}>
-                <Ionicons name="infinite" size={60} color="#fff" />
-              </View>
+          <View style={styles.cartaoDica}>
+            <View style={styles.dicaIcone}>
+              <Ionicons
+                name="leaf-outline"
+                size={27}
+                color={VERDE}
+              />
             </View>
 
             <View style={styles.dicaTextos}>
-              <Text style={styles.dicaDescricao}>
-                Compare preços, escolha melhor e compre de forma mais consciente.
+              <Text style={styles.dicaTitulo}>
+                Economize mais!
               </Text>
-              <Text style={styles.dicaDestaque}>Pequenas escolhas fazem a diferença.</Text>
+
+              <Text style={styles.dicaDescricao}>
+                Compare preços e faça escolhas mais conscientes
+                para o seu bolso.
+              </Text>
             </View>
           </View>
         </View>
       </ScrollView>
 
-      {/* Barra de baixo */}
       <View style={styles.barraContainer}>
         <View style={styles.barra}>
           <Pressable
             hitSlop={10}
-            style={({ pressed }) => pressed && styles.botaoPressionado}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.botaoPressionado,
+            ]}
             onPress={() => router.push('/home')}
           >
-            <Ionicons name="home" size={40} color="#fff" />
+            <Ionicons
+              name="home"
+              size={27}
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.textoNavegacao}>
+              Início
+            </Text>
           </Pressable>
 
           <Pressable
             hitSlop={10}
-            style={({ pressed }) => pressed && styles.botaoPressionado}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.botaoPressionado,
+            ]}
             onPress={() => router.push('/perfil' as any)}
           >
-            <Ionicons name="person" size={40} color="#fff" />
+            <Ionicons
+              name="person"
+              size={27}
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.textoNavegacao}>
+              Perfil
+            </Text>
           </Pressable>
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.carrinho, pressed && styles.botaoPressionado]}
+          style={({ pressed }) => [
+            styles.carrinho,
+            pressed && styles.botaoPressionado,
+          ]}
           onPress={() => router.push('/carrinho' as any)}
         >
-          <Ionicons name="cart-outline" size={44} color="#fff" />
+          <Ionicons
+            name="cart-outline"
+            size={31}
+            color="#FFFFFF"
+          />
         </Pressable>
       </View>
     </View>
@@ -153,207 +432,241 @@ export default function Perfil() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F7F9F7',
   },
-
-  /* Cabeçalho */
-  cabecalho: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#41805a',
-    paddingTop: 10,
-    paddingBottom: 30,
-    paddingHorizontal: 24,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 48,
-    borderWidth: 4,
-    borderColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  avatarIcone: {
-    marginBottom: -8,
-  },
-  cabecalhoTextos: {
+  scroll: {
     flex: 1,
-    alignItems: 'center',
-    marginHorizontal: 12,
   },
-  nome: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  email: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-
-  /* Conteúdo */
   conteudo: {
-    flex: 1,
-    backgroundColor: '#fff',
-    marginTop: -30,
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    paddingBottom: 22,
   },
-  conteudoInterno: {
-    padding: 24,
-    paddingBottom: 16,
+  cabecalho: {
+    backgroundColor: VERDE,
+    paddingTop: 24,
+    paddingHorizontal: 22,
+    paddingBottom: 32,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-
-  /* Histórico */
-  historico: {
+  cabecalhoSuperior: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#dcefe3',
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 27,
   },
-  historicoTextos: {
-    marginLeft: 16,
+  tituloCabecalho: {
+    fontSize: 25,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.4,
   },
-  historicoTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f4d2e',
+  subtituloCabecalho: {
+    fontSize: 13,
+    color: '#E7F2E9',
+    marginTop: 5,
   },
-  historicoSub: {
-    fontSize: 18,
-    color: '#1f4d2e',
-  },
-
-  /* Janela do histórico */
-  listaHistorico: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#2f7a4b',
-    borderRadius: 14,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  historicoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#dcefe3',
-  },
-  historicoItemTextos: {
-    flex: 1,
-  },
-  historicoMercado: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f4d2e',
-  },
-  historicoData: {
-    fontSize: 14,
-    color: '#777',
-  },
-  historicoPreco: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2f7a4b',
-  },
-
-  /* Mapa */
-  mapaImagem: {
-    width: '100%',
-    height: 130,
-    borderRadius: 14,
-    resizeMode: 'cover',
-  },
-  mapaFallback: {
-    backgroundColor: '#dcdcdc',
+  botaoConfiguracoes: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.17)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /* Botão de endereço */
-  botaoEndereco: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#dcefe3',
-    borderRadius: 18,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  botaoEnderecoTexto: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#1f4d2e',
-  },
-
-  /* Dica */
-  dica: {
-    backgroundColor: '#dcefe3',
-    borderRadius: 18,
-    padding: 14,
-  },
-  dicaTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f4d2e',
-    marginBottom: 10,
-  },
-  dicaLinha: {
+  perfilUsuario: {
     flexDirection: 'row',
-  },
-  ods: {
-    width: 92,
-    height: 92,
-    backgroundColor: '#3f7e44',
-    padding: 4,
-    alignItems: 'flex-start',
-  },
-  odsNumero: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  odsTexto: {
-    position: 'absolute',
-    top: 6,
-    left: 26,
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  odsIcone: {
-    position: 'absolute',
-    bottom: 4,
-    left: 0,
-    right: 0,
     alignItems: 'center',
+    gap: 15,
+  },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#DCEFE3',
+  },
+  informacoesUsuario: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nome: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  email: {
+    fontSize: 13,
+    color: '#E7F2E9',
+    marginTop: 5,
+  },
+  seloCliente: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.17)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginTop: 10,
+  },
+  seloClienteTexto: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  conteudoPrincipal: {
+    paddingHorizontal: 18,
+    paddingTop: 25,
+  },
+  tituloSecao: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#193D27',
+    letterSpacing: -0.3,
+  },
+  descricaoSecao: {
+    fontSize: 13,
+    color: '#7B837B',
+    marginTop: 5,
+    marginBottom: 18,
+    lineHeight: 19,
+  },
+  cartao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 17,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5ECE6',
+    minHeight: 80,
+  },
+  cartaoPressionado: {
+    opacity: 0.75,
+  },
+  iconeCartao: {
+    width: 49,
+    height: 49,
+    borderRadius: 15,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textosCartao: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 13,
+    marginRight: 8,
+  },
+  tituloCartao: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#26382A',
+  },
+  descricaoCartao: {
+    fontSize: 12,
+    color: '#7B837B',
+    marginTop: 5,
+    lineHeight: 17,
+  },
+  listaHistorico: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5ECE6',
+    paddingHorizontal: 13,
+    marginTop: -3,
+    marginBottom: 14,
+  },
+  itemHistorico: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2EE',
+  },
+  ultimoItemHistorico: {
+    borderBottomWidth: 0,
+  },
+  historicoIcone: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historicoTextos: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 10,
+    marginRight: 8,
+  },
+  historicoMercado: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#26382A',
+  },
+  historicoData: {
+    fontSize: 11,
+    color: '#7B837B',
+    marginTop: 4,
+  },
+  historicoPreco: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+  },
+  historicoVazio: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  historicoVazioTexto: {
+    fontSize: 13,
+    color: '#7B837B',
+    textAlign: 'center',
+  },
+  cartaoDica: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E5F1E8',
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 8,
+  },
+  dicaIcone: {
+    width: 47,
+    height: 47,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dicaTextos: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 13,
+  },
+  dicaTitulo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
   },
   dicaDescricao: {
-    fontSize: 15,
-    color: '#1f4d2e',
-    textAlign: 'justify',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#46664D',
+    marginTop: 5,
   },
-  dicaDestaque: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#1f4d2e',
-  },
-
-  /* Barra de baixo */
   barraContainer: {
-    height: 106,
+    height: 78,
+    position: 'relative',
+    backgroundColor: '#F7F9F7',
   },
   barra: {
     position: 'absolute',
@@ -363,26 +676,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#41805a',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    height: 70,
+    backgroundColor: VERDE,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    height: 67,
+    paddingHorizontal: 45,
   },
-  botaoPressionado: {
-    opacity: 0.6,
+  botaoNavegacao: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  textoNavegacao: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   carrinho: {
     position: 'absolute',
-    top: 0,
+    top: -7,
     left: '50%',
-    marginLeft: -40,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#41805a',
+    marginLeft: -31,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: VERDE_ESCURO,
     borderWidth: 4,
-    borderColor: '#fff',
+    borderColor: '#F7F9F7',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  botaoPressionado: {
+    opacity: 0.65,
   },
 });

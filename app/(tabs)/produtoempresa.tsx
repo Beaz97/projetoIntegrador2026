@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,118 +8,363 @@ import {
   Pressable,
   ScrollView,
   StatusBar,
+  Image,
+  useWindowDimensions,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useAutenticacao } from '@/app/components/autenticaTelas';
+import Dados from '../rotaServidor/dadosProdutos';
 
 const VERDE = '#3D8054';
 const ESCURO = '#245D39';
-
-const produtos = [
-  { id: '1', nome: 'Arroz branco 5 kg', preco: 'R$ 24,90', icone: 'basket-outline' as const },
-  { id: '2', nome: 'Leite integral 1 L', preco: 'R$ 4,79', icone: 'water-outline' as const },
-  { id: '3', nome: 'Óleo de soja 900 ml', preco: 'R$ 7,49', icone: 'flask-outline' as const },
-  { id: '4', nome: 'Café tradicional 500 g', preco: 'R$ 18,90', icone: 'cafe-outline' as const },
-  { id: '5', nome: 'Detergente 500 ml', preco: 'R$ 2,99', icone: 'sparkles-outline' as const },
-];
+const FUNDO = '#F7F9F7';
 
 export default function ProdutosEmpresa() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+
+  const { usuario, carregando, autorizado } =
+    useAutenticacao('empresa');
+
+  const { produtos } = Dados();
+
   const [busca, setBusca] = useState('');
 
-  const lista = produtos.filter((produto) =>
-    produto.nome.toLowerCase().includes(busca.toLowerCase())
-  );
+  const produtosDaEmpresa = useMemo(() => {
+    return produtos.filter(
+      (produto) =>
+        String(produto.empresa) === String(usuario?.id)
+    );
+  }, [produtos, usuario?.id]);
+
+  const lista = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
+    return produtosDaEmpresa.filter((produto) =>
+      String(produto.nome ?? '')
+        .toLocaleLowerCase('pt-BR')
+        .includes(termo)
+    );
+  }, [produtosDaEmpresa, busca]);
+
+  if (carregando || !autorizado) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={ESCURO} />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={ESCURO}
+      />
 
+      {/* CABEÇALHO FIXO */}
       <View style={styles.cabecalho}>
-        <Pressable onPress={() => router.push('/homeempresa' as any)}>
-          <Ionicons name="arrow-back" size={25} color="#FFFFFF" />
+        <Pressable
+          style={styles.botaoVoltar}
+          onPress={() => router.push('/homeempresa' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar para o início"
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="#FFFFFF"
+          />
         </Pressable>
 
         <View style={styles.titulos}>
           <Text style={styles.titulo}>Meus produtos</Text>
-          <Text style={styles.subtitulo}>Gerencie seus produtos</Text>
+          <Text style={styles.subtitulo}>
+            Gerencie seu catálogo
+          </Text>
+        </View>
+
+        <View style={styles.contador}>
+          <Text style={styles.contadorNumero}>
+            {produtosDaEmpresa.length}
+          </Text>
+          <Text style={styles.contadorTexto}>
+            produtos
+          </Text>
         </View>
       </View>
 
+      {/* CONTEÚDO */}
       <View style={styles.conteudo}>
+        {/* PESQUISA */}
         <View style={styles.pesquisa}>
-          <Ionicons name="search-outline" size={21} color="#849087" />
+          <Ionicons
+            name="search-outline"
+            size={21}
+            color="#849087"
+          />
+
           <TextInput
             style={styles.input}
             placeholder="Buscar produto..."
             placeholderTextColor="#929C94"
             value={busca}
             onChangeText={setBusca}
+            autoCorrect={false}
+            autoCapitalize="none"
+            underlineColorAndroid="transparent"
+            selectionColor={VERDE}
+            accessibilityLabel="Buscar produtos pelo nome"
           />
+
           {busca.length > 0 && (
-            <Pressable onPress={() => setBusca('')}>
-              <Ionicons name="close-circle" size={20} color="#849087" />
+            <Pressable
+              onPress={() => setBusca('')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar pesquisa"
+            >
+              <Ionicons
+                name="close-circle"
+                size={21}
+                color="#849087"
+              />
             </Pressable>
           )}
         </View>
 
+        {/* TÍTULO DA LISTA */}
         <View style={styles.linhaTitulo}>
-          <Text style={styles.tituloLista}>Produtos</Text>
+          <View>
+            <Text style={styles.tituloLista}>
+              Seu catálogo
+            </Text>
+
+            <Text style={styles.subtituloLista}>
+              {busca.trim()
+                ? `${lista.length} resultado(s) encontrado(s)`
+                : 'Todos os produtos cadastrados'}
+            </Text>
+          </View>
 
           <Pressable
-            style={styles.botaoAdicionar}
-            onPress={() => router.push('/rotas/produtos' as any)}
+            style={({ pressed }) => [
+              styles.botaoAdicionar,
+              pressed && styles.botaoPressionado,
+            ]}
+            onPress={() => router.push('/novoproduto' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar novo produto"
           >
-            <Ionicons name="add" size={23} color="#FFFFFF" />
+            <Ionicons
+              name="add"
+              size={27}
+              color="#FFFFFF"
+            />
           </Pressable>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {lista.map((produto) => (
-            <Pressable
-              key={produto.id}
-              style={styles.card}
-              onPress={() =>
-                router.push(`/rotas/produtos/${produto.id}` as any)
-              }
-            >
-              <View style={styles.iconeProduto}>
-                <Ionicons name={produto.icone} size={27} color={VERDE} />
-              </View>
+        {/* LISTA DE PRODUTOS */}
+        <ScrollView
+          style={styles.listaScroll}
+          contentContainerStyle={styles.listaConteudo}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {lista.map((produto) => {
+            const imagem =
+              typeof produto.imagem === 'string'
+                ? produto.imagem
+                : null;
 
-              <View style={styles.informacao}>
-                <Text style={styles.nome}>{produto.nome}</Text>
-                <Text style={styles.preco}>{produto.preco}</Text>
-              </View>
+            const preco =
+              typeof produto.preco === 'number'
+                ? produto.preco.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })
+                : String(produto.preco ?? 'Preço não informado');
 
-              <Ionicons name="chevron-forward" size={21} color="#98A198" />
-            </Pressable>
-          ))}
+            return (
+              <Pressable
+                key={String(produto.id)}
+                style={({ pressed }) => [
+                  styles.cardProduto,
+                  pressed && styles.cardPressionado,
+                  width < 360 && styles.cardPequeno,
+                ]}
+                onPress={() =>
+                  router.push(
+                    `/rotas/produtos/${produto.id}` as any
+                  )
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`${produto.nome}, ${preco}`}
+              >
+                {/* FOTO DO PRODUTO */}
+                <View style={styles.areaImagem}>
+                  {imagem ? (
+                    <Image
+                      source={{ uri: imagem }}
+                      style={styles.imagemProduto}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={styles.imagemVazia}>
+                      <Ionicons
+                        name="cube-outline"
+                        size={37}
+                        color={VERDE}
+                      />
+                      <Text style={styles.textoImagemVazia}>
+                        Sem foto
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
+                {/* INFORMAÇÕES */}
+                <View style={styles.informacao}>
+                  <Text
+                    style={styles.nomeProduto}
+                    numberOfLines={2}
+                  >
+                    {produto.nome}
+                  </Text>
+
+                  {'unidade' in produto &&
+                    produto.unidade && (
+                      <Text
+                        style={styles.unidade}
+                        numberOfLines={1}
+                      >
+                        {produto.unidade}
+                      </Text>
+                    )}
+
+                  <Text style={styles.precoProduto}>
+                    {preco}
+                  </Text>
+
+                  {produto.oferta === true && (
+                    <View style={styles.seloOferta}>
+                      <Ionicons
+                        name="pricetag"
+                        size={12}
+                        color = '#245D39'
+                      />
+                      <Text style={styles.textoOferta}>
+                        Em oferta
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={21}
+                  color="#98A198"
+                />
+              </Pressable>
+            );
+          })}
+
+          {/* NENHUM RESULTADO */}
           {lista.length === 0 && (
-            <Text style={styles.vazio}>Nenhum produto encontrado.</Text>
+            <View style={styles.estadoVazio}>
+              <View style={styles.iconeVazio}>
+                <Ionicons
+                  name="search-outline"
+                  size={34}
+                  color={VERDE}
+                />
+              </View>
+
+              <Text style={styles.tituloVazio}>
+                {busca.trim()
+                  ? 'Nenhum produto encontrado'
+                  : 'Seu catálogo está vazio'}
+              </Text>
+
+              <Text style={styles.textoVazio}>
+                {busca.trim()
+                  ? 'Tente pesquisar com outro nome.'
+                  : 'Adicione seu primeiro produto para começar.'}
+              </Text>
+
+              {!busca.trim() && (
+                <Pressable
+                  style={styles.botaoVazio}
+                  onPress={() =>
+                    router.push('/novoproduto' as any)
+                  }
+                >
+                  <Ionicons
+                    name="add"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.textoBotaoVazio}>
+                    Adicionar produto
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           )}
+
+          <View style={styles.espacoFinal} />
         </ScrollView>
       </View>
 
+      {/* NAVEGAÇÃO INFERIOR */}
       <View style={styles.navegacao}>
-        <Pressable style={styles.itemNav} onPress={() => router.push('/homeempresa' as any)}>
-          <Ionicons name="home-outline" size={23} color="#D9E9DD" />
+        <Pressable
+          style={styles.itemNav}
+          onPress={() =>
+            router.push('/homeempresa' as any)
+          }
+        >
+          <Ionicons
+            name="home-outline"
+            size={23}
+            color="#D9E9DD"
+          />
           <Text style={styles.textoNav}>Início</Text>
         </Pressable>
 
         <View style={styles.itemNav}>
-          <Ionicons name="cube" size={23} color="#FFFFFF" />
+          <Ionicons
+            name="cube"
+            size={23}
+            color="#FFFFFF"
+          />
           <Text style={styles.textoAtivo}>Produtos</Text>
+          <View style={styles.indicadorAtivo} />
         </View>
 
-        <Pressable style={styles.itemNav} onPress={() => router.push('/ofertasempresa' as any)}>
-          <Ionicons name="pricetag-outline" size={23} color="#D9E9DD" />
+        <Pressable
+          style={styles.itemNav}
+          onPress={() =>
+            router.push('/ofertasempresa' as any)
+          }
+        >
+          <Ionicons
+            name="pricetag-outline"
+            size={23}
+            color="#D9E9DD"
+          />
           <Text style={styles.textoNav}>Ofertas</Text>
         </Pressable>
 
-        <Pressable style={styles.itemNav} onPress={() => router.push('/perfil' as any)}>
-          <Ionicons name="person-outline" size={23} color="#D9E9DD" />
+        <Pressable
+          style={styles.itemNav}
+          onPress={() =>
+            router.push('/perfil' as any)
+          }
+        >
+          <Ionicons
+            name="person-outline"
+            size={23}
+            color="#D9E9DD"
+          />
           <Text style={styles.textoNav}>Perfil</Text>
         </Pressable>
       </View>
@@ -127,27 +373,84 @@ export default function ProdutosEmpresa() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F9F7' },
+  container: {
+    flex: 1,
+    backgroundColor: FUNDO,
+  },
 
+  // CABEÇALHO
   cabecalho: {
     backgroundColor: ESCURO,
-    paddingTop: 57,
-    paddingHorizontal: 23,
-    paddingBottom: 27,
+    paddingTop: 25,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 17,
+    gap: 13,
+    flexShrink: 0,
   },
-  titulos: { flex: 1 },
-  titulo: { fontSize: 25, fontWeight: 'bold', color: '#FFFFFF' },
-  subtitulo: { fontSize: 13, color: '#D9E9DD', marginTop: 5 },
 
-  conteudo: { flex: 1, paddingHorizontal: 20, paddingTop: 22 },
+  botaoVoltar: {
+    width: 43,
+    height: 43,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
+  titulos: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  titulo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  subtitulo: {
+    fontSize: 13,
+    color: '#D9E9DD',
+    marginTop: 5,
+  },
+
+  contador: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 53,
+    paddingVertical: 8,
+    paddingHorizontal: 7,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+  },
+
+  contadorNumero: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  contadorTexto: {
+    fontSize: 9,
+    color: '#E2EFE5',
+    marginTop: 2,
+  },
+
+  // CONTEÚDO
+  conteudo: {
+    flex: 1,
+    minHeight: 0,
+    paddingHorizontal: 18,
+    paddingTop: 20,
+  },
+
+  // PESQUISA
   pesquisa: {
-    height: 50,
+    height: 51,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5EBE6',
@@ -156,61 +459,276 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     gap: 10,
-    marginBottom: 24,
+    marginBottom: 23,
   },
-  input: { flex: 1, color: ESCURO, fontSize: 14 },
 
+  input: {
+    flex: 1,
+    minWidth: 0,
+    height: '100%',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    color: ESCURO,
+    fontSize: 14,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    outlineStyle: 'none' as any,
+    outlineWidth: 0,
+    ...( { boxShadow: 'none' } as any ),
+  },
+
+  // TÍTULO E BOTÃO ADICIONAR
   linhaTitulo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 15,
+    gap: 12,
   },
-  tituloLista: { fontSize: 21, fontWeight: 'bold', color: ESCURO },
+
+  tituloLista: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    color: ESCURO,
+  },
+
+  subtituloLista: {
+    fontSize: 12,
+    color: '#7B887F',
+    marginTop: 4,
+  },
+
   botaoAdicionar: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
+    width: 45,
+    height: 45,
+    borderRadius: 15,
     backgroundColor: VERDE,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: VERDE,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
   },
 
-  card: {
+  botaoPressionado: {
+    opacity: 0.75,
+    transform: [{ scale: 0.96 }],
+  },
+
+  // LISTA
+  listaScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+
+  listaConteudo: {
+    paddingBottom: 8,
+  },
+
+  // CARD DO PRODUTO
+  cardProduto: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 17,
+    borderRadius: 19,
     borderWidth: 1,
-    borderColor: '#E8EDE8',
+    borderColor: '#E7ECE8',
     padding: 12,
-    marginBottom: 11,
+    marginBottom: 12,
     gap: 13,
+    minHeight: 116,
+    shadowColor: '#244D32',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  iconeProduto: {
-    width: 56,
-    height: 56,
+
+  cardPequeno: {
+    gap: 9,
+    padding: 9,
+  },
+
+  cardPressionado: {
+    opacity: 0.78,
+  },
+
+  areaImagem: {
+    width: 91,
+    height: 91,
     borderRadius: 15,
-    backgroundColor: '#EAF4EC',
+    backgroundColor: '#F2F6F2',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  informacao: { flex: 1, gap: 6 },
-  nome: { fontSize: 14, fontWeight: '600', color: '#294531' },
-  preco: { fontSize: 16, fontWeight: 'bold', color: VERDE },
-  vazio: { textAlign: 'center', color: '#7B887F', marginTop: 35 },
 
+  imagemProduto: {
+    width: '100%',
+    height: '100%',
+  },
+
+  imagemVazia: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+
+  textoImagemVazia: {
+    fontSize: 10,
+    color: '#849087',
+  },
+
+  informacao: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 5,
+  },
+
+  nomeProduto: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+    color: '#294531',
+  },
+
+  unidade: {
+    fontSize: 11,
+    color: '#849087',
+  },
+
+  precoProduto: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: VERDE,
+    marginTop: 2,
+  },
+
+  seloOferta: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EAF5ED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 2,
+  },
+
+  textoOferta: {
+  fontSize: 10,
+  fontWeight: '600',
+  color: ESCURO,
+},
+
+  // ESTADO VAZIO
+  estadoVazio: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 45,
+    paddingBottom: 35,
+  },
+
+  iconeVazio: {
+    width: 70,
+    height: 70,
+    borderRadius: 23,
+    backgroundColor: '#EAF4EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 17,
+  },
+
+  tituloVazio: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: ESCURO,
+    textAlign: 'center',
+  },
+
+  textoVazio: {
+    fontSize: 13,
+    color: '#7B887F',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 7,
+  },
+
+  botaoVazio: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: VERDE,
+    borderRadius: 13,
+    paddingHorizontal: 17,
+    paddingVertical: 12,
+    marginTop: 20,
+  },
+
+  textoBotaoVazio: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  espacoFinal: {
+    height: 8,
+  },
+
+  // NAVEGAÇÃO INFERIOR
   navegacao: {
-    height: 73,
+    minHeight: 73,
     backgroundColor: ESCURO,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     borderTopLeftRadius: 23,
     borderTopRightRadius: 23,
-    paddingBottom: 4,
+    paddingHorizontal: 5,
+    paddingTop: 5,
+    paddingBottom: 5,
+    flexShrink: 0,
   },
-  itemNav: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  textoNav: { fontSize: 10, color: '#D9E9DD' },
-  textoAtivo: { fontSize: 10, color: '#FFFFFF', fontWeight: 'bold' },
+
+  itemNav: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+
+  textoNav: {
+    fontSize: 10,
+    color: '#D9E9DD',
+  },
+
+  textoAtivo: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+
+  indicadorAtivo: {
+    width: 21,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
+  },
 });

@@ -1,4 +1,18 @@
-import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
+
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  StatusBar,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+
 import { useState, useRef } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +28,8 @@ export default function Cadastro() {
   const [confirmar, setConfirmar] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
-  const [empresa, setEmpresa] = useState(false); // false = Cliente, true = Empresa
+  const [empresa, setEmpresa] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
   const nomeRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
@@ -22,254 +37,606 @@ export default function Cadastro() {
   const senhaRef = useRef<TextInput>(null);
   const confirmarRef = useRef<TextInput>(null);
 
-  // Textos que mudam conforme o tipo
-  let textoBotao = 'Cliente';
-  let textoDocumento = 'CPF';
-  if (empresa) {
-    textoBotao = 'Empresa';
-    textoDocumento = 'CNPJ';
-  }
+  const textoDocumento = empresa ? 'CNPJ' : 'CPF';
 
   function trocarTipo() {
-    setEmpresa(!empresa);
+    setEmpresa((valor) => !valor);
     setCpf('');
   }
 
   async function handleCadastrar() {
-    if (!nome || !email || !cpf || !senha || !confirmar) {
-      alert('Preencha todos os campos!');
+    if (
+      !nome.trim() ||
+      !email.trim() ||
+      !cpf.trim() ||
+      !senha ||
+      !confirmar
+    ) {
+      Alert.alert(
+        'Campos obrigatórios',
+        'Preencha todos os campos para continuar.'
+      );
       return;
     }
 
     if (senha !== confirmar) {
-      alert('As senhas não coincidem!');
+      Alert.alert(
+        'Senhas diferentes',
+        'As senhas não coincidem. Confira e tente novamente.'
+      );
       return;
     }
 
     try {
+      setCarregando(true);
+
       const usuarioCriado = await userController.criar({
-        nome,
-        email,
-        documento: cpf,
+        nome: nome.trim(),
+        email: email.trim(),
+        documento: cpf.trim(),
         senha,
         tipo: empresa ? 'Empresa' : 'Cliente',
       });
 
       console.log('Usuário cadastrado com sucesso:', usuarioCriado);
-      alert('Cadastro realizado com sucesso!');
-      router.push('/senha');
+
+      Alert.alert(
+        'Cadastro realizado!',
+        'Sua conta foi criada com sucesso.',
+        [
+          {
+            text: 'Continuar',
+            onPress: () => router.push('/senha'),
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('Erro ao cadastrar usuário:', error);
-      alert(error.message || 'Erro ao cadastrar usuário.');
+
+      Alert.alert(
+        'Não foi possível cadastrar',
+        error.message || 'Ocorreu um erro ao realizar o cadastro.'
+      );
+    } finally {
+      setCarregando(false);
     }
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.topo}>
-        <Text style={styles.boasVindas}>Seja bem vinda(o) ao</Text>
-        <View style={styles.logo}>
-          <Ionicons name="cart" size={36} color="#fff" />
-          <Text style={styles.logoTexto}>Economize</Text>
-        </View>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#2F7045"
+      />
 
-      <View style={styles.card}>
-        <View style={styles.titulo}>
-          <Text style={styles.cadastro}>Cadastro</Text>
-          <Pressable style={styles.cliente} onPress={trocarTipo}>
-            <Text style={styles.clienteTexto}>{textoBotao}</Text>
-          </Pressable>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Cabeçalho e logo */}
+        <View style={styles.topo}>
+          <View style={styles.logoIcone}>
+            <Ionicons
+              name="cart"
+              size={31}
+              color="#FFFFFF"
+            />
+          </View>
 
-        <Pressable style={styles.campo} onPress={() => nomeRef.current?.focus()}>
-          <Ionicons name="person" size={32} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={nomeRef}
-            style={styles.input}
-            placeholder="Nome"
-            placeholderTextColor="#2f7a4b"
-            value={nome}
-            onChangeText={setNome}
-          />
-        </Pressable>
+          <Text style={styles.logoTexto}>
+            Economize
+          </Text>
 
-        <Pressable style={styles.campo} onPress={() => emailRef.current?.focus()}>
-          <Ionicons name="mail" size={28} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={emailRef}
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#2f7a4b"
-            value={email}
-            onChangeText={setEmail}
-          />
-        </Pressable>
-
-        <Pressable style={styles.campo} onPress={() => cpfRef.current?.focus()}>
-          <Ionicons name="card" size={28} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={cpfRef}
-            style={styles.input}
-            placeholder={textoDocumento}
-            placeholderTextColor="#2f7a4b"
-            value={cpf}
-            onChangeText={setCpf}
-          />
-        </Pressable>
-
-        <Pressable style={styles.campo} onPress={() => senhaRef.current?.focus()}>
-          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={senhaRef}
-            style={styles.input}
-            placeholder="Senha"
-            placeholderTextColor="#2f7a4b"
-            secureTextEntry={!mostrarSenha}
-            value={senha}
-            onChangeText={setSenha}
-          />
-          <Pressable onPress={() => setMostrarSenha((valor) => !valor)}>
-            <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
-          </Pressable>
-        </Pressable>
-
-        <Pressable style={styles.campo} onPress={() => confirmarRef.current?.focus()}>
-          <Ionicons name="lock-closed" size={32} color="#2f7a4b" style={styles.icone} />
-          <TextInput
-            ref={confirmarRef}
-            style={styles.input}
-            placeholder="Confirmar senha"
-            placeholderTextColor="#2f7a4b"
-            secureTextEntry={!mostrarConfirmar}
-            value={confirmar}
-            onChangeText={setConfirmar}
-          />
-          <Pressable onPress={() => setMostrarConfirmar((valor) => !valor)}>
-            <Ionicons name={mostrarConfirmar ? 'eye-off-outline' : 'eye-outline'} size={30} color="#2f7a4b" />
-          </Pressable>
-        </Pressable>
-
-        <Pressable style={styles.botao} onPress={handleCadastrar}>
-          <Text style={styles.botaoTexto}>Cadastrar</Text>
-        </Pressable>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Já tem conta?{' '}
-            <Link href="/" style={styles.footerLink}>
-              entrar
-            </Link>
+          <Text style={styles.boasVindas}>
+            Crie sua conta e economize mais
           </Text>
         </View>
-      </View>
-    </View>
+
+        {/* Cartão de cadastro */}
+        <View style={styles.card}>
+          {/* Título e tipo de conta */}
+          <View style={styles.titulo}>
+            <View style={styles.tituloConteudo}>
+              <Text style={styles.cadastro}>
+                Criar conta
+              </Text>
+
+              <Text style={styles.descricao}>
+                Preencha seus dados abaixo.
+              </Text>
+            </View>
+          </View>
+
+          {/* Seletor de tipo */}
+          <View style={styles.seletorContainer}>
+            <Pressable
+              style={[
+                styles.opcaoTipo,
+                !empresa && styles.opcaoAtiva,
+              ]}
+              onPress={() => {
+                if (empresa) trocarTipo();
+              }}
+            >
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={!empresa ? '#FFFFFF' : '#68756B'}
+              />
+
+              <Text
+                style={[
+                  styles.opcaoTexto,
+                  !empresa && styles.opcaoTextoAtivo,
+                ]}
+              >
+                Cliente
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.opcaoTipo,
+                empresa && styles.opcaoAtiva,
+              ]}
+              onPress={() => {
+                if (!empresa) trocarTipo();
+              }}
+            >
+              <Ionicons
+                name="storefront-outline"
+                size={18}
+                color={empresa ? '#FFFFFF' : '#68756B'}
+              />
+
+              <Text
+                style={[
+                  styles.opcaoTexto,
+                  empresa && styles.opcaoTextoAtivo,
+                ]}
+              >
+                Empresa
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Nome */}
+          <Text style={styles.label}>
+            {empresa ? 'Nome da empresa' : 'Nome completo'}
+          </Text>
+
+          <Pressable
+            style={styles.campo}
+            onPress={() => nomeRef.current?.focus()}
+          >
+            <Ionicons
+              name={empresa ? 'storefront-outline' : 'person-outline'}
+              size={20}
+              color="#41805A"
+            />
+
+            <TextInput
+              ref={nomeRef}
+              style={styles.input}
+              placeholder={empresa ? 'Digite o nome da empresa' : 'Digite seu nome'}
+              placeholderTextColor="#929A94"
+              value={nome}
+              onChangeText={setNome}
+              autoCapitalize="words"
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+              accessibilityLabel={empresa ? 'Nome da empresa' : 'Nome completo'}
+            />
+          </Pressable>
+
+          {/* E-mail */}
+          <Text style={styles.label}>
+            E-mail
+          </Text>
+
+          <Pressable
+            style={styles.campo}
+            onPress={() => emailRef.current?.focus()}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color="#41805A"
+            />
+
+            <TextInput
+              ref={emailRef}
+              style={styles.input}
+              placeholder="Digite seu e-mail"
+              placeholderTextColor="#929A94"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => cpfRef.current?.focus()}
+              accessibilityLabel="E-mail"
+            />
+          </Pressable>
+
+          {/* CPF ou CNPJ */}
+          <Text style={styles.label}>
+            {textoDocumento}
+          </Text>
+
+          <Pressable
+            style={styles.campo}
+            onPress={() => cpfRef.current?.focus()}
+          >
+            <Ionicons
+              name="card-outline"
+              size={20}
+              color="#41805A"
+            />
+
+            <TextInput
+              ref={cpfRef}
+              style={styles.input}
+              placeholder={`Digite seu ${textoDocumento}`}
+              placeholderTextColor="#929A94"
+              value={cpf}
+              onChangeText={setCpf}
+              keyboardType="numeric"
+              returnKeyType="next"
+              onSubmitEditing={() => senhaRef.current?.focus()}
+              accessibilityLabel={textoDocumento}
+            />
+          </Pressable>
+
+          {/* Senha */}
+          <Text style={styles.label}>
+            Senha
+          </Text>
+
+          <Pressable
+            style={styles.campo}
+            onPress={() => senhaRef.current?.focus()}
+          >
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color="#41805A"
+            />
+
+            <TextInput
+              ref={senhaRef}
+              style={styles.input}
+              placeholder="Crie uma senha"
+              placeholderTextColor="#929A94"
+              secureTextEntry={!mostrarSenha}
+              value={senha}
+              onChangeText={setSenha}
+              autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => confirmarRef.current?.focus()}
+              accessibilityLabel="Senha"
+            />
+
+            <Pressable
+              onPress={() => setMostrarSenha((valor) => !valor)}
+              hitSlop={10}
+              accessibilityLabel={
+                mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'
+              }
+            >
+              <Ionicons
+                name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#78847B"
+              />
+            </Pressable>
+          </Pressable>
+
+          {/* Confirmar senha */}
+          <Text style={styles.label}>
+            Confirmar senha
+          </Text>
+
+          <Pressable
+            style={styles.campo}
+            onPress={() => confirmarRef.current?.focus()}
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={20}
+              color="#41805A"
+            />
+
+            <TextInput
+              ref={confirmarRef}
+              style={styles.input}
+              placeholder="Digite a senha novamente"
+              placeholderTextColor="#929A94"
+              secureTextEntry={!mostrarConfirmar}
+              value={confirmar}
+              onChangeText={setConfirmar}
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={handleCadastrar}
+              accessibilityLabel="Confirmar senha"
+            />
+
+            <Pressable
+              onPress={() => setMostrarConfirmar((valor) => !valor)}
+              hitSlop={10}
+              accessibilityLabel={
+                mostrarConfirmar
+                  ? 'Ocultar confirmação da senha'
+                  : 'Mostrar confirmação da senha'
+              }
+            >
+              <Ionicons
+                name={
+                  mostrarConfirmar
+                    ? 'eye-off-outline'
+                    : 'eye-outline'
+                }
+                size={20}
+                color="#78847B"
+              />
+            </Pressable>
+          </Pressable>
+
+          {/* Botão cadastrar */}
+          <Pressable
+            style={[
+              styles.botao,
+              carregando && styles.botaoDesativado,
+            ]}
+            onPress={handleCadastrar}
+            disabled={carregando}
+          >
+            {carregando ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.botaoTexto}>
+                  Criar minha conta
+                </Text>
+
+                <Ionicons
+                  name="arrow-forward"
+                  size={19}
+                  color="#FFFFFF"
+                />
+              </>
+            )}
+          </Pressable>
+
+          {/* Link para login */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Já tem uma conta?
+            </Text>
+
+            <Link href="/senha" style={styles.footerLink}>
+              Entrar
+            </Link>
+          </View>
+        </View>
+
+        {/* Rodapé da página */}
+        <Text style={styles.textoFinal}>
+          Economize • Compre melhor
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#3d7a52',
+    backgroundColor: '#2F7045',
   },
+
+  scrollContent: {
+    flexGrow: 1,
+  },
+
+  // Cabeçalho
   topo: {
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 24,
+    justifyContent: 'center',
+    paddingTop: 28,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
   },
-  boasVindas: {
-    color: '#edf7ef',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  logo: {
-    flexDirection: 'row',
+
+  logoIcone: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'center',
+    marginBottom: 9,
   },
+
   logoTexto: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '800',
-    marginLeft: 8,
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '700',
+    letterSpacing: -0.8,
   },
+
+  boasVindas: {
+    color: '#E4F0E6',
+    fontSize: 13,
+    fontWeight: '400',
+    marginTop: 6,
+  },
+
+  // Cartão principal
   card: {
     flex: 1,
-    backgroundColor: '#f3f3f3',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    backgroundColor: '#F5F8F5',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     paddingHorizontal: 24,
-    paddingTop: 22,
-    paddingBottom: 14,
+    paddingTop: 26,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderColor: '#E1EAE2',
   },
+
+  // Título
   titulo: {
+    marginBottom: 19,
+  },
+
+  tituloConteudo: {
+    gap: 5,
+  },
+
+  cadastro: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#203D2A',
+    letterSpacing: -0.5,
+  },
+
+  descricao: {
+    fontSize: 13,
+    color: '#78847B',
+    lineHeight: 19,
+  },
+
+  // Seletor de tipo de conta
+  seletorContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#E8EEE9',
+    borderRadius: 13,
+    padding: 4,
+    marginBottom: 22,
+  },
+
+  opcaoTipo: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    justifyContent: 'center',
+    gap: 7,
   },
-  cadastro: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#2f7a4b',
+
+  opcaoAtiva: {
+    backgroundColor: '#2F7045',
   },
-  cliente: {
-    backgroundColor: '#2f7a4b',
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+
+  opcaoTexto: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#68756B',
   },
-  clienteTexto: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
+
+  opcaoTextoAtivo: {
+    color: '#FFFFFF',
   },
+
+  // Campos
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#354B3A',
+    marginBottom: 7,
+    marginLeft: 3,
+  },
+
   campo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#dfeae2',
-    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 13,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 14,
+    height: 50,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#E0E8E1',
   },
-  icone: {
-    marginRight: 10,
-  },
+
   input: {
     flex: 1,
-    fontSize: 16,
-    color: '#2f7a4b',
-    fontWeight: '600',
-    paddingVertical: 4,
+    minWidth: 0,
+    height: '100%',
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#263A2C',
+    marginLeft: 11,
+    paddingVertical: 0,
   },
+
+  // Botão
   botao: {
-    backgroundColor: '#2f7a4b',
-    borderRadius: 22,
-    paddingVertical: 14,
+    backgroundColor: '#2F7045',
+    borderRadius: 13,
+    height: 52,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     marginTop: 8,
-    marginBottom: 18,
+    marginBottom: 21,
+    elevation: 2,
+    shadowColor: '#245D39',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
   },
+
+  botaoDesativado: {
+    opacity: 0.7,
+  },
+
   botaoTexto: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 8,
-    paddingBottom: 10,
-  },
-  footerText: {
-    color: '#2d2d2d',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
   },
+
+  // Rodapé
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 2,
+  },
+
+  footerText: {
+    color: '#78847B',
+    fontSize: 12,
+    fontWeight: '400',
+  },
+
   footerLink: {
-    color: '#2f7a4b',
+    color: '#2F7045',
+    fontSize: 12,
     fontWeight: '700',
+  },
+
+  textoFinal: {
+    textAlign: 'center',
+    color: '#DDEBE0',
+    fontSize: 11,
+    paddingTop: 15,
+    paddingBottom: 17,
   },
 });
