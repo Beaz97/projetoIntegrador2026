@@ -5,307 +5,653 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   SafeAreaView,
-  type KeyboardTypeOptions,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAutenticacao } from '../components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
-const VERDE = '#3E7B4F';
-const CATEGORIAS = ['Alimentos', 'Bebidas', 'Limpeza', 'Higiene', 'Outros'];
-const PRODUTOS_STORAGE_KEY = 'produtos';
+const VERDE = '#3D8054';
+const VERDE_ESCURO = '#245D39';
+const VERDE_CLARO = '#EAF4EC';
+const FUNDO = '#F7F9F7';
+const TEXTO = '#294531';
+const CINZA = '#7B887F';
+const CHAVE_PRODUTOS = 'produtos';
 
-type ProdutoArmazenado = Produto & { descricao?: string };
+function formatarMoeda(valor: string) {
+  const numeros = valor.replace(/\D/g, '');
 
-/* ---------- Componentes ---------- */
+  if (!numeros) {
+    return '';
+  }
 
-function Cabecalho({ titulo, onVoltar }: { titulo: string; onVoltar: () => void }) {
-  return (
-    <View style={styles.cabecalho}>
-      <TouchableOpacity onPress={onVoltar}>
-        <Ionicons name="chevron-back" size={32} color={VERDE} />
-      </TouchableOpacity>
-      <Text style={styles.titulo}>{titulo}</Text>
-    </View>
-  );
+  const centavos = Number(numeros);
+  const valorFormatado = (centavos / 100).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return `R$ ${valorFormatado}`;
 }
+
+function converterPreco(valor: string) {
+  const numeros = valor.replace(/\D/g, '');
+  return Number(numeros) / 100;
+}
+
+type CampoProps = {
+  titulo: string;
+  placeholder: string;
+  valor: string;
+  aoMudar: (valor: string) => void;
+  icone: keyof typeof Ionicons.glyphMap;
+  teclado?: 'default' | 'numeric' | 'url';
+  multiline?: boolean;
+};
 
 function Campo({
+  titulo,
   placeholder,
-  value,
-  onChangeText,
-  teclado,
-}: {
-  placeholder: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  teclado?: KeyboardTypeOptions;
-}) {
-  return (
-    <TextInput
-      style={styles.input}
-      placeholder={placeholder}
-      placeholderTextColor="#222"
-      value={value}
-      onChangeText={onChangeText}
-      keyboardType={teclado}
-      autoCapitalize={teclado === 'url' ? 'none' : undefined}
-      autoCorrect={teclado === 'url' ? false : undefined}
-    />
-  );
-}
-
-function SeletorCategoria({
   valor,
-  onSelecionar,
-}: {
-  valor: string;
-  onSelecionar: (value: string) => void;
-}) {
-  const [aberto, setAberto] = useState(false);
-
+  aoMudar,
+  icone,
+  teclado = 'default',
+  multiline = false,
+}: CampoProps) {
   return (
-    <View>
-      <TouchableOpacity
-        style={[styles.input, styles.seletor]}
-        onPress={() => setAberto(!aberto)}
+    <View style={styles.grupoCampo}>
+      <Text style={styles.rotulo}>{titulo}</Text>
+
+      <View
+        style={[
+          styles.caixaCampo,
+          multiline && styles.caixaMultiline,
+        ]}
       >
-        <Text style={styles.textoSeletor}>{valor || 'Categoria'}</Text>
         <Ionicons
-          name={aberto ? 'chevron-up' : 'chevron-down'}
-          size={22}
+          name={icone}
+          size={20}
           color={VERDE}
+          style={styles.iconeCampo}
         />
-      </TouchableOpacity>
 
-      {aberto && (
-        <FlatList
-          data={CATEGORIAS}
-          keyExtractor={(item) => item}
-          style={styles.listaCategorias}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.itemCategoria}
-              onPress={() => {
-                onSelecionar(item);
-                setAberto(false);
-              }}
-            >
-              <Text style={styles.textoSeletor}>{item}</Text>
-            </TouchableOpacity>
-          )}
+        <TextInput
+          style={[
+            styles.input,
+            multiline && styles.inputMultiline,
+            Platform.OS === 'web' && ({
+              outlineStyle: 'none',
+              outlineWidth: 0,
+              boxShadow: 'none',
+            } as any),
+          ]}
+          placeholder={placeholder}
+          placeholderTextColor="#9AA49C"
+          value={valor}
+          onChangeText={aoMudar}
+          keyboardType={teclado}
+          autoCapitalize="sentences"
+          autoCorrect={false}
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          underlineColorAndroid="transparent"
+          selectionColor={VERDE}
         />
-      )}
+      </View>
     </View>
   );
 }
 
-function BarraInferior({
-  onMudarAba,
-}: {
-  abaAtiva: string;
-  onMudarAba: (aba: string) => void;
-}) {
-  return (
-    <View style={styles.barra}>
-      <TouchableOpacity onPress={() => onMudarAba('home')}>
-        <Ionicons name="home" size={42} color="#fff" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.botaoCentral}
-        onPress={() => onMudarAba('produtos')}
-      >
-        <MaterialCommunityIcons name="package-variant-closed" size={52} color="#fff" />
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => onMudarAba('perfil')}>
-        <Ionicons name="person" size={42} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-/* ---------- Tela ---------- */
-
-export default function App() {
+export default function NovoProduto() {
   const router = useRouter();
+
+  const { usuario, carregando, autorizado } =
+    useAutenticacao('empresa');
+
+  const { categorias } = Dados();
+
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
   const [preco, setPreco] = useState('');
-  const [descricao, setDescricao] = useState('');
   const [imagem, setImagem] = useState('');
-  const [aba, setAba] = useState('produtos');
+  const [descricao, setDescricao] = useState('');
   const [salvando, setSalvando] = useState(false);
-  const { usuario, carregando, autorizado } = useAutenticacao('empresa');
 
   async function salvar() {
-    const precoNumerico = Number(preco.replace(',', '.'));
-    const empresaId = Number(usuario?.id);
-
-    if (!nome.trim() || !categoria || !preco.trim() || !Number.isFinite(precoNumerico) || precoNumerico <= 0) {
-      Alert.alert('Dados inválidos', 'Informe o nome, a categoria e um preço válido para o produto.');
+    if (!nome.trim()) {
+      Alert.alert('Atenção', 'Informe o nome do produto.');
       return;
     }
 
-    if (!Number.isFinite(empresaId)) {
-      Alert.alert('Erro', 'Não foi possível identificar a empresa autenticada.');
+    if (!categoria) {
+      Alert.alert('Atenção', 'Selecione uma categoria.');
+      return;
+    }
+
+    const precoNumerico = converterPreco(preco);
+
+    if (!preco || !Number.isFinite(precoNumerico) || precoNumerico <= 0) {
+      Alert.alert('Atenção', 'Informe um preço válido.');
+      return;
+    }
+
+    if (!usuario?.id) {
+      Alert.alert(
+        'Erro',
+        'Não foi possível identificar a empresa logada.',
+      );
       return;
     }
 
     setSalvando(true);
-    try {
-      const dadosSalvos = await AsyncStorage.getItem(PRODUTOS_STORAGE_KEY);
-      let produtos: ProdutoArmazenado[];
 
-      if (dadosSalvos === null) {
-        produtos = Dados().produtos;
-      } else {
-        const dadosParseados: unknown = JSON.parse(dadosSalvos);
-        if (!Array.isArray(dadosParseados)) {
-          throw new Error('Os dados de produtos armazenados não estão em formato de lista.');
+    try {
+      const dadosIniciais = Dados().produtos;
+
+      const conteudoSalvo = await AsyncStorage.getItem(
+        CHAVE_PRODUTOS,
+      );
+
+      let produtosSalvos: Produto[] = [...dadosIniciais];
+
+      if (conteudoSalvo) {
+        try {
+          const parseado: unknown = JSON.parse(conteudoSalvo);
+
+          if (Array.isArray(parseado)) {
+            const produtosValidos = parseado.filter(
+              (item): item is Produto =>
+                item !== null &&
+                typeof item === 'object' &&
+                typeof (item as Produto).id === 'string' &&
+                typeof (item as Produto).nome === 'string' &&
+                typeof (item as Produto).preco === 'number',
+            );
+
+            const porId = new Map<string, Produto>();
+
+            dadosIniciais.forEach((produto) => {
+              porId.set(String(produto.id), produto);
+            });
+
+            produtosValidos.forEach((produto) => {
+              porId.set(String(produto.id), produto);
+            });
+
+            produtosSalvos = Array.from(porId.values());
+          }
+        } catch {
+          produtosSalvos = [...dadosIniciais];
         }
-        produtos = dadosParseados as ProdutoArmazenado[];
       }
 
-      const proximoId = Math.max(0, ...produtos.map((item) => Number(item.id) || 0)) + 1;
-      const novoProduto: ProdutoArmazenado = {
-        id: String(proximoId),
+      const maiorId = produtosSalvos.reduce((maior, produto) => {
+        const idNumerico = Number(produto.id);
+
+        return Number.isFinite(idNumerico)
+          ? Math.max(maior, idNumerico)
+          : maior;
+      }, 0);
+
+      const novoProduto: Produto & { descricao?: string } = {
+        id: String(maiorId + 1),
         nome: nome.trim(),
         unidade: 'Un',
         preco: precoNumerico,
         icone: 'basket-outline',
         imagem: imagem.trim() || undefined,
         categoria,
-        empresa: empresaId,
+        empresa: Number(usuario.id),
         descricao: descricao.trim() || undefined,
+        oferta: false,
       };
 
+      const listaAtualizada = [
+        ...produtosSalvos.filter(
+          (produto) => String(produto.id) !== novoProduto.id,
+        ),
+        novoProduto,
+      ];
+
       await AsyncStorage.setItem(
-        PRODUTOS_STORAGE_KEY,
-        JSON.stringify([...produtos, novoProduto])
+        CHAVE_PRODUTOS,
+        JSON.stringify(listaAtualizada),
       );
-      Alert.alert('Produto cadastrado', 'O produto foi adicionado ao catálogo.');
+
+      Alert.alert(
+        'Produto cadastrado!',
+        `${novoProduto.nome} foi adicionado ao seu catálogo.`,
+        [
+          {
+            text: 'Ver meus produtos',
+            onPress: () => router.replace('/produtoempresa' as any),
+          },
+        ],
+      );
+
       setNome('');
       setCategoria('');
       setPreco('');
-      setDescricao('');
       setImagem('');
-    } catch (error) {
-      console.error('Erro ao salvar produto no AsyncStorage:', error);
-      Alert.alert('Erro ao salvar', 'Não foi possível salvar o produto. Tente novamente.');
+      setDescricao('');
+    } catch (erro) {
+      console.error('Erro ao salvar produto:', erro);
+
+      Alert.alert(
+        'Não foi possível salvar',
+        'Ocorreu um erro ao cadastrar o produto. Tente novamente.',
+      );
     } finally {
       setSalvando(false);
     }
   }
+
   if (carregando || !autorizado) {
-      return null;
-    }
+    return null;
+  }
 
   return (
-    <SafeAreaView style={styles.tela}>
-      <View style={styles.conteudo}>
-        <Cabecalho titulo="Novo produto" onVoltar={() => router.back()} />
+    <SafeAreaView style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={VERDE_ESCURO}
+      />
 
-        <Campo placeholder="Nome do produto" value={nome} onChangeText={setNome} />
-        <SeletorCategoria valor={categoria} onSelecionar={setCategoria} />
-        <Campo
-          placeholder="Preço"
-          value={preco}
-          onChangeText={setPreco}
-          teclado="numeric"
-        />
-        <Campo
-          placeholder="URL da imagem (opcional)"
-          value={imagem}
-          onChangeText={setImagem}
-          teclado="url"
-        />
-        <Campo
-          placeholder="Descrição (opcional)"
-          value={descricao}
-          onChangeText={setDescricao}
-        />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.cabecalho}>
+          <TouchableOpacity
+            style={styles.botaoVoltar}
+            onPress={() => router.replace('/produtoempresa' as any)}
+            activeOpacity={0.75}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={23}
+              color="#FFFFFF"
+            />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.botaoSalvar}
-          onPress={salvar}
-          disabled={salvando}
+          <View style={styles.textosCabecalho}>
+            <Text style={styles.tituloCabecalho}>
+              Novo produto
+            </Text>
+
+            <Text style={styles.subtituloCabecalho}>
+              Adicione ao seu catálogo
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.conteudo}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.textoSalvar}>{salvando ? 'Salvando...' : 'Salvar'}</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.cartaoIntroducao}>
+            <View style={styles.iconeIntroducao}>
+              <Ionicons
+                name="leaf-outline"
+                size={25}
+                color={VERDE}
+              />
+            </View>
 
-      <BarraInferior abaAtiva={aba} onMudarAba={setAba} />
+            <Text style={styles.tituloIntroducao}>
+              Vamos cadastrar?
+            </Text>
+          </View>
+
+          <View style={styles.cartaoFormulario}>
+            <Text style={styles.tituloFormulario}>
+              Informações do produto
+            </Text>
+
+            <Text style={styles.textoFormulario}>
+              Preencha os campos abaixo.
+            </Text>
+
+            <Campo
+              titulo="Nome do produto"
+              placeholder="Ex.: Arroz branco 5 kg"
+              valor={nome}
+              aoMudar={setNome}
+              icone="pricetag-outline"
+            />
+
+            <View style={styles.grupoCampo}>
+              <Text style={styles.rotulo}>Categoria</Text>
+
+              <View style={styles.listaCategorias}>
+                {categorias.map((item) => {
+                  const selecionada = categoria === item.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.botaoCategoria,
+                        selecionada && styles.categoriaSelecionada,
+                      ]}
+                      onPress={() => setCategoria(item.id)}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons
+                        name={item.icone as keyof typeof Ionicons.glyphMap}
+                        size={18}
+                        color={selecionada ? '#FFFFFF' : VERDE}
+                      />
+
+                      <Text
+                        style={[
+                          styles.textoCategoria,
+                          selecionada &&
+                            styles.textoCategoriaSelecionada,
+                        ]}
+                      >
+                        {item.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <Campo
+              titulo="Preço"
+              placeholder="R$ 0,00"
+              valor={preco}
+              aoMudar={(valor) => setPreco(formatarMoeda(valor))}
+              icone="cash-outline"
+              teclado="numeric"
+            />
+
+            <Campo
+              titulo="Link da imagem (opcional)"
+              placeholder="https://..."
+              valor={imagem}
+              aoMudar={setImagem}
+              icone="image-outline"
+              teclado="url"
+            />
+
+            <Campo
+              titulo="Descrição (opcional)"
+              placeholder="Informações adicionais sobre o produto"
+              valor={descricao}
+              aoMudar={setDescricao}
+              icone="document-text-outline"
+              multiline
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.botaoSalvar,
+                salvando && styles.botaoDesabilitado,
+              ]}
+              onPress={salvar}
+              disabled={salvando}
+              activeOpacity={0.85}
+            >
+              {salvando ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={21}
+                    color="#FFFFFF"
+                  />
+
+                  <Text style={styles.textoBotaoSalvar}>
+                    Cadastrar produto
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.espacoFinal} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/* ---------- Estilos ---------- */
-
 const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#fff' },
-  conteudo: { flex: 1, paddingHorizontal: 26, paddingTop: 20 },
-
-  cabecalho: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  titulo: { fontSize: 26, fontWeight: 'bold', marginLeft: 14 },
-
-  input: {
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    fontSize: 18,
-    marginBottom: 10,
+  flex: {
+    flex: 1,
   },
-  seletor: {
+
+  container: {
+    flex: 1,
+    backgroundColor: FUNDO,
+  },
+
+  cabecalho: {
+    backgroundColor: VERDE_ESCURO,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 25,
+    borderBottomLeftRadius: 27,
+    borderBottomRightRadius: 27,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 14,
   },
-  textoSeletor: { fontSize: 18 },
-  listaCategorias: {
-    borderWidth: 1,
-    borderColor: '#999',
+
+  botaoVoltar: {
+    width: 43,
+    height: 43,
     borderRadius: 14,
-    marginBottom: 10,
-    maxHeight: 180,
-  },
-  itemCategoria: { paddingVertical: 12, paddingHorizontal: 18 },
-
-  botaoSalvar: {
-    backgroundColor: VERDE,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  textoSalvar: { color: '#fff', fontSize: 18 },
-
-  barra: {
-    backgroundColor: VERDE,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    height: 78,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-  },
-  botaoCentral: {
-    backgroundColor: VERDE,
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 4,
-    borderColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -40,
+  },
+
+  textosCabecalho: {
+    flex: 1,
+  },
+
+  tituloCabecalho: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  subtituloCabecalho: {
+    fontSize: 13,
+    color: '#D9E9DD',
+    marginTop: 4,
+  },
+
+  conteudo: {
+    paddingHorizontal: 18,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+
+  cartaoIntroducao: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 19,
+    padding: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E7ECE8',
+  },
+
+  iconeIntroducao: {
+    width: 45,
+    height: 45,
+    borderRadius: 15,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  tituloIntroducao: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: VERDE_ESCURO,
+  },
+
+  cartaoFormulario: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 21,
+    padding: 19,
+    borderWidth: 1,
+    borderColor: '#E7ECE8',
+  },
+
+  tituloFormulario: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: VERDE_ESCURO,
+  },
+
+  textoFormulario: {
+    fontSize: 12,
+    color: CINZA,
+    marginTop: 5,
+    marginBottom: 22,
+  },
+
+  grupoCampo: {
+    marginBottom: 19,
+  },
+
+  rotulo: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXTO,
+    marginBottom: 9,
+  },
+
+  caixaCampo: {
+    minHeight: 51,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E1E9E2',
+    backgroundColor: '#FBFCFB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+  },
+
+  caixaMultiline: {
+    minHeight: 100,
+    alignItems: 'flex-start',
+    paddingTop: 13,
+  },
+
+  iconeCampo: {
+    marginRight: 10,
+  },
+
+  input: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 49,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    fontSize: 14,
+    color: TEXTO,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          boxShadow: 'none',
+        } as any)
+      : {}),
+  },
+
+  inputMultiline: {
+    minHeight: 75,
+    paddingTop: 0,
+    textAlignVertical: 'top',
+  },
+
+  listaCategorias: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+
+  botaoCategoria: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCE8DE',
+    backgroundColor: '#FFFFFF',
+  },
+
+  categoriaSelecionada: {
+    backgroundColor: VERDE,
+    borderColor: VERDE,
+  },
+
+  textoCategoria: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: VERDE_ESCURO,
+  },
+
+  textoCategoriaSelecionada: {
+    color: '#FFFFFF',
+  },
+
+  botaoSalvar: {
+    minHeight: 53,
+    borderRadius: 15,
+    backgroundColor: VERDE,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 3,
+    shadowColor: VERDE,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  botaoDesabilitado: {
+    opacity: 0.65,
+  },
+
+  textoBotaoSalvar: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+
+  espacoFinal: {
+    height: 20,
   },
 });

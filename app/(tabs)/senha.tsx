@@ -1,4 +1,3 @@
-
 import {
   View,
   Text,
@@ -76,7 +75,6 @@ export default function Index() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo */}
         <View style={styles.topo}>
           <View style={styles.logoIcone}>
             <Ionicons
@@ -93,7 +91,6 @@ export default function Index() {
           </Text>
         </View>
 
-        {/* Área de login */}
         <View style={styles.card}>
           <View style={styles.cabecalho}>
             <Text style={styles.entrar}>Bem-vindo!</Text>
@@ -103,7 +100,6 @@ export default function Index() {
             </Text>
           </View>
 
-          {/* CPF ou CNPJ */}
           <Text style={styles.label}>CPF ou CNPJ</Text>
 
           <Pressable
@@ -127,6 +123,21 @@ export default function Index() {
               returnKeyType="next"
               onSubmitEditing={() => senhaRef.current?.focus()}
               accessibilityLabel="CPF ou CNPJ"
+              autoCorrect={false}
+              autoCapitalize="none"
+              selectTextOnFocus={false}
+              selectionColor="#3D8054"
+              underlineColorAndroid="transparent"
+              {...(Platform.OS === 'web'
+                ? {
+                    // Evita que o navegador aplique estilos padrão ao campo.
+                    // Mantém a seleção de texto normal e o cursor no ponto clicado.
+                    outlineStyle: 'none',
+                    outlineWidth: 0,
+                    boxShadow: 'none',
+                    userSelect: 'text',
+                  } as any
+                : {})}
             />
 
             {cpf.length > 0 && (
@@ -144,7 +155,6 @@ export default function Index() {
             )}
           </Pressable>
 
-          {/* Senha */}
           <Text style={styles.label}>Senha</Text>
 
           <Pressable
@@ -168,6 +178,19 @@ export default function Index() {
               returnKeyType="done"
               onSubmitEditing={handleLogin}
               accessibilityLabel="Senha"
+              autoCorrect={false}
+              autoCapitalize="none"
+              selectTextOnFocus={false}
+              selectionColor="#3D8054"
+              underlineColorAndroid="transparent"
+              {...(Platform.OS === 'web'
+                ? {
+                    outlineStyle: 'none',
+                    outlineWidth: 0,
+                    boxShadow: 'none',
+                    userSelect: 'text',
+                  } as any
+                : {})}
             />
 
             <Pressable
@@ -178,18 +201,13 @@ export default function Index() {
               }
             >
               <Ionicons
-                name={
-                  mostrarSenha
-                    ? 'eye-off-outline'
-                    : 'eye-outline'
-                }
+                name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
                 size={21}
                 color="#78847B"
               />
             </Pressable>
           </Pressable>
 
-          {/* Recuperar senha */}
           <Pressable
             style={styles.esqueci}
             onPress={() => router.push('/recuperarsenha')}
@@ -199,7 +217,6 @@ export default function Index() {
             </Text>
           </Pressable>
 
-          {/* Botão de login */}
           <Pressable
             style={[
               styles.botaoLogin,
@@ -225,16 +242,12 @@ export default function Index() {
             )}
           </Pressable>
 
-          {/* Separador */}
           <View style={styles.separador}>
             <View style={styles.linha} />
-
             <Text style={styles.ouTexto}>ou</Text>
-
             <View style={styles.linha} />
           </View>
 
-          {/* Cadastro */}
           <Pressable
             style={styles.botaoCadastro}
             onPress={() => router.push('/cadastroempresa')}
@@ -250,7 +263,6 @@ export default function Index() {
             </Text>
           </Pressable>
 
-          {/* Rodapé */}
           <View style={styles.rodape}>
             <Text style={styles.rodapeTexto}>
               Ainda não possui uma conta?{' '}
@@ -280,7 +292,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // Logo
   topo: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -313,7 +324,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  // Cartão
   card: {
     flex: 1,
     backgroundColor: '#F5F8F5',
@@ -344,7 +354,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Campos
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -374,9 +383,18 @@ const styles = StyleSheet.create({
     color: '#263A2C',
     marginLeft: 12,
     paddingVertical: 0,
+    paddingHorizontal: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    ...(Platform.OS === 'web'
+      ? {
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          boxShadow: 'none',
+        } as any
+      : {}),
   },
 
-  // Recuperar senha
   esqueci: {
     alignSelf: 'flex-end',
     marginTop: -5,
@@ -390,7 +408,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Botão principal
   botaoLogin: {
     backgroundColor: '#2F7045',
     borderRadius: 14,
@@ -419,7 +436,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Separador
   separador: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -438,7 +454,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
   },
 
-  // Cadastro
   botaoCadastro: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -457,7 +472,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Rodapé
   rodape: {
     flexDirection: 'row',
     flexWrap: 'wrap',

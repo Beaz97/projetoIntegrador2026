@@ -1,5 +1,4 @@
-
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,16 +9,34 @@ import {
   StatusBar,
   Image,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAutenticacao } from '@/app/components/autenticaTelas';
-import Dados from '../rotaServidor/dadosProdutos';
+import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
 const VERDE = '#3D8054';
 const ESCURO = '#245D39';
 const FUNDO = '#F7F9F7';
+const CHAVE_PRODUTOS = 'produtos';
+
+function produtoValido(valor: unknown): valor is Produto {
+  if (!valor || typeof valor !== 'object') {
+    return false;
+  }
+
+  const produto = valor as Produto;
+
+  return (
+    typeof produto.id === 'string' &&
+    typeof produto.nome === 'string' &&
+    typeof produto.preco === 'number' &&
+    typeof produto.empresa === 'number'
+  );
+}
 
 export default function ProdutosEmpresa() {
   const router = useRouter();
@@ -28,14 +45,62 @@ export default function ProdutosEmpresa() {
   const { usuario, carregando, autorizado } =
     useAutenticacao('empresa');
 
-  const { produtos } = Dados();
+const dados = useMemo(() => Dados(), []);
+const produtosIniciais = dados.produtos;
 
   const [busca, setBusca] = useState('');
+  const [produtos, setProdutos] = useState<Produto[]>(produtosIniciais);
+
+  const carregarProdutos = useCallback(async () => {
+    try {
+      const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+
+      if (!conteudo) {
+        setProdutos(produtosIniciais);
+        return;
+      }
+
+      const parseado: unknown = JSON.parse(conteudo);
+
+      if (!Array.isArray(parseado)) {
+        setProdutos(produtosIniciais);
+        return;
+      }
+
+      const produtosSalvos = parseado.filter(produtoValido);
+
+      // Mantém os produtos iniciais e atualiza os que já foram salvos.
+      const porId = new Map<string, Produto>();
+
+      produtosIniciais.forEach((produto) => {
+        porId.set(String(produto.id), produto);
+      });
+
+      produtosSalvos.forEach((produto) => {
+        porId.set(String(produto.id), produto);
+      });
+
+      setProdutos(Array.from(porId.values()));
+    } catch (erro) {
+      console.error('Erro ao carregar produtos:', erro);
+      setProdutos(produtosIniciais);
+    }
+  }, [produtosIniciais]);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarProdutos();
+    }, [carregarProdutos]),
+  );
 
   const produtosDaEmpresa = useMemo(() => {
+    if (usuario?.id == null) {
+      return [];
+    }
+
     return produtos.filter(
       (produto) =>
-        String(produto.empresa) === String(usuario?.id)
+        String(produto.empresa) === String(usuario.id),
     );
   }, [produtos, usuario?.id]);
 
@@ -45,7 +110,7 @@ export default function ProdutosEmpresa() {
     return produtosDaEmpresa.filter((produto) =>
       String(produto.nome ?? '')
         .toLocaleLowerCase('pt-BR')
-        .includes(termo)
+        .includes(termo),
     );
   }, [produtosDaEmpresa, busca]);
 
@@ -60,7 +125,6 @@ export default function ProdutosEmpresa() {
         backgroundColor={ESCURO}
       />
 
-      {/* CABEÇALHO FIXO */}
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
@@ -86,15 +150,11 @@ export default function ProdutosEmpresa() {
           <Text style={styles.contadorNumero}>
             {produtosDaEmpresa.length}
           </Text>
-          <Text style={styles.contadorTexto}>
-            produtos
-          </Text>
+          <Text style={styles.contadorTexto}>produtos</Text>
         </View>
       </View>
 
-      {/* CONTEÚDO */}
       <View style={styles.conteudo}>
-        {/* PESQUISA */}
         <View style={styles.pesquisa}>
           <Ionicons
             name="search-outline"
@@ -131,7 +191,6 @@ export default function ProdutosEmpresa() {
           )}
         </View>
 
-        {/* TÍTULO DA LISTA */}
         <View style={styles.linhaTitulo}>
           <View>
             <Text style={styles.tituloLista}>
@@ -162,7 +221,6 @@ export default function ProdutosEmpresa() {
           </Pressable>
         </View>
 
-        {/* LISTA DE PRODUTOS */}
         <ScrollView
           style={styles.listaScroll}
           contentContainerStyle={styles.listaConteudo}
@@ -192,14 +250,13 @@ export default function ProdutosEmpresa() {
                   width < 360 && styles.cardPequeno,
                 ]}
                 onPress={() =>
-                  router.push(
-                    `/rotas/produtos/${produto.id}` as any
-                  )
-                }
+  router.push(
+    `/rotas/produtos/${produto.id}?origem=empresa` as any,
+  )
+}
                 accessibilityRole="button"
                 accessibilityLabel={`${produto.nome}, ${preco}`}
               >
-                {/* FOTO DO PRODUTO */}
                 <View style={styles.areaImagem}>
                   {imagem ? (
                     <Image
@@ -221,7 +278,6 @@ export default function ProdutosEmpresa() {
                   )}
                 </View>
 
-                {/* INFORMAÇÕES */}
                 <View style={styles.informacao}>
                   <Text
                     style={styles.nomeProduto}
@@ -230,15 +286,14 @@ export default function ProdutosEmpresa() {
                     {produto.nome}
                   </Text>
 
-                  {'unidade' in produto &&
-                    produto.unidade && (
-                      <Text
-                        style={styles.unidade}
-                        numberOfLines={1}
-                      >
-                        {produto.unidade}
-                      </Text>
-                    )}
+                  {produto.unidade ? (
+                    <Text
+                      style={styles.unidade}
+                      numberOfLines={1}
+                    >
+                      {produto.unidade}
+                    </Text>
+                  ) : null}
 
                   <Text style={styles.precoProduto}>
                     {preco}
@@ -249,7 +304,7 @@ export default function ProdutosEmpresa() {
                       <Ionicons
                         name="pricetag"
                         size={12}
-                        color = '#245D39'
+                        color={ESCURO}
                       />
                       <Text style={styles.textoOferta}>
                         Em oferta
@@ -267,7 +322,6 @@ export default function ProdutosEmpresa() {
             );
           })}
 
-          {/* NENHUM RESULTADO */}
           {lista.length === 0 && (
             <View style={styles.estadoVazio}>
               <View style={styles.iconeVazio}>
@@ -314,13 +368,10 @@ export default function ProdutosEmpresa() {
         </ScrollView>
       </View>
 
-      {/* NAVEGAÇÃO INFERIOR */}
       <View style={styles.navegacao}>
         <Pressable
           style={styles.itemNav}
-          onPress={() =>
-            router.push('/homeempresa' as any)
-          }
+          onPress={() => router.push('/homeempresa' as any)}
         >
           <Ionicons
             name="home-outline"
@@ -342,9 +393,7 @@ export default function ProdutosEmpresa() {
 
         <Pressable
           style={styles.itemNav}
-          onPress={() =>
-            router.push('/ofertasempresa' as any)
-          }
+          onPress={() => router.push('/ofertasempresa' as any)}
         >
           <Ionicons
             name="pricetag-outline"
@@ -356,9 +405,7 @@ export default function ProdutosEmpresa() {
 
         <Pressable
           style={styles.itemNav}
-          onPress={() =>
-            router.push('/perfil' as any)
-          }
+          onPress={() => router.push('/perfil' as any)}
         >
           <Ionicons
             name="person-outline"
@@ -378,7 +425,6 @@ const styles = StyleSheet.create({
     backgroundColor: FUNDO,
   },
 
-  // CABEÇALHO
   cabecalho: {
     backgroundColor: ESCURO,
     paddingTop: 25,
@@ -440,7 +486,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // CONTEÚDO
   conteudo: {
     flex: 1,
     minHeight: 0,
@@ -448,7 +493,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
 
-  // PESQUISA
   pesquisa: {
     height: 51,
     backgroundColor: '#FFFFFF',
@@ -472,12 +516,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     backgroundColor: 'transparent',
     borderWidth: 0,
-    outlineStyle: 'none' as any,
-    outlineWidth: 0,
-    ...( { boxShadow: 'none' } as any ),
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
 
-  // TÍTULO E BOTÃO ADICIONAR
   linhaTitulo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -520,7 +567,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
 
-  // LISTA
   listaScroll: {
     flex: 1,
     minHeight: 0,
@@ -530,7 +576,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 
-  // CARD DO PRODUTO
   cardProduto: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -628,12 +673,11 @@ const styles = StyleSheet.create({
   },
 
   textoOferta: {
-  fontSize: 10,
-  fontWeight: '600',
-  color: ESCURO,
-},
+    fontSize: 10,
+    fontWeight: '600',
+    color: ESCURO,
+  },
 
-  // ESTADO VAZIO
   estadoVazio: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -689,7 +733,6 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // NAVEGAÇÃO INFERIOR
   navegacao: {
     minHeight: 73,
     backgroundColor: ESCURO,
@@ -715,7 +758,7 @@ const styles = StyleSheet.create({
 
   textoNav: {
     fontSize: 10,
-    color: '#D9E9DD',
+    color: '#D9E9DD', 
   },
 
   textoAtivo: {

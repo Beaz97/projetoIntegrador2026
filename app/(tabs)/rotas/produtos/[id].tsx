@@ -1,4 +1,10 @@
-import { useLocalSearchParams, Tabs, useRouter } from "expo-router";
+
+import {
+  useLocalSearchParams,
+  Tabs,
+  useRouter,
+} from "expo-router";
+
 import {
   Image,
   Pressable,
@@ -7,12 +13,15 @@ import {
   Text,
   View,
 } from "react-native";
+
+import { useEffect, useState } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import asyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import Dados from "../../../rotaServidor/dadosProdutos";
 import { useAutenticacao } from "@/app/components/autenticaTelas";
 
-const { produtos, categorias } = Dados();
+const { produtos: produtosIniciais, categorias } = Dados();
 
 const VERDE = "#3d7f52";
 const VERDE_ESCURO = "#2a5a3a";
@@ -20,52 +29,174 @@ const VERDE_CLARO = "#dff0e4";
 
 export default function ProdutoDetalhe() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const produto = produtos.find((item) => String(item.id) === id);
-  const categoria = categorias.find((item) => item.id === produto?.categoria);
-  const { carregando, autorizado } = useAutenticacao("cliente");
 
-  if (carregando || !autorizado) {
-    return null;
-  }
+  const { id, origem } = useLocalSearchParams<{
+    id: string;
+    origem?: string;
+  }>();
+
+  const idProduto = Array.isArray(id) ? id[0] : id;
+  const origemAtual = Array.isArray(origem) ? origem[0] : origem;
+  const modoEmpresa = origemAtual === "empresa";
+
+  const {
+    carregando,
+    autorizado,
+  } = useAutenticacao(modoEmpresa ? "empresa" : "cliente");
+
+  const [produto, setProduto] = useState<any>(
+    produtosIniciais.find(
+      (item: any) => String(item.id) === String(idProduto)
+    ) ?? null
+  );
+
+  const [carregandoProduto, setCarregandoProduto] = useState(true);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarProduto() {
+      setCarregandoProduto(true);
+
+      try {
+        const produtosSalvos = await AsyncStorage.getItem("produtos");
+        const listaSalva = produtosSalvos
+          ? JSON.parse(produtosSalvos)
+          : [];
+
+        const produtoSalvo = Array.isArray(listaSalva)
+          ? listaSalva.find(
+              (item: any) => String(item.id) === String(idProduto)
+            )
+          : null;
+
+        const produtoInicial = produtosIniciais.find(
+          (item: any) => String(item.id) === String(idProduto)
+        );
+
+        if (ativo) {
+          setProduto(produtoSalvo ?? produtoInicial ?? null);
+        }
+      } catch (erro) {
+        console.error("Erro ao carregar produto:", erro);
+
+        const produtoInicial = produtosIniciais.find(
+          (item: any) => String(item.id) === String(idProduto)
+        );
+
+        if (ativo) {
+          setProduto(produtoInicial ?? null);
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoProduto(false);
+        }
+      }
+    }
+
+    carregarProduto();
+
+    return () => {
+      ativo = false;
+    };
+  }, [idProduto]);
 
   function formatarPreco(valor: number) {
-    return valor.toLocaleString("pt-BR", {
+    return Number(valor || 0).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
   }
 
+  const voltar = () => {
+    if (modoEmpresa) {
+      router.replace("/produtoempresa" as any);
+    } else {
+      router.replace("/home" as any);
+    }
+  };
+
   const addItemCarrinho = async () => {
-    if (!produto) return;
+    if (!produto || modoEmpresa) return;
 
     try {
-      const listaCarrinho = await asyncStorage.getItem("carrinho");
-      const carrinhoArray = listaCarrinho ? JSON.parse(listaCarrinho) : [];
+      const listaCarrinho = await AsyncStorage.getItem("carrinho");
+      const carrinhoArray = listaCarrinho
+        ? JSON.parse(listaCarrinho)
+        : [];
 
       const produtoIndex = carrinhoArray.findIndex(
-        (p: any) => String(p.id) === String(produto.id)
+        (item: any) => String(item.id) === String(produto.id)
       );
 
       if (produtoIndex >= 0) {
         carrinhoArray[produtoIndex].quantidade =
           (carrinhoArray[produtoIndex].quantidade || 0) + 1;
       } else {
-        carrinhoArray.push({ ...produto, quantidade: 1 });
+        carrinhoArray.push({
+          ...produto,
+          quantidade: 1,
+        });
       }
 
-      await asyncStorage.setItem("carrinho", JSON.stringify(carrinhoArray));
-      router.push("/carrinho");
+      await AsyncStorage.setItem(
+        "carrinho",
+        JSON.stringify(carrinhoArray)
+      );
+
+      router.push("/carrinho" as any);
     } catch (erro) {
       console.error("Erro ao adicionar ao carrinho:", erro);
     }
   };
 
+  const categoria = categorias.find(
+    (item: any) =>
+      String(item.id) === String(produto?.categoria)
+  );
+
+  if (carregando || !autorizado) {
+    return null;
+  }
+
+  if (carregandoProduto) {
+    return (
+      <View style={styles.centro}>
+        <Text style={styles.textoCarregando}>
+          Carregando produto...
+        </Text>
+      </View>
+    );
+  }
+
   if (!produto) {
     return (
       <View style={styles.centro}>
-        <Tabs.Screen options={{ title: "Produto não encontrado" }} />
-        <Text style={styles.erro}>Produto não encontrado.</Text>
+        <Tabs.Screen
+          options={{
+            title: "Produto não encontrado",
+            headerShown: false,
+          }}
+        />
+
+        <MaterialCommunityIcons
+          name="package-variant"
+          size={52}
+          color={VERDE}
+        />
+
+        <Text style={styles.erro}>
+          Produto não encontrado.
+        </Text>
+
+        <Pressable
+          style={styles.botaoVoltar}
+          onPress={voltar}
+        >
+          <Text style={styles.botaoVoltarTexto}>
+            Voltar
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -74,23 +205,37 @@ export default function ProdutoDetalhe() {
 
   return (
     <ScrollView
+      style={styles.tela}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <Tabs.Screen options={{ title: produto.nome, headerShown: false }} />
+      <Tabs.Screen
+        options={{
+          title: produto.nome,
+          headerShown: false,
+        }}
+      />
 
-      {/* Cabeçalho */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.push("/home")} hitSlop={12}>
-          <Ionicons name="chevron-back" size={30} color={VERDE} />
+        <Pressable
+          onPress={voltar}
+          hitSlop={12}
+          style={styles.botaoVoltarHeader}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={28}
+            color={VERDE}
+          />
         </Pressable>
 
-        <Text style={styles.headerTitulo}>Produto</Text>
+        <Text style={styles.headerTitulo}>
+          {modoEmpresa ? "Meu produto" : "Produto"}
+        </Text>
 
         <View style={styles.headerEspaco} />
       </View>
 
-      {/* Imagem e informações do produto */}
       <View style={styles.produtoCard}>
         {produto.imagem ? (
           <Image
@@ -110,193 +255,246 @@ export default function ProdutoDetalhe() {
 
         <View style={styles.info}>
           {categoria ? (
-            <Text style={styles.categoria}>{categoria.nome}</Text>
+            <Text style={styles.categoria}>
+              {categoria.nome}
+            </Text>
           ) : null}
 
-          <Text style={styles.nome}>{produto.nome}</Text>
+          <Text style={styles.nome}>
+            {produto.nome}
+          </Text>
 
-          <Text style={styles.unidade}>{produto.unidade}</Text>
+          {produto.unidade ? (
+            <Text style={styles.unidade}>
+              {produto.unidade}
+            </Text>
+          ) : null}
 
           <Text style={styles.preco}>
             {formatarPreco(produto.preco)}
           </Text>
+
+          {temOferta && (
+            <View style={styles.etiquetaOferta}>
+              <MaterialCommunityIcons
+                name="tag-outline"
+                size={15}
+                color={VERDE_ESCURO}
+              />
+
+              <Text style={styles.etiquetaOfertaTexto}>
+                Em oferta
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* A seção de ofertas só aparece quando o produto é uma oferta */}
       {temOferta && (
-        <>
-          <View style={styles.oferta}>
-            <View style={styles.ofertaIcone}>
-              <MaterialCommunityIcons
-                name="tag-outline"
-                size={28}
-                color="#fff"
-              />
-            </View>
-
-            <View style={styles.ofertaInfo}>
-              <Text style={styles.ofertaTitulo}>Oferta da semana</Text>
-
-              <Text style={styles.ofertaTexto}>
-                Confira onde encontrar este produto mais barato.
-              </Text>
-            </View>
+        <View style={styles.ofertaCard}>
+          <View style={styles.ofertaIcone}>
+            <MaterialCommunityIcons
+              name="sale"
+              size={25}
+              color={VERDE}
+            />
           </View>
 
-          <View style={styles.secaoTituloRow}>
-            <MaterialCommunityIcons
-              name="storefront"
-              size={24}
-              color={VERDE_ESCURO}
-            />
+          <View style={styles.ofertaInfo}>
+            <Text style={styles.ofertaTitulo}>
+              Oferta da semana
+            </Text>
 
-            <Text style={styles.secaoTitulo}>
-              Onde encontrar mais barato?
+            <Text style={styles.ofertaDescricao}>
+              Aproveite o preço especial deste produto.
             </Text>
           </View>
-
-          <View style={styles.mercado}>
-            <View style={styles.mercadoLogo}>
-              <Text style={styles.mercadoLogoTexto}>Fort</Text>
-              <Text style={styles.mercadoLogoSub}>ATACADISTA</Text>
-            </View>
-
-            <View style={styles.mercadoInfo}>
-              <Text style={styles.mercadoNome}>Fort Atacadista</Text>
-              <Text style={styles.mercadoDistancia}>2,3 km</Text>
-            </View>
-          </View>
-        </>
+        </View>
       )}
 
-      {/* Botão de adicionar ao carrinho */}
-      <Pressable style={styles.botao} onPress={addItemCarrinho}>
-        <MaterialCommunityIcons
-          name="cart-outline"
-          size={21}
-          color="#fff"
-        />
+      {!modoEmpresa && (
+        <Pressable
+          style={styles.botao}
+          onPress={addItemCarrinho}
+        >
+          <MaterialCommunityIcons
+            name="cart-outline"
+            size={22}
+            color="#fff"
+          />
 
-        <Text style={styles.botaoTexto}>
-          Adicionar ao carrinho
-        </Text>
-      </Pressable>
+          <Text style={styles.botaoTexto}>
+            Adicionar ao carrinho
+          </Text>
+        </Pressable>
+      )}
+
+      {modoEmpresa && (
+        <View style={styles.avisoEmpresa}>
+          <MaterialCommunityIcons
+            name="storefront-outline"
+            size={21}
+            color={VERDE}
+          />
+
+          <Text style={styles.avisoEmpresaTexto}>
+            Você está visualizando este produto na área da empresa.
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  tela: {
+    flex: 1,
+    backgroundColor: "#f7f9f7",
+  },
+
   container: {
     flexGrow: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 120,
+    padding: 20,
+    paddingBottom: 35,
   },
 
   centro: {
     flex: 1,
-    alignItems: "center",
+    backgroundColor: "#f7f9f7",
     justifyContent: "center",
-    backgroundColor: "#fff",
-    padding: 20,
+    alignItems: "center",
+    padding: 24,
+  },
+
+  textoCarregando: {
+    color: "#555",
+    fontSize: 15,
   },
 
   erro: {
-    color: "#444",
+    color: "#333",
     fontSize: 18,
+    fontWeight: "600",
+    marginTop: 14,
+    textAlign: "center",
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    marginBottom: 20,
+    justifyContent: "space-between",
+    marginBottom: 25,
+  },
+
+  botaoVoltarHeader: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#eaf3ec",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   headerTitulo: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#222",
   },
 
   headerEspaco: {
-    width: 30,
+    width: 42,
   },
 
   produtoCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 22,
+    padding: 18,
     borderWidth: 1,
-    borderColor: "#edf1ed",
-    padding: 12,
-    marginBottom: 20,
+    borderColor: "#e8eee9",
+    marginBottom: 18,
   },
 
   imagem: {
     width: "100%",
-    height: 190,
-    marginBottom: 12,
+    height: 220,
+    marginBottom: 15,
   },
 
   imagemVazia: {
-    width: "100%",
-    height: 190,
+    height: 220,
+    borderRadius: 16,
+    backgroundColor: "#edf5ef",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
-    backgroundColor: "#f7faf7",
-    borderRadius: 12,
+    marginBottom: 15,
   },
 
   info: {
-    paddingHorizontal: 4,
+    alignItems: "flex-start",
   },
 
   categoria: {
     color: VERDE,
     fontSize: 13,
-    fontWeight: "bold",
-    marginBottom: 5,
+    fontWeight: "700",
+    marginBottom: 7,
+    textTransform: "uppercase",
   },
 
   nome: {
-    color: "#000",
-    fontSize: 22,
-    fontWeight: "bold",
+    color: "#202820",
+    fontSize: 23,
+    fontWeight: "700",
+    marginBottom: 6,
   },
 
   unidade: {
     color: "#777",
-    fontSize: 16,
-    marginTop: 4,
+    fontSize: 14,
+    marginBottom: 12,
   },
 
   preco: {
-    color: VERDE,
-    fontSize: 32,
-    fontWeight: "bold",
-    marginTop: 8,
+    color: VERDE_ESCURO,
+    fontSize: 25,
+    fontWeight: "800",
+    marginTop: 4,
   },
 
-  oferta: {
+  etiquetaOferta: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 5,
     backgroundColor: VERDE_CLARO,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginTop: 12,
+  },
+
+  etiquetaOfertaTexto: {
+    color: VERDE_ESCURO,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  ofertaCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#e8eee9",
+    marginBottom: 20,
     gap: 12,
-    marginBottom: 24,
   },
 
   ofertaIcone: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: VERDE_ESCURO,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#eaf3ec",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -306,96 +504,64 @@ const styles = StyleSheet.create({
   },
 
   ofertaTitulo: {
-    color: VERDE_ESCURO,
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "#263328",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 4,
   },
 
-  ofertaTexto: {
-    color: "#111",
-    fontSize: 14,
-    marginTop: 4,
-  },
-
-  secaoTituloRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 14,
-  },
-
-  secaoTitulo: {
-    color: VERDE_ESCURO,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  mercado: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: VERDE_CLARO,
-    borderRadius: 14,
-    padding: 10,
-    gap: 12,
-    marginBottom: 20,
-  },
-
-  mercadoLogo: {
-    width: 105,
-    height: 52,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  mercadoLogoTexto: {
-    color: "#d32027",
-    fontSize: 22,
-    fontWeight: "900",
-    fontStyle: "italic",
-    lineHeight: 24,
-  },
-
-  mercadoLogoSub: {
-    color: "#d32027",
-    fontSize: 9,
-    fontWeight: "bold",
-  },
-
-  mercadoInfo: {
-    flex: 1,
-  },
-
-  mercadoNome: {
-    color: VERDE_ESCURO,
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  mercadoDistancia: {
-    color: VERDE_ESCURO,
-    fontSize: 14,
-    marginTop: 4,
-    marginLeft: 4,
+  ofertaDescricao: {
+    color: "#777",
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   botao: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
-    backgroundColor: VERDE_ESCURO,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
+    backgroundColor: VERDE,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    marginTop: 5,
   },
 
   botaoTexto: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  avisoEmpresa: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#eaf3ec",
+    padding: 15,
+    borderRadius: 14,
+    marginTop: 5,
+  },
+
+  avisoEmpresaTexto: {
+    flex: 1,
+    color: VERDE_ESCURO,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  botaoVoltar: {
+    marginTop: 20,
+    backgroundColor: VERDE,
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+
+  botaoVoltarTexto: {
+    color: "#fff",
     fontSize: 15,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
 });
