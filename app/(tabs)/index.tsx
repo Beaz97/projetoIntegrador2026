@@ -9,8 +9,6 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { resetarUsuariosStorage } from '../rotaServidor/userController'
-import { Ionicons } from '@expo/vector-icons';
-import { Background } from '@react-navigation/elements';
 
 type BotaoProps = {
   titulo: string;
@@ -54,13 +52,10 @@ export default function Index() {
 
         {/* LOGO */}
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>
-            Economize
-          </Text>
-
-          <Text style={styles.sloganLogo}>
-            Compare. Escolha. Economize.
-          </Text>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logoImagem}
+          />
         </View>
 
         {/* RODAPÉ */}
@@ -70,12 +65,10 @@ export default function Index() {
             os melhores preços dos{'\n'}
             mercados bem perto de você
           </Text>
-          <view />
 
           {/* BOTÃO COMEÇAR */}
           <Botao
             titulo="Começar"
-            branco
             onPress={() => setPagina(1)}
           />
 
@@ -86,18 +79,19 @@ export default function Index() {
               onPress={() => setPagina(0)}
               style={[
                 styles.bolinha,
-                styles.bolinhaAtivaVerde,
+                styles.bolinhaBranca,
+                styles.bolinhaAtivaBranca,
               ]}
             />
 
             <Pressable
               onPress={() => setPagina(1)}
-              style={styles.bolinha}
+              style={[styles.bolinha, styles.bolinhaBranca]}
             />
 
             <Pressable
               onPress={() => setPagina(2)}
-              style={styles.bolinha}
+              style={[styles.bolinha, styles.bolinhaBranca]}
             />
 
           </View>
@@ -121,12 +115,7 @@ export default function Index() {
           style={styles.voltar}
           onPress={() => setPagina(0)}
         >
-          <Ionicons 
-            name='chevron-back' 
-            size={20} 
-            color={'#fff'} 
-            style={{backgroundColor: '#00000000'}}
-          />
+          <Text style={styles.voltarTexto}>‹</Text>
         </Pressable>
 
         {/* CONTEÚDO */}
@@ -210,12 +199,7 @@ export default function Index() {
         style={styles.voltar}
         onPress={() => setPagina(1)}
       >
-        <Ionicons 
-          name='chevron-back' 
-          size={20} 
-          color={'#fff'} 
-          style={{backgroundColor: '#00000000'}}
-        />
+        <Text style={styles.voltarTexto}>‹</Text>
       </Pressable>
 
       {/* CONTEÚDO */}
@@ -294,21 +278,33 @@ export default function Index() {
 
 const styles = StyleSheet.create({
 
-  // ========================= 
-  // PRIMEIRA TELA 
-  // ========================= 
+  // =========================
+  // PRIMEIRA TELA
+  // =========================
 
   containerVerde: {
     flex: 1,
-    backgroundColor: '#41805A',
-    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'flex-end',
     paddingTop: 135,
     paddingBottom: 28,
     paddingHorizontal: 25,
   },
 
   logoContainer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  logoImagem: {
+    width: 260,
+    height: 260,
+    resizeMode: 'contain',
   },
 
   logo: {
@@ -325,7 +321,7 @@ const styles = StyleSheet.create({
   },
 
   tituloBranco: {
-    color: '#FFFFFF',
+    color: '#41805A',
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
@@ -339,9 +335,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
 
-  // ========================= 
-  // TELAS 2 E 3 
-  // ========================= 
+  // =========================
+  // TELAS 2 E 3
+  // =========================
 
   containerBranco: {
     flex: 1,
@@ -375,9 +371,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
 
-  // ========================= 
-  // IMAGENS 
-  // ========================= 
+  // =========================
+  // IMAGENS
+  // =========================
 
   imagemProdutos: {
     width: 270,
@@ -393,9 +389,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 
-  // ========================= 
-  // RODAPÉ 
-  // ========================= 
+  // =========================
+  // RODAPÉ
+  // =========================
 
   rodape: {
     width: '100%',
@@ -407,9 +403,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // ========================= 
-  // BOTÕES 
-  // ========================= 
+  // =========================
+  // BOTÕES
+  // =========================
 
   botao: {
     width: '84%',
@@ -435,9 +431,9 @@ const styles = StyleSheet.create({
     color: '#41805A',
   },
 
-  // ========================= 
-  // LOGIN 
-  // ========================= 
+  // =========================
+  // LOGIN
+  // =========================
 
   login: {
     color: '#777777',
@@ -451,9 +447,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  // ========================= 
-  // BOLINHAS 
-  // ========================= 
+  // =========================
+  // BOLINHAS
+  // =========================
 
   bolinhas: {
     flexDirection: 'row',
@@ -486,9 +482,9 @@ const styles = StyleSheet.create({
     borderColor: '#41805A',
   },
 
-  // ========================= 
-  // BOTÃO VOLTAR 
-  // ========================= 
+  // =========================
+  // BOTÃO VOLTAR
+  // =========================
 
   voltar: {
     position: 'absolute',
@@ -502,4 +498,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
+
+  voltarTexto: {
+    color: '#FFFFFF',
+    fontSize: 27,
+    fontWeight: '300',
+    lineHeight: 29,
+  },
+
 });
