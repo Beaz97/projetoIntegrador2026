@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -11,13 +12,30 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAutenticacao } from '@/app/components/autenticaTelas';
-import Dados from '../rotaServidor/dadosProdutos';
+import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
 const VERDE = '#3D8054';
 const VERDE_ESCURO = '#245D39';
 const FUNDO = '#F7F9F7';
+const CHAVE_PRODUTOS = 'produtos';
+const PRODUTOS_INICIAIS = Dados().produtos;
+
+function produtoValido(valor: unknown): valor is Produto {
+  if (!valor || typeof valor !== 'object') {
+    return false;
+  }
+
+  const produto = valor as Produto;
+
+  return (
+    typeof produto.id === 'string' &&
+    typeof produto.nome === 'string' &&
+    typeof produto.preco === 'number'
+  );
+}
 
 type MenuCardProps = {
   titulo: string;
@@ -84,7 +102,50 @@ export default function HomeScreen() {
     autorizado,
   } = useAutenticacao('empresa');
 
-  const { produtos } = Dados();
+  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
+
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+
+      async function carregarProdutos() {
+        try {
+          const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+          const produtosSalvos: unknown = conteudo
+            ? JSON.parse(conteudo)
+            : PRODUTOS_INICIAIS;
+
+          if (
+            !Array.isArray(produtosSalvos) ||
+            !produtosSalvos.every(produtoValido)
+          ) {
+            throw new Error(
+              'A lista de produtos armazenada não está em formato válido.',
+            );
+          }
+
+          if (ativo) {
+            setProdutos(produtosSalvos);
+          }
+        } catch (erro) {
+          console.error('Erro ao carregar produtos:', erro);
+
+          if (ativo) {
+            Alert.alert(
+              'Erro ao carregar produtos',
+              'Não foi possível atualizar o total de produtos.',
+            );
+          }
+        }
+      }
+
+      void carregarProdutos();
+
+      return () => {
+        ativo = false;
+      };
+    }, []),
+  );
 
   const totalProdutos = produtos.filter(
     (produto) => String(produto.empresa) === String(usuario?.id)

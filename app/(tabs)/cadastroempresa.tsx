@@ -1,4 +1,3 @@
-
 import {
   View,
   Text,
@@ -16,7 +15,44 @@ import {
 import { useState, useRef } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import userController from '@/app/rotaServidor/userController';
+import userController, {
+  setUsuarioLogado,
+} from '@/app/rotaServidor/userController';
+
+function emailValido(valor: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
+}
+
+function cnpjValido(valor: string) {
+  const numeros = valor.replace(/\D/g, '');
+
+  if (numeros.length !== 14) {
+    return false;
+  }
+
+  if (/^(\d)\1+$/.test(numeros)) {
+    return false;
+  }
+
+  function calcularDigito(base: string, pesos: number[]) {
+    const soma = pesos.reduce(
+      (total, peso, indice) => total + Number(base[indice]) * peso,
+      0
+    );
+
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  }
+
+  const pesosPrimeiro = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const pesosSegundo = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
+  const base = numeros.slice(0, 12);
+  const primeiro = calcularDigito(base, pesosPrimeiro);
+  const segundo = calcularDigito(base + primeiro, pesosSegundo);
+
+  return numeros === base + String(primeiro) + String(segundo);
+}
 
 export default function Cadastro() {
   const router = useRouter();
@@ -30,6 +66,8 @@ export default function Cadastro() {
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [empresa, setEmpresa] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [erroEmail, setErroEmail] = useState('');
+  const [erroDocumento, setErroDocumento] = useState('');
 
   const nomeRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
@@ -42,6 +80,23 @@ export default function Cadastro() {
   function trocarTipo() {
     setEmpresa((valor) => !valor);
     setCpf('');
+    setErroDocumento('');
+  }
+
+  function mudarEmail(valor: string) {
+    setEmail(valor);
+
+    if (erroEmail) {
+      setErroEmail('');
+    }
+  }
+
+  function mudarDocumento(valor: string) {
+    setCpf(valor);
+
+    if (erroDocumento) {
+      setErroDocumento('');
+    }
   }
 
   async function handleCadastrar() {
@@ -56,6 +111,22 @@ export default function Cadastro() {
         'Campos obrigatórios',
         'Preencha todos os campos para continuar.'
       );
+      return;
+    }
+
+    let temErro = false;
+
+    if (!emailValido(email)) {
+      setErroEmail('E-mail inválido. Confira e tente novamente.');
+      temErro = true;
+    }
+
+    if (empresa && !cnpjValido(cpf)) {
+      setErroDocumento('CNPJ inválido. Confira os números digitados.');
+      temErro = true;
+    }
+
+    if (temErro) {
       return;
     }
 
@@ -78,6 +149,10 @@ export default function Cadastro() {
         tipo: empresa ? 'Empresa' : 'Cliente',
       });
 
+      if (empresa) {
+        await setUsuarioLogado(usuarioCriado);
+      }
+
       console.log('Usuário cadastrado com sucesso:', usuarioCriado);
 
       Alert.alert(
@@ -86,7 +161,8 @@ export default function Cadastro() {
         [
           {
             text: 'Continuar',
-            onPress: () => router.push('/senha'),
+            onPress: () =>
+              router.replace(empresa ? '/homeempresa' : '/senha'),
           },
         ]
       );
@@ -239,7 +315,10 @@ export default function Cadastro() {
           </Text>
 
           <Pressable
-            style={styles.campo}
+            style={[
+              styles.campo,
+              erroEmail !== '' && styles.campoErro,
+            ]}
             onPress={() => emailRef.current?.focus()}
           >
             <Ionicons
@@ -254,7 +333,7 @@ export default function Cadastro() {
               placeholder="Digite seu e-mail"
               placeholderTextColor="#929A94"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={mudarEmail}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -264,13 +343,20 @@ export default function Cadastro() {
             />
           </Pressable>
 
+          {erroEmail !== '' && (
+            <Text style={styles.textoErro}>{erroEmail}</Text>
+          )}
+
           {/* CPF ou CNPJ */}
           <Text style={styles.label}>
             {textoDocumento}
           </Text>
 
           <Pressable
-            style={styles.campo}
+            style={[
+              styles.campo,
+              erroDocumento !== '' && styles.campoErro,
+            ]}
             onPress={() => cpfRef.current?.focus()}
           >
             <Ionicons
@@ -285,13 +371,17 @@ export default function Cadastro() {
               placeholder={`Digite seu ${textoDocumento}`}
               placeholderTextColor="#929A94"
               value={cpf}
-              onChangeText={setCpf}
+              onChangeText={mudarDocumento}
               keyboardType="numeric"
               returnKeyType="next"
               onSubmitEditing={() => senhaRef.current?.focus()}
               accessibilityLabel={textoDocumento}
             />
           </Pressable>
+
+          {erroDocumento !== '' && (
+            <Text style={styles.textoErro}>{erroDocumento}</Text>
+          )}
 
           {/* Senha */}
           <Text style={styles.label}>
@@ -566,6 +656,20 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#E0E8E1',
+  },
+
+  campoErro: {
+    borderColor: '#B3261E',
+    backgroundColor: '#FFF8F7',
+  },
+
+  textoErro: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B3261E',
+    marginTop: -8,
+    marginBottom: 14,
+    marginLeft: 3,
   },
 
   input: {

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -63,24 +64,11 @@ const produtosIniciais = dados.produtos;
       const parseado: unknown = JSON.parse(conteudo);
 
       if (!Array.isArray(parseado)) {
-        setProdutos(produtosIniciais);
-        return;
+        throw new Error('A lista de produtos armazenada não é válida.');
       }
 
       const produtosSalvos = parseado.filter(produtoValido);
-
-      // Mantém os produtos iniciais e atualiza os que já foram salvos.
-      const porId = new Map<string, Produto>();
-
-      produtosIniciais.forEach((produto) => {
-        porId.set(String(produto.id), produto);
-      });
-
-      produtosSalvos.forEach((produto) => {
-        porId.set(String(produto.id), produto);
-      });
-
-      setProdutos(Array.from(porId.values()));
+      setProdutos(produtosSalvos);
     } catch (erro) {
       console.error('Erro ao carregar produtos:', erro);
       setProdutos(produtosIniciais);
@@ -92,6 +80,35 @@ const produtosIniciais = dados.produtos;
       carregarProdutos();
     }, [carregarProdutos]),
   );
+
+  async function excluirProduto(produto: Produto) {
+    try {
+      const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+      const parseado: unknown = conteudo
+        ? JSON.parse(conteudo)
+        : produtos;
+
+      if (!Array.isArray(parseado) || !parseado.every(produtoValido)) {
+        throw new Error('A lista de produtos armazenada não é válida.');
+      }
+
+      const produtosAtualizados = parseado.filter(
+        (item) => String(item.id) !== String(produto.id),
+      );
+
+      await AsyncStorage.setItem(
+        CHAVE_PRODUTOS,
+        JSON.stringify(produtosAtualizados),
+      );
+      setProdutos(produtosAtualizados);
+    } catch (erro) {
+      console.error('Erro ao excluir produto:', erro);
+      Alert.alert(
+        'Não foi possível excluir',
+        'O produto não foi removido. Tente novamente.',
+      );
+    }
+  }
 
   const produtosDaEmpresa = useMemo(() => {
     if (usuario?.id == null) {
@@ -242,83 +259,108 @@ const produtosIniciais = dados.produtos;
                 : String(produto.preco ?? 'Preço não informado');
 
             return (
-              <Pressable
+              <View
                 key={String(produto.id)}
-                style={({ pressed }) => [
+                style={[
                   styles.cardProduto,
-                  pressed && styles.cardPressionado,
                   width < 360 && styles.cardPequeno,
                 ]}
-                onPress={() =>
-  router.push(
-    `/rotas/produtos/${produto.id}?origem=empresa` as any,
-  )
-}
-                accessibilityRole="button"
-                accessibilityLabel={`${produto.nome}, ${preco}`}
               >
-                <View style={styles.areaImagem}>
-                  {imagem ? (
-                    <Image
-                      source={{ uri: imagem }}
-                      style={styles.imagemProduto}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View style={styles.imagemVazia}>
-                      <Ionicons
-                        name="cube-outline"
-                        size={37}
-                        color={VERDE}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.conteudoProduto,
+                    pressed && styles.cardPressionado,
+                  ]}
+                  onPress={() =>
+                    router.push(
+                      `/rotas/produtos/${produto.id}?origem=empresa` as any,
+                    )
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={`${produto.nome}, ${preco}`}
+                >
+                  <View style={styles.areaImagem}>
+                    {imagem ? (
+                      <Image
+                        source={{ uri: imagem }}
+                        style={styles.imagemProduto}
+                        resizeMode="contain"
                       />
-                      <Text style={styles.textoImagemVazia}>
-                        Sem foto
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                    ) : (
+                      <View style={styles.imagemVazia}>
+                        <Ionicons
+                          name="cube-outline"
+                          size={37}
+                          color={VERDE}
+                        />
+                        <Text style={styles.textoImagemVazia}>
+                          Sem foto
+                        </Text>
+                      </View>
+                    )}
+                  </View>
 
-                <View style={styles.informacao}>
-                  <Text
-                    style={styles.nomeProduto}
-                    numberOfLines={2}
-                  >
-                    {produto.nome}
-                  </Text>
-
-                  {produto.unidade ? (
+                  <View style={styles.informacao}>
                     <Text
-                      style={styles.unidade}
-                      numberOfLines={1}
+                      style={styles.nomeProduto}
+                      numberOfLines={2}
                     >
-                      {produto.unidade}
+                      {produto.nome}
                     </Text>
-                  ) : null}
 
-                  <Text style={styles.precoProduto}>
-                    {preco}
-                  </Text>
-
-                  {produto.oferta === true && (
-                    <View style={styles.seloOferta}>
-                      <Ionicons
-                        name="pricetag"
-                        size={12}
-                        color={ESCURO}
-                      />
-                      <Text style={styles.textoOferta}>
-                        Em oferta
+                    {produto.unidade ? (
+                      <Text
+                        style={styles.unidade}
+                        numberOfLines={1}
+                      >
+                        {produto.unidade}
                       </Text>
-                    </View>
-                  )}
-                </View>
+                    ) : null}
 
-                <Ionicons
-                  name="chevron-forward"
-                  size={21}
-                  color="#98A198"
-                />
-              </Pressable>
+                    <Text style={styles.precoProduto}>
+                      {preco}
+                    </Text>
+
+                    {produto.oferta === true && (
+                      <View style={styles.seloOferta}>
+                        <Ionicons
+                          name="pricetag"
+                          size={12}
+                          color={ESCURO}
+                        />
+                        <Text style={styles.textoOferta}>
+                          Em oferta
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={21}
+                    color="#98A198"
+                  />
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.botaoExcluir,
+                    pressed && styles.botaoExcluirPressionado,
+                  ]}
+                  onPress={() => {
+                    void excluirProduto(produto);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Excluir ${produto.nome}`}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={20}
+                    color="#B42318"
+                  />
+                </Pressable>
+              </View>
             );
           })}
 
@@ -597,6 +639,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  conteudoProduto: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+
   cardPequeno: {
     gap: 9,
     padding: 9,
@@ -604,6 +654,20 @@ const styles = StyleSheet.create({
 
   cardPressionado: {
     opacity: 0.78,
+  },
+
+  botaoExcluir: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: '#FFF1F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  botaoExcluirPressionado: {
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
 
   areaImagem: {

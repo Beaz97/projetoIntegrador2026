@@ -194,17 +194,7 @@ export default function NovaOferta() {
                 typeof (item as Produto).preco === 'number',
             );
 
-            const porId = new Map<string, Produto>();
-
-            dadosIniciais.forEach((produto) => {
-              porId.set(String(produto.id), produto);
-            });
-
-            produtosValidos.forEach((produto) => {
-              porId.set(String(produto.id), produto);
-            });
-
-            produtosSalvos = Array.from(porId.values());
+            produtosSalvos = produtosValidos;
           }
         } catch {
           produtosSalvos = [...dadosIniciais];

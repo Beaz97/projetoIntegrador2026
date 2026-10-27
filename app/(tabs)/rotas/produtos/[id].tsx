@@ -75,7 +75,9 @@ export default function ProdutoDetalhe() {
         );
 
         if (ativo) {
-          setProduto(produtoSalvo ?? produtoInicial ?? null);
+          setProduto(
+            produtoSalvo ?? (produtosSalvos ? null : produtoInicial ?? null)
+          );
         }
       } catch (erro) {
         console.error("Erro ao carregar produto:", erro);

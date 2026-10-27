@@ -1,5 +1,4 @@
-
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import {
   View,
@@ -10,6 +9,7 @@ import {
   ScrollView,
   StatusBar,
   Image,
+  Modal,
 } from "react-native";
 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -22,6 +22,7 @@ import { useAutenticacao } from "@/app/components/autenticaTelas";
 const VERDE = "#3D8054";
 const ESCURO = "#245D39";
 const FUNDO = "#F7F9F7";
+const CHAVE_PRODUTOS = "produtos";
 
 const dadosIniciais = Dados();
 
@@ -30,8 +31,10 @@ export default function OfertasEmpresa() {
   const { usuario } = useAutenticacao("empresa");
 
   const [busca, setBusca] = useState("");
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [todos, setTodos] = useState<any[]>([]);
   const [carregandoProdutos, setCarregandoProdutos] = useState(true);
+  const [ofertaParaExcluir, setOfertaParaExcluir] = useState<any | null>(null);
+  const [erroExclusao, setErroExclusao] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -41,44 +44,26 @@ export default function OfertasEmpresa() {
         setCarregandoProdutos(true);
 
         try {
-          const produtosSalvos = await AsyncStorage.getItem("produtos");
-          const listaSalva = produtosSalvos
-            ? JSON.parse(produtosSalvos)
-            : [];
+          const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
 
-          const salvos = Array.isArray(listaSalva) ? listaSalva : [];
-          const iniciais = dadosIniciais.produtos || [];
+          let lista: any[] = dadosIniciais.produtos || [];
 
-          const todosProdutos = [...iniciais];
+          if (conteudo) {
+            const parseado = JSON.parse(conteudo);
 
-          salvos.forEach((produto: any) => {
-            const indice = todosProdutos.findIndex(
-              (item: any) => String(item.id) === String(produto.id)
-            );
-
-            if (indice >= 0) {
-              todosProdutos[indice] = {
-                ...todosProdutos[indice],
-                ...produto,
-              };
-            } else {
-              todosProdutos.push(produto);
+            if (Array.isArray(parseado)) {
+              lista = parseado;
             }
-          });
-
-          const produtosDaEmpresa = todosProdutos.filter(
-            (produto: any) =>
-              String(produto.empresa) === String(usuario?.id)
-          );
+          }
 
           if (ativo) {
-            setProdutos(produtosDaEmpresa);
+            setTodos(lista);
           }
         } catch (erro) {
           console.error("Erro ao carregar ofertas:", erro);
 
           if (ativo) {
-            setProdutos([]);
+            setTodos(dadosIniciais.produtos || []);
           }
         } finally {
           if (ativo) {
@@ -92,7 +77,16 @@ export default function OfertasEmpresa() {
       return () => {
         ativo = false;
       };
-    }, [usuario?.id])
+    }, [])
+  );
+
+  const produtos = useMemo(
+    () =>
+      todos.filter(
+        (produto: any) =>
+          String(produto.empresa) === String(usuario?.id)
+      ),
+    [todos, usuario?.id]
   );
 
   const ofertas = produtos.filter(
@@ -116,6 +110,43 @@ export default function OfertasEmpresa() {
     router.push(
       `/rotas/produtos/${id}?origem=empresa` as any
     );
+  }
+
+  function pedirExclusao(oferta: any) {
+    setErroExclusao("");
+    setOfertaParaExcluir(oferta);
+  }
+
+  function cancelarExclusao() {
+    setErroExclusao("");
+    setOfertaParaExcluir(null);
+  }
+
+  async function confirmarExclusao() {
+    if (!ofertaParaExcluir) {
+      return;
+    }
+
+    try {
+      const listaAtualizada = todos.filter(
+        (item: any) =>
+          String(item.id) !== String(ofertaParaExcluir.id)
+      );
+
+      await AsyncStorage.setItem(
+        CHAVE_PRODUTOS,
+        JSON.stringify(listaAtualizada)
+      );
+
+      setTodos(listaAtualizada);
+      setErroExclusao("");
+      setOfertaParaExcluir(null);
+    } catch (erro) {
+      console.error("Erro ao excluir oferta:", erro);
+      setErroExclusao(
+        "Não foi possível excluir a oferta. Tente novamente."
+      );
+    }
   }
 
   return (
@@ -227,7 +258,7 @@ export default function OfertasEmpresa() {
 
           <Pressable
             style={styles.botaoAdicionar}
-            onPress={() => router.push("/rotas/ofertas/criar" as any)}
+            onPress={() => router.push("/novaoferta" as any)}
           >
             <Ionicons
               name="add"
@@ -255,63 +286,87 @@ export default function OfertasEmpresa() {
             </View>
           ) : lista.length > 0 ? (
             lista.map((produto) => (
-              <Pressable
+              <View
                 key={String(produto.id)}
                 style={styles.card}
-                onPress={() => abrirProduto(produto.id)}
               >
-                <View style={styles.imagemContainer}>
-                  {produto.imagem ? (
-                    <Image
-                      source={{ uri: produto.imagem }}
-                      style={styles.imagemProduto}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <MaterialCommunityIcons
-                      name="basket-outline"
-                      size={31}
-                      color={VERDE}
-                    />
-                  )}
-                </View>
-
-                <View style={styles.informacao}>
-                  <View style={styles.linhaStatus}>
-                    <View style={styles.status}>
-                      <View style={styles.pontoStatus} />
-                      <Text style={styles.statusTexto}>
-                        Em oferta
-                      </Text>
-                    </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.conteudoCard,
+                    pressed && styles.cardPressionado,
+                  ]}
+                  onPress={() => abrirProduto(produto.id)}
+                >
+                  <View style={styles.imagemContainer}>
+                    {produto.imagem ? (
+                      <Image
+                        source={{ uri: produto.imagem }}
+                        style={styles.imagemProduto}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="basket-outline"
+                        size={31}
+                        color={VERDE}
+                      />
+                    )}
                   </View>
 
-                  <Text
-                    style={styles.nomeProduto}
-                    numberOfLines={2}
-                  >
-                    {produto.nome}
-                  </Text>
+                  <View style={styles.informacao}>
+                    <View style={styles.linhaStatus}>
+                      <View style={styles.status}>
+                        <View style={styles.pontoStatus} />
+                        <Text style={styles.statusTexto}>
+                          Em oferta
+                        </Text>
+                      </View>
+                    </View>
 
-                  {produto.unidade ? (
-                    <Text style={styles.unidade}>
-                      {produto.unidade}
+                    <Text
+                      style={styles.nomeProduto}
+                      numberOfLines={2}
+                    >
+                      {produto.nome}
                     </Text>
-                  ) : null}
 
-                  <Text style={styles.preco}>
-                    {formatarPreco(produto.preco)}
-                  </Text>
-                </View>
+                    {produto.unidade ? (
+                      <Text style={styles.unidade}>
+                        {produto.unidade}
+                      </Text>
+                    ) : null}
 
-                <View style={styles.seta}>
+                    <Text style={styles.preco}>
+                      {formatarPreco(produto.preco)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.seta}>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={19}
+                      color="#8A968C"
+                    />
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.botaoExcluir,
+                    pressed && styles.botaoExcluirPressionado,
+                  ]}
+                  onPress={() => pedirExclusao(produto)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Excluir ${produto.nome}`}
+                >
                   <Ionicons
-                    name="chevron-forward"
-                    size={19}
-                    color="#8A968C"
+                    name="trash-outline"
+                    size={20}
+                    color="#B42318"
                   />
-                </View>
-              </Pressable>
+                </Pressable>
+              </View>
             ))
           ) : (
             <View style={styles.estadoVazio}>
@@ -339,7 +394,7 @@ export default function OfertasEmpresa() {
                 <Pressable
                   style={styles.botaoCriar}
                   onPress={() =>
-                    router.push("/rotas/ofertas/criar" as any)
+                    router.push("/novaoferta" as any)
                   }
                 >
                   <Ionicons
@@ -405,6 +460,56 @@ export default function OfertasEmpresa() {
           <Text style={styles.textoNav}>Perfil</Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={ofertaParaExcluir !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelarExclusao}
+      >
+        <View style={styles.modalFundo}>
+          <View style={styles.modalCaixa}>
+            <View style={styles.modalIcone}>
+              <Ionicons
+                name="trash-outline"
+                size={28}
+                color="#B42318"
+              />
+            </View>
+
+            <Text style={styles.modalTitulo}>Excluir oferta</Text>
+
+            <Text style={styles.modalTexto}>
+              Deseja excluir "{ofertaParaExcluir?.nome}"? Essa ação não
+              pode ser desfeita.
+            </Text>
+
+            {erroExclusao !== "" && (
+              <Text style={styles.modalErro}>{erroExclusao}</Text>
+            )}
+
+            <View style={styles.modalBotoes}>
+              <Pressable
+                style={styles.modalCancelar}
+                onPress={cancelarExclusao}
+              >
+                <Text style={styles.modalCancelarTexto}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.modalExcluir}
+                onPress={confirmarExclusao}
+              >
+                <Text style={styles.modalExcluirTexto}>
+                  Excluir
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -589,7 +694,33 @@ const styles = StyleSheet.create({
     borderColor: "#E8EDE8",
     padding: 12,
     marginBottom: 12,
+    gap: 10,
+  },
+
+  conteudoCard: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
+  },
+
+  cardPressionado: {
+    opacity: 0.78,
+  },
+
+  botaoExcluir: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: "#FFF1F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  botaoExcluirPressionado: {
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
 
   imagemContainer: {
@@ -609,6 +740,7 @@ const styles = StyleSheet.create({
 
   informacao: {
     flex: 1,
+    minWidth: 0,
     paddingVertical: 3,
   },
 
@@ -752,5 +884,91 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#FFFFFF",
     fontWeight: "800",
+  },
+
+  modalFundo: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+
+  modalCaixa: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 22,
+    alignItems: "center",
+  },
+
+  modalIcone: {
+    width: 58,
+    height: 58,
+    borderRadius: 19,
+    backgroundColor: "#FFF1F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  modalTitulo: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: "#294531",
+  },
+
+  modalTexto: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#68736B",
+    textAlign: "center",
+    marginTop: 8,
+  },
+
+  modalErro: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#B3261E",
+    textAlign: "center",
+    marginTop: 10,
+  },
+
+  modalBotoes: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 20,
+    width: "100%",
+  },
+
+  modalCancelar: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 13,
+    backgroundColor: "#EEF2EF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalCancelarTexto: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#294531",
+  },
+
+  modalExcluir: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 13,
+    backgroundColor: "#B42318",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalExcluirTexto: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
