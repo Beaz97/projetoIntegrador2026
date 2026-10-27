@@ -185,7 +185,7 @@ export default function HomeScreen() {
               descricao="Crie e gerencie promoções."
               icone="pricetag-outline"
               corFundo="#FFF6E4"
-              onPress={() => router.push('/ofertas' as any)}
+              onPress={() => router.push('/ofertaempresa' as any)}
             />
           </View>
 
@@ -205,7 +205,7 @@ export default function HomeScreen() {
               descricao="Crie promoções e destaque seus produtos."
               icone="add-circle-outline"
               corFundo="#EAF2FA"
-              onPress={() => router.push('/ofertas/criar' as any)}
+              onPress={() => router.push('/novaoferta' as any)}
             />
           </View>
         </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   View,
@@ -27,6 +27,8 @@ const FUNDO = '#F7F9F7';
 const TEXTO = '#294531';
 const CINZA = '#7B887F';
 const CHAVE_PRODUTOS = 'produtos';
+const TEMPO_TELA_SUCESSO = 2000;
+const ROTA_HOME = '/homeempresa';
 
 function formatarMoeda(valor: string) {
   const numeros = valor.replace(/\D/g, '');
@@ -126,22 +128,36 @@ export default function NovoProduto() {
   const [imagem, setImagem] = useState('');
   const [descricao, setDescricao] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [tentouSalvar, setTentouSalvar] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
+
+  const precoNumerico = converterPreco(preco);
+
+  const camposCompletos =
+    nome.trim().length > 0 &&
+    categoria !== '' &&
+    Number.isFinite(precoNumerico) &&
+    precoNumerico > 0;
+
+  const mostrarAviso = tentouSalvar && !camposCompletos;
+
+  useEffect(() => {
+    if (!sucesso) {
+      return;
+    }
+
+    const temporizador = setTimeout(() => {
+      setSucesso(false);
+      router.replace(ROTA_HOME as any);
+    }, TEMPO_TELA_SUCESSO);
+
+    return () => clearTimeout(temporizador);
+  }, [sucesso]);
 
   async function salvar() {
-    if (!nome.trim()) {
-      Alert.alert('Atenção', 'Informe o nome do produto.');
-      return;
-    }
+    setTentouSalvar(true);
 
-    if (!categoria) {
-      Alert.alert('Atenção', 'Selecione uma categoria.');
-      return;
-    }
-
-    const precoNumerico = converterPreco(preco);
-
-    if (!preco || !Number.isFinite(precoNumerico) || precoNumerico <= 0) {
-      Alert.alert('Atenção', 'Informe um preço válido.');
+    if (!camposCompletos) {
       return;
     }
 
@@ -228,22 +244,13 @@ export default function NovoProduto() {
         JSON.stringify(listaAtualizada),
       );
 
-      Alert.alert(
-        'Produto cadastrado!',
-        `${novoProduto.nome} foi adicionado ao seu catálogo.`,
-        [
-          {
-            text: 'Ver meus produtos',
-            onPress: () => router.replace('/produtoempresa' as any),
-          },
-        ],
-      );
-
       setNome('');
       setCategoria('');
       setPreco('');
       setImagem('');
       setDescricao('');
+      setTentouSalvar(false);
+      setSucesso(true);
     } catch (erro) {
       console.error('Erro ao salvar produto:', erro);
 
@@ -254,6 +261,27 @@ export default function NovoProduto() {
     } finally {
       setSalvando(false);
     }
+  }
+
+  if (sucesso) {
+    return (
+      <View style={styles.telaSucesso}>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={VERDE}
+        />
+
+        <View style={styles.circuloSucesso}>
+          <Ionicons
+            name="checkmark"
+            size={60}
+            color="#FFFFFF"
+          />
+        </View>
+
+        <Text style={styles.textoSucesso}>Produto cadastrado!</Text>
+      </View>
+    );
   }
 
   if (carregando || !autorizado) {
@@ -274,7 +302,7 @@ export default function NovoProduto() {
         <View style={styles.cabecalho}>
           <TouchableOpacity
             style={styles.botaoVoltar}
-            onPress={() => router.replace('/produtoempresa' as any)}
+            onPress={() => router.replace(ROTA_HOME as any)}
             activeOpacity={0.75}
           >
             <Ionicons
@@ -321,11 +349,11 @@ export default function NovoProduto() {
             </Text>
 
             <Text style={styles.textoFormulario}>
-              Preencha os campos abaixo.
+              Preencha os campos abaixo. Os campos com * são obrigatórios.
             </Text>
 
             <Campo
-              titulo="Nome do produto"
+              titulo="Nome do produto *"
               placeholder="Ex.: Arroz branco 5 kg"
               valor={nome}
               aoMudar={setNome}
@@ -333,7 +361,7 @@ export default function NovoProduto() {
             />
 
             <View style={styles.grupoCampo}>
-              <Text style={styles.rotulo}>Categoria</Text>
+              <Text style={styles.rotulo}>Categoria *</Text>
 
               <View style={styles.listaCategorias}>
                 {categorias.map((item) => {
@@ -371,7 +399,7 @@ export default function NovoProduto() {
             </View>
 
             <Campo
-              titulo="Preço"
+              titulo="Preço *"
               placeholder="R$ 0,00"
               valor={preco}
               aoMudar={(valor) => setPreco(formatarMoeda(valor))}
@@ -396,6 +424,20 @@ export default function NovoProduto() {
               icone="document-text-outline"
               multiline
             />
+
+            {mostrarAviso && (
+              <View style={styles.avisoErro}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={20}
+                  color="#B3261E"
+                />
+
+                <Text style={styles.textoAvisoErro}>
+                  Preencha os campos obrigatórios.
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[
@@ -439,6 +481,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: FUNDO,
+  },
+
+  telaSucesso: {
+    flex: 1,
+    backgroundColor: VERDE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 22,
+  },
+
+  circuloSucesso: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  textoSucesso: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 
   cabecalho: {
@@ -620,6 +685,26 @@ const styles = StyleSheet.create({
 
   textoCategoriaSelecionada: {
     color: '#FFFFFF',
+  },
+
+  avisoErro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FDECEA',
+    borderWidth: 1,
+    borderColor: '#F5C2BE',
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    marginBottom: 14,
+  },
+
+  textoAvisoErro: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B3261E',
   },
 
   botaoSalvar: {
