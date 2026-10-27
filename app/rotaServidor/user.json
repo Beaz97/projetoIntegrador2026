@@ -47,5 +47,55 @@
         "documento": "123452190122",
         "senha": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
         "tipo": "empresa"
+    },
+    {
+        "id": "3",
+        "nome": "testeCliente",
+        "email": "testeCliente@gmail.com",
+        "documento": "1",
+        "senha": "123",
+        "tipo": "cliente",
+        "mapa": "/",
+        "historicoCompras": [
+            {
+                "id": "1",
+                "mercado": "Supermercado Bistek",
+                "data": "01/01/2020",
+                "total": "0,10"
+            },
+            {
+                "id": "2",
+                "mercado": "Angeloni",
+                "data": "02/02/2021",
+                "total": "182,50"
+            },
+            {
+                "id": "3",
+                "mercado": "Giassi",
+                "data": "03/03/2023",
+                "total": "210,30"
+            },
+            {
+                "id": "4",
+                "mercado": "Fort Atacadista",
+                "data": "04/04/2024",
+                "total": "1,50"
+            },
+            {
+                "id": "5",
+                "mercado": "Supermercado Bistek",
+                "data": "05/05/2025",
+                "total": "99,99"
+            }
+        ]
+    }
+    ,
+    {
+        "id": "4",
+        "nome": "testeEmpresa",
+        "email": "testeEmpresa@gmail.com",
+        "documento": "2",
+        "senha": "123",
+        "tipo": "empresa"
     }
 ]
