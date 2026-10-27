@@ -54,6 +54,15 @@ function cnpjValido(valor: string) {
   return numeros === base + String(primeiro) + String(segundo);
 }
 
+function mostrarAlerta(titulo: string, mensagem: string) {
+  if (Platform.OS === 'web') {
+    globalThis.alert(`${titulo}\n\n${mensagem}`);
+    return;
+  }
+
+  Alert.alert(titulo, mensagem);
+}
+
 export default function Cadastro() {
   const router = useRouter();
 
@@ -107,7 +116,7 @@ export default function Cadastro() {
       !senha ||
       !confirmar
     ) {
-      Alert.alert(
+      mostrarAlerta(
         'Campos obrigatórios',
         'Preencha todos os campos para continuar.'
       );
@@ -131,7 +140,7 @@ export default function Cadastro() {
     }
 
     if (senha !== confirmar) {
-      Alert.alert(
+      mostrarAlerta(
         'Senhas diferentes',
         'As senhas não coincidem. Confira e tente novamente.'
       );
@@ -149,27 +158,12 @@ export default function Cadastro() {
         tipo: empresa ? 'Empresa' : 'Cliente',
       });
 
-      if (empresa) {
-        await setUsuarioLogado(usuarioCriado);
-      }
-
-      console.log('Usuário cadastrado com sucesso:', usuarioCriado);
-
-      Alert.alert(
-        'Cadastro realizado!',
-        'Sua conta foi criada com sucesso.',
-        [
-          {
-            text: 'Continuar',
-            onPress: () =>
-              router.replace(empresa ? '/homeempresa' : '/senha'),
-          },
-        ]
-      );
+      await setUsuarioLogado(usuarioCriado);
+      router.replace(empresa ? '/homeempresa' : '/home');
     } catch (error: any) {
       console.error('Erro ao cadastrar usuário:', error);
 
-      Alert.alert(
+      mostrarAlerta(
         'Não foi possível cadastrar',
         error.message || 'Ocorreu um erro ao realizar o cadastro.'
       );
