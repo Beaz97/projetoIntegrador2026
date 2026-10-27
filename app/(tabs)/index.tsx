@@ -9,6 +9,8 @@ import {
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { resetarUsuariosStorage } from '../rotaServidor/userController'
+import { Ionicons } from '@expo/vector-icons';
+import { Background } from '@react-navigation/elements';
 
 type BotaoProps = {
   titulo: string;
@@ -119,7 +121,12 @@ export default function Index() {
           style={styles.voltar}
           onPress={() => setPagina(0)}
         >
-          <Text style={styles.voltarTexto}>‹</Text>
+          <Ionicons 
+            name='chevron-back' 
+            size={20} 
+            color={'#fff'} 
+            style={{backgroundColor: '#00000000'}}
+          />
         </Pressable>
 
         {/* CONTEÚDO */}
@@ -203,7 +210,12 @@ export default function Index() {
         style={styles.voltar}
         onPress={() => setPagina(1)}
       >
-        <Text style={styles.voltarTexto}>‹</Text>
+        <Ionicons 
+          name='chevron-back' 
+          size={20} 
+          color={'#fff'} 
+          style={{backgroundColor: '#00000000'}}
+        />
       </Pressable>
 
       {/* CONTEÚDO */}
@@ -490,12 +502,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-
-  voltarTexto: {
-    color: '#FFFFFF',
-    fontSize: 27,
-    fontWeight: '300',
-    lineHeight: 29,
-  },
-
 });
