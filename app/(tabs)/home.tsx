@@ -1,9 +1,11 @@
+
 import {
   View,
   Text,
   TextInput,
   Pressable,
   ScrollView,
+  FlatList,
   StyleSheet,
   Image,
   Alert,
@@ -27,6 +29,40 @@ import { useAutenticacao } from '@/app/components/autenticaTelas';
 const dados = Dados();
 const categorias = dados.categorias;
 const PRODUTOS_STORAGE_KEY = 'produtos';
+const USUARIOS_STORAGE_KEY = '@banco_usuarios';
+
+const EMPRESAS_FIXAS: Record<string, string> = {};
+
+function montarMapaEmpresas(json: string | null) {
+  const mapa: Record<string, string> = { ...EMPRESAS_FIXAS };
+
+  if (!json) {
+    return mapa;
+  }
+
+  try {
+    const lista: unknown = JSON.parse(json);
+
+    if (Array.isArray(lista)) {
+      for (const u of lista) {
+        if (
+          u &&
+          typeof u === 'object' &&
+          'id' in u &&
+          'nome' in u &&
+          u.id != null &&
+          typeof u.nome === 'string'
+        ) {
+          mapa[String(u.id)] = u.nome;
+        }
+      }
+    }
+  } catch (erro) {
+    console.error('Erro ao ler usuários:', erro);
+  }
+
+  return mapa;
+}
 
 const corVerde = '#41805a';
 const verdeEscuro = '#245D39';
@@ -93,9 +129,11 @@ type CardProps = {
   nome: string;
   unidade: string;
   preco: number;
+  precoOferta?: number;
   icone: any;
   imagem?: string;
   oferta?: boolean;
+  empresaNome: string;
 };
 
 function CardProduto({
@@ -103,11 +141,31 @@ function CardProduto({
   nome,
   unidade,
   preco,
+  precoOferta,
   icone,
   imagem,
   oferta,
+  empresaNome,
 }: CardProps) {
   const router = useRouter();
+
+  // Só considera promoção válida quando o preço promocional
+  // existe, é positivo e é menor que o preço original.
+  const temOferta =
+    oferta === true &&
+    typeof precoOferta === 'number' &&
+    Number.isFinite(precoOferta) &&
+    precoOferta > 0 &&
+    precoOferta < preco;
+
+  const precoExibido = temOferta ? precoOferta : preco;
+
+  function formatarPreco(valor: number) {
+    return valor.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  }
 
   return (
     <Pressable
@@ -126,8 +184,14 @@ function CardProduto({
           estilo={styles.cardFoto}
         />
 
-        {oferta && (
+        {temOferta && (
           <View style={styles.seloOferta}>
+            <Ionicons
+              name="pricetag"
+              size={11}
+              color="#FFFFFF"
+            />
+
             <Text style={styles.seloOfertaTexto}>
               OFERTA
             </Text>
@@ -143,6 +207,21 @@ function CardProduto({
           {nome}
         </Text>
 
+        <View style={styles.cardEmpresaLinha}>
+          <Ionicons
+            name="storefront-outline"
+            size={13}
+            color={corVerde}
+          />
+
+          <Text
+            style={styles.cardEmpresa}
+            numberOfLines={1}
+          >
+            {empresaNome}
+          </Text>
+        </View>
+
         <Text
           style={styles.cardUnidade}
           numberOfLines={1}
@@ -150,9 +229,24 @@ function CardProduto({
           {unidade}
         </Text>
 
-        <Text style={styles.cardPreco}>
-          R$ {preco.toFixed(2).replace('.', ',')}
+        {/* Preço original riscado quando existe uma oferta */}
+        {temOferta && (
+          <Text style={styles.cardPrecoOriginal}>
+            {formatarPreco(preco)}
+          </Text>
+        )}
+
+        {/* Mostra o preço promocional em destaque */}
+        <Text
+          style={[
+            styles.cardPreco,
+            temOferta && styles.cardPrecoPromocional,
+          ]}
+        >
+          {formatarPreco(precoExibido)}
         </Text>
+
+      
       </View>
     </Pressable>
   );
@@ -171,7 +265,6 @@ export default function Home() {
     'ofertas' | 'todos' | 'categoria' | 'busca'
   >('ofertas');
 
-  // Controla se a lista mostra todos os produtos ou somente ofertas.
   const [filtroOferta, setFiltroOferta] = useState<
     'todos' | 'ofertas'
   >('ofertas');
@@ -183,13 +276,17 @@ export default function Home() {
   const [carregandoProdutos, setCarregandoProdutos] =
     useState(true);
 
+  const [empresas, setEmpresas] = useState<Record<string, string>>(
+    EMPRESAS_FIXAS
+  );
+
   const {
     usuario,
     carregando,
     autorizado,
   } = useAutenticacao('cliente');
 
-  /* ---------- Carregar produtos ---------- */
+  /* ---------- Carregar produtos e empresas ---------- */
 
   useFocusEffect(
     useCallback(() => {
@@ -201,27 +298,29 @@ export default function Home() {
             PRODUTOS_STORAGE_KEY
           );
 
-          const produtosCarregados: unknown = produtosSalvos
-            ? JSON.parse(produtosSalvos)
-            : dados.produtos;
+          let produtosCarregados: Produto[] = dados.produtos;
 
-          if (
-            !Array.isArray(produtosCarregados) ||
-            !produtosCarregados.every(isProduto)
-          ) {
-            throw new Error(
-              'A lista de produtos armazenada não está em formato válido.'
-            );
+          if (produtosSalvos) {
+            const parseados: unknown = JSON.parse(produtosSalvos);
+
+            if (Array.isArray(parseados)) {
+              // Filtra registros inválidos sem descartar a lista inteira.
+              produtosCarregados = parseados.filter(isProduto);
+            }
           }
+
+          const usuariosSalvos = await AsyncStorage.getItem(
+            USUARIOS_STORAGE_KEY
+          );
+
+          const mapaEmpresas = montarMapaEmpresas(usuariosSalvos);
 
           if (ativo) {
             setProdutos(produtosCarregados);
+            setEmpresas(mapaEmpresas);
           }
         } catch (error) {
-          console.error(
-            'Erro ao carregar produtos:',
-            error
-          );
+          console.error('Erro ao carregar produtos:', error);
 
           if (ativo) {
             Alert.alert(
@@ -258,30 +357,34 @@ export default function Home() {
   /* ---------- Filtrar produtos ---------- */
 
   const produtosLista = produtos.filter((produto) => {
-    // Pesquisa por nome.
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
     if (modoLista === 'busca') {
-      const correspondeBusca = produto.nome
-        .toLowerCase()
-        .includes(busca.trim().toLowerCase());
-
-      return correspondeBusca;
+      return produto.nome.toLocaleLowerCase('pt-BR').includes(termo);
     }
 
-    // Tela inicial: somente ofertas.
     if (modoLista === 'ofertas') {
-      return produto.oferta === true;
+      return (
+        produto.oferta === true &&
+        typeof produto.precoOferta === 'number' &&
+        produto.precoOferta > 0 &&
+        produto.precoOferta < produto.preco
+      );
     }
 
-    // Categoria Todos: todos os produtos ou somente ofertas.
     if (modoLista === 'todos') {
       if (filtroOferta === 'ofertas') {
-        return produto.oferta === true;
+        return (
+          produto.oferta === true &&
+          typeof produto.precoOferta === 'number' &&
+          produto.precoOferta > 0 &&
+          produto.precoOferta < produto.preco
+        );
       }
 
       return true;
     }
 
-    // Categoria específica.
     if (modoLista === 'categoria') {
       let correspondeCategoria = true;
 
@@ -300,9 +403,13 @@ export default function Home() {
         return false;
       }
 
-      // Dentro da categoria, permite filtrar as ofertas.
       if (filtroOferta === 'ofertas') {
-        return produto.oferta === true;
+        return (
+          produto.oferta === true &&
+          typeof produto.precoOferta === 'number' &&
+          produto.precoOferta > 0 &&
+          produto.precoOferta < produto.preco
+        );
       }
 
       return true;
@@ -347,8 +454,6 @@ export default function Home() {
   ) {
     setCategoria(item.id);
     setBusca('');
-
-    // Ao entrar em uma categoria, mostra todos os produtos dela.
     setFiltroOferta('todos');
 
     if (item.id === '__todos__') {
@@ -400,316 +505,300 @@ export default function Home() {
     return null;
   }
 
-  /* ---------- Organizar produtos em duas colunas ---------- */
+  /* ---------- Grade de produtos ---------- */
 
-  const linhasProdutos: Produto[][] = [];
+  const dadosGrade: (Produto | null)[] =
+    produtosLista.length % 2 === 1
+      ? [...produtosLista, null]
+      : produtosLista;
 
-  for (let i = 0; i < produtosLista.length; i += 2) {
-    linhasProdutos.push(produtosLista.slice(i, i + 2));
-  }
+  /* ---------- Cabeçalho da lista ---------- */
 
-  return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.conteudo}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Cabeçalho sem o ícone */}
+  const cabecalhoLista = (
+    <>
+      <View style={styles.cabecalho}>
+        <Text style={styles.ola}>
+          Olá, {usuario?.nome?.split(' ')[0] || 'tudo bem'}!
+        </Text>
 
-        <View style={styles.cabecalho}>
-          <Text style={styles.ola}>
-            Olá, {usuario?.nome?.split(' ')[0] || 'tudo bem'}!
-          </Text>
+        <Text style={styles.subtitulo}>
+          Encontre os melhores preços para você.
+        </Text>
+      </View>
 
-          <Text style={styles.subtitulo}>
-            Encontre os melhores preços para você.
-          </Text>
-        </View>
+      {/* Pesquisa */}
 
-        {/* Busca corrigida para Expo Web */}
+      <View style={styles.buscaContainer}>
+        <Ionicons
+          name="search-outline"
+          size={22}
+          color={corVerde}
+        />
 
-        <View style={styles.buscaContainer}>
-          <Ionicons
-            name="search-outline"
-            size={22}
-            color={corVerde}
-          />
+        <TextInput
+          ref={buscaRef}
+          style={styles.buscaInput}
+          placeholder="O que você procura?"
+          placeholderTextColor="#858585"
+          value={busca}
+          onChangeText={pesquisar}
+          autoCorrect={false}
+          autoCapitalize="none"
+          selectTextOnFocus={false}
+          selectionColor={corVerde}
+          cursorColor={corVerde}
+          returnKeyType="search"
+          underlineColorAndroid="transparent"
+          multiline={false}
+          editable={true}
+        />
 
-          <TextInput
-            ref={buscaRef}
-            style={styles.buscaInput}
-            placeholder="O que você procura?"
-            placeholderTextColor="#858585"
-            value={busca}
-            onChangeText={pesquisar}
-            autoCorrect={false}
-            autoCapitalize="none"
-            selectTextOnFocus={false}
-            selectionColor={corVerde}
-            cursorColor={corVerde}
-            returnKeyType="search"
-            underlineColorAndroid="transparent"
-            multiline={false}
-            editable={true}
-          />
-
-          {busca.length > 0 && (
-            <Pressable
-              onPress={() => {
-                pesquisar('');
-                buscaRef.current?.focus();
-              }}
-              hitSlop={10}
-            >
-              <Ionicons
-                name="close-circle"
-                size={22}
-                color="#999"
-              />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Categorias */}
-
-        <View style={styles.secao}>
-          <View style={styles.secaoCabecalho}>
-            <Text style={styles.secaoTitulo}>
-              Categorias
-            </Text>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listaCategorias}
+        {busca.length > 0 && (
+          <Pressable
+            onPress={() => {
+              pesquisar('');
+              buscaRef.current?.focus();
+            }}
+            hitSlop={10}
           >
-            {categoriasTela.map((item) => {
-              const selecionada = categoria === item.id;
-
-              return (
-                <Pressable
-                  key={item.id}
-                  style={styles.categoriaItem}
-                  onPress={() => selecionarCategoria(item)}
-                >
-                  <View
-                    style={[
-                      styles.categoriaIcone,
-                      selecionada &&
-                        styles.categoriaIconeAtiva,
-                    ]}
-                  >
-                    <Foto
-                      icone={item.icone}
-                      tamanhoIcone={29}
-                      corIcone={
-                        selecionada ? '#fff' : corVerde
-                      }
-                    />
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.categoriaTexto,
-                      selecionada &&
-                        styles.categoriaTextoAtiva,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.nome}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Filtro Todos / Só ofertas */}
-
-        {(modoLista === 'todos' ||
-          modoLista === 'categoria') && (
-          <View style={styles.filtroContainer}>
-            <Pressable
-              style={[
-                styles.filtroBotao,
-                filtroOferta === 'todos' &&
-                  styles.filtroBotaoAtivo,
-              ]}
-              onPress={() => selecionarFiltro('todos')}
-            >
-              <Ionicons
-                name="grid-outline"
-                size={17}
-                color={
-                  filtroOferta === 'todos'
-                    ? '#fff'
-                    : verdeEscuro
-                }
-              />
-
-              <Text
-                style={[
-                  styles.filtroTexto,
-                  filtroOferta === 'todos' &&
-                    styles.filtroTextoAtivo,
-                ]}
-              >
-                Todos
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.filtroBotao,
-                filtroOferta === 'ofertas' &&
-                  styles.filtroBotaoAtivo,
-              ]}
-              onPress={() => selecionarFiltro('ofertas')}
-            >
-              <Ionicons
-                name="pricetag-outline"
-                size={17}
-                color={
-                  filtroOferta === 'ofertas'
-                    ? '#fff'
-                    : verdeEscuro
-                }
-              />
-
-              <Text
-                style={[
-                  styles.filtroTexto,
-                  filtroOferta === 'ofertas' &&
-                    styles.filtroTextoAtivo,
-                ]}
-              >
-                Só ofertas
-              </Text>
-            </Pressable>
-          </View>
+            <Ionicons
+              name="close-circle"
+              size={22}
+              color="#999"
+            />
+          </Pressable>
         )}
+      </View>
 
-        {/* Título dos produtos */}
+      {/* Categorias */}
 
-        <View style={styles.produtosCabecalho}>
-          <View style={styles.produtosTituloContainer}>
-            <Text style={styles.produtosTitulo}>
-              {tituloLista}
-            </Text>
-
-            <Text style={styles.produtosSubtitulo}>
-              {modoLista === 'ofertas' ||
-              filtroOferta === 'ofertas'
-                ? 'Economize nas suas compras'
-                : `${produtosLista.length} ${
-                    produtosLista.length === 1
-                      ? 'produto encontrado'
-                      : 'produtos encontrados'
-                  }`}
-            </Text>
-          </View>
-
-          {modoLista !== 'ofertas' && (
-            <Pressable
-              style={styles.botaoOfertas}
-              onPress={mostrarOfertas}
-            >
-              <Ionicons
-                name="pricetag-outline"
-                size={16}
-                color={corVerde}
-              />
-
-              <Text style={styles.botaoOfertasTexto}>
-                Início
-              </Text>
-            </Pressable>
-          )}
+      <View style={styles.secao}>
+        <View style={styles.secaoCabecalho}>
+          <Text style={styles.secaoTitulo}>
+            Categorias
+          </Text>
         </View>
 
-        {/* Produtos em grade */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.listaCategorias}
+        >
+          {categoriasTela.map((item) => {
+            const selecionada = categoria === item.id;
 
-        {carregandoProdutos ? (
-          <View style={styles.estadoVazio}>
-            <ActivityIndicator
-              size="large"
+            return (
+              <Pressable
+                key={item.id}
+                style={styles.categoriaItem}
+                onPress={() => selecionarCategoria(item)}
+              >
+                <View
+                  style={[
+                    styles.categoriaIcone,
+                    selecionada && styles.categoriaIconeAtiva,
+                  ]}
+                >
+                  <Foto
+                    icone={item.icone}
+                    tamanhoIcone={29}
+                    corIcone={selecionada ? '#fff' : corVerde}
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.categoriaTexto,
+                    selecionada && styles.categoriaTextoAtiva,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.nome}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Filtro Todos / Só ofertas */}
+
+      {(modoLista === 'todos' || modoLista === 'categoria') && (
+        <View style={styles.filtroContainer}>
+          <Pressable
+            style={[
+              styles.filtroBotao,
+              filtroOferta === 'todos' && styles.filtroBotaoAtivo,
+            ]}
+            onPress={() => selecionarFiltro('todos')}
+          >
+            <Ionicons
+              name="grid-outline"
+              size={17}
+              color={filtroOferta === 'todos' ? '#fff' : verdeEscuro}
+            />
+
+            <Text
+              style={[
+                styles.filtroTexto,
+                filtroOferta === 'todos' && styles.filtroTextoAtivo,
+              ]}
+            >
+              Todos
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.filtroBotao,
+              filtroOferta === 'ofertas' && styles.filtroBotaoAtivo,
+            ]}
+            onPress={() => selecionarFiltro('ofertas')}
+          >
+            <Ionicons
+              name="pricetag-outline"
+              size={17}
+              color={filtroOferta === 'ofertas' ? '#fff' : verdeEscuro}
+            />
+
+            <Text
+              style={[
+                styles.filtroTexto,
+                filtroOferta === 'ofertas' && styles.filtroTextoAtivo,
+              ]}
+            >
+              Só ofertas
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Título dos produtos */}
+
+      <View style={styles.produtosCabecalho}>
+        <View style={styles.produtosTituloContainer}>
+          <Text style={styles.produtosTitulo}>
+            {tituloLista}
+          </Text>
+
+          <Text style={styles.produtosSubtitulo}>
+            {modoLista === 'ofertas' ||
+            (modoLista !== 'busca' && filtroOferta === 'ofertas')
+              ? 'Economize nas suas compras'
+              : `${produtosLista.length} ${
+                  produtosLista.length === 1
+                    ? 'produto encontrado'
+                    : 'produtos encontrados'
+                }`}
+          </Text>
+        </View>
+
+        {modoLista !== 'ofertas' && (
+          <Pressable
+            style={styles.botaoOfertas}
+            onPress={mostrarOfertas}
+          >
+            <Ionicons
+              name="pricetag-outline"
+              size={16}
               color={corVerde}
             />
 
-            <Text style={styles.estadoVazioTexto}>
-              Carregando produtos...
+            <Text style={styles.botaoOfertasTexto}>
+              Início
             </Text>
-          </View>
-        ) : produtosLista.length > 0 ? (
-          <View style={styles.gradeProdutos}>
-            {linhasProdutos.map((linha, indice) => (
-              <View
-                key={`${linha[0].id}-${indice}`}
-                style={styles.linhaProdutos}
-              >
-                {linha.map((produto) => (
-                  <CardProduto
-                    key={produto.id}
-                    id={produto.id}
-                    nome={produto.nome}
-                    unidade={produto.unidade}
-                    preco={produto.preco}
-                    icone={produto.icone}
-                    imagem={produto.imagem}
-                    oferta={produto.oferta === true}
-                  />
-                ))}
-
-                {linha.length === 1 && (
-                  <View style={styles.cardEspacador} />
-                )}
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.estadoVazio}>
-            <View style={styles.estadoVazioIcone}>
-              <Ionicons
-                name={
-                  filtroOferta === 'ofertas'
-                    ? 'pricetag-outline'
-                    : 'search-outline'
-                }
-                size={38}
-                color={corVerde}
-              />
-            </View>
-
-            <Text style={styles.estadoVazioTitulo}>
-              {filtroOferta === 'ofertas'
-                ? 'Nenhuma oferta encontrada'
-                : 'Nenhum produto encontrado'}
-            </Text>
-
-            <Text style={styles.estadoVazioTexto}>
-              {filtroOferta === 'ofertas'
-                ? 'Ainda não há ofertas cadastradas nesta seleção.'
-                : 'Tente escolher outra categoria ou pesquisar outro nome.'}
-            </Text>
-
-            {filtroOferta === 'ofertas' && (
-              <Pressable
-                style={styles.botaoLimpar}
-                onPress={() => selecionarFiltro('todos')}
-              >
-                <Text style={styles.botaoLimparTexto}>
-                  Ver todos os produtos
-                </Text>
-              </Pressable>
-            )}
-          </View>
+          </Pressable>
         )}
+      </View>
+    </>
+  );
 
-        <View style={styles.espacoFinal} />
-      </ScrollView>
+  /* ---------- Lista vazia / carregando ---------- */
+
+  const estadoVazioLista = carregandoProdutos ? (
+    <View style={styles.estadoVazio}>
+      <ActivityIndicator size="large" color={corVerde} />
+
+      <Text style={styles.estadoVazioTexto}>
+        Carregando produtos...
+      </Text>
+    </View>
+  ) : (
+    <View style={styles.estadoVazio}>
+      <View style={styles.estadoVazioIcone}>
+        <Ionicons
+          name={
+            filtroOferta === 'ofertas' && modoLista !== 'busca'
+              ? 'pricetag-outline'
+              : 'search-outline'
+          }
+          size={38}
+          color={corVerde}
+        />
+      </View>
+
+      <Text style={styles.estadoVazioTitulo}>
+        {filtroOferta === 'ofertas' && modoLista !== 'busca'
+          ? 'Nenhuma oferta encontrada'
+          : 'Nenhum produto encontrado'}
+      </Text>
+
+      <Text style={styles.estadoVazioTexto}>
+        {filtroOferta === 'ofertas' && modoLista !== 'busca'
+          ? 'Ainda não há ofertas cadastradas nesta seleção.'
+          : 'Tente escolher outra categoria ou pesquisar outro nome.'}
+      </Text>
+
+      {filtroOferta === 'ofertas' && modoLista !== 'busca' && (
+        <Pressable
+          style={styles.botaoLimpar}
+          onPress={() => selecionarFiltro('todos')}
+        >
+          <Text style={styles.botaoLimparTexto}>
+            Ver todos os produtos
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        style={styles.scroll}
+        contentContainerStyle={styles.conteudo}
+        data={carregandoProdutos ? [] : dadosGrade}
+        keyExtractor={(item, indice) =>
+          item ? String(item.id) : `espacador-${indice}`
+        }
+        numColumns={2}
+        columnWrapperStyle={styles.linhaProdutos}
+        renderItem={({ item }) =>
+          item ? (
+            <CardProduto
+              id={String(item.id)}
+              nome={item.nome}
+              unidade={item.unidade}
+              preco={item.preco}
+              precoOferta={item.precoOferta}
+              icone={item.icone}
+              imagem={item.imagem}
+              oferta={item.oferta === true}
+              empresaNome={
+                empresas[String(item.empresa)] ??
+                'Empresa não informada'
+              }
+            />
+          ) : (
+            <View style={styles.cardEspacador} />
+          )
+        }
+        ListHeaderComponent={cabecalhoLista}
+        ListEmptyComponent={estadoVazioLista}
+        ListFooterComponent={<View style={styles.espacoFinal} />}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
 
       {/* Barra inferior */}
 
@@ -723,11 +812,7 @@ export default function Home() {
             ]}
             onPress={() => router.push('/home')}
           >
-            <Ionicons
-              name="home"
-              size={27}
-              color="#fff"
-            />
+            <Ionicons name="home" size={27} color="#fff" />
 
             <Text style={styles.textoNavegacao}>
               Início
@@ -742,11 +827,7 @@ export default function Home() {
             ]}
             onPress={() => router.push('/perfil' as any)}
           >
-            <Ionicons
-              name="person-outline"
-              size={27}
-              color="#fff"
-            />
+            <Ionicons name="person-outline" size={27} color="#fff" />
 
             <Text style={styles.textoNavegacao}>
               Perfil
@@ -761,11 +842,7 @@ export default function Home() {
           ]}
           onPress={() => router.push('/carrinho' as any)}
         >
-          <Ionicons
-            name="cart-outline"
-            size={31}
-            color="#fff"
-          />
+          <Ionicons name="cart-outline" size={31} color="#fff" />
         </Pressable>
       </View>
     </View>
@@ -835,8 +912,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,
-
-    // Correção para seleção normal do texto no navegador.
     outlineStyle: 'none',
     userSelect: 'text',
     WebkitUserSelect: 'text',
@@ -898,7 +973,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Filtro de produtos */
+  /* Filtro */
 
   filtroContainer: {
     flexDirection: 'row',
@@ -979,13 +1054,9 @@ const styles = StyleSheet.create({
 
   /* Grade de produtos */
 
-  gradeProdutos: {
-    gap: 13,
-  },
-
   linhaProdutos: {
-    flexDirection: 'row',
     gap: 12,
+    marginBottom: 13,
   },
 
   card: {
@@ -1034,6 +1105,9 @@ const styles = StyleSheet.create({
     top: 8,
     left: 8,
     backgroundColor: corVerde,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
@@ -1060,10 +1134,33 @@ const styles = StyleSheet.create({
     minHeight: 38,
   },
 
+  cardEmpresaLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+
+  cardEmpresa: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: corVerde,
+  },
+
   cardUnidade: {
     fontSize: 12,
     color: '#858B85',
     marginTop: 4,
+  },
+
+  /* Preços */
+
+  cardPrecoOriginal: {
+    fontSize: 12,
+    color: '#929A93',
+    textDecorationLine: 'line-through',
+    marginTop: 8,
   },
 
   cardPreco: {
@@ -1071,6 +1168,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: verdeEscuro,
     marginTop: 9,
+  },
+
+  cardPrecoPromocional: {
+    color: '#218044',
+    fontSize: 21,
+    marginTop: 2,
   },
 
   cardEspacador: {

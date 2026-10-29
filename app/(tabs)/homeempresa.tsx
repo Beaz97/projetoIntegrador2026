@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
-const VERDE = '#3D8054';
+const VERDE = '#41805a';
 const VERDE_ESCURO = '#245D39';
 const FUNDO = '#F7F9F7';
 const CHAVE_PRODUTOS = 'produtos';
@@ -102,7 +102,8 @@ export default function HomeScreen() {
     autorizado,
   } = useAutenticacao('empresa');
 
-  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
+  const [produtos, setProdutos] =
+    useState<Produto[]>(PRODUTOS_INICIAIS);
 
   useFocusEffect(
     useCallback(() => {
@@ -110,7 +111,9 @@ export default function HomeScreen() {
 
       async function carregarProdutos() {
         try {
-          const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+          const conteudo =
+            await AsyncStorage.getItem(CHAVE_PRODUTOS);
+
           const produtosSalvos: unknown = conteudo
             ? JSON.parse(conteudo)
             : PRODUTOS_INICIAIS;
@@ -128,7 +131,10 @@ export default function HomeScreen() {
             setProdutos(produtosSalvos);
           }
         } catch (erro) {
-          console.error('Erro ao carregar produtos:', erro);
+          console.error(
+            'Erro ao carregar produtos:',
+            erro,
+          );
 
           if (ativo) {
             Alert.alert(
@@ -148,7 +154,8 @@ export default function HomeScreen() {
   );
 
   const totalProdutos = produtos.filter(
-    (produto) => String(produto.empresa) === String(usuario?.id)
+    (produto) =>
+      String(produto.empresa) === String(usuario?.id),
   ).length;
 
   const larguraCard = width >= 700 ? '48.5%' : '48%';
@@ -184,7 +191,7 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      {/* SOMENTE ESTA PARTE ROLA */}
+      {/* CONTEÚDO ROLÁVEL */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.conteudo}
@@ -228,7 +235,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* CARDS RESPONSIVOS */}
+        {/* CARDS */}
         <View style={styles.grade}>
           <View style={{ width: larguraCard }}>
             <MenuCard
@@ -236,7 +243,9 @@ export default function HomeScreen() {
               descricao="Consulte e edite seu catálogo."
               icone="cube-outline"
               corFundo="#EAF5ED"
-              onPress={() => router.push('/produtoempresa' as any)}
+              onPress={() =>
+                router.push('/produtoempresa' as any)
+              }
             />
           </View>
 
@@ -246,7 +255,9 @@ export default function HomeScreen() {
               descricao="Crie e gerencie promoções."
               icone="pricetag-outline"
               corFundo="#FFF6E4"
-              onPress={() => router.push('/ofertaempresa' as any)}
+              onPress={() =>
+                router.push('/ofertaempresa' as any)
+              }
             />
           </View>
 
@@ -256,7 +267,9 @@ export default function HomeScreen() {
               descricao="Adicione novos produtos ao seu catálogo."
               icone="add-circle-outline"
               corFundo="#F0ECFA"
-              onPress={() => router.push('/novoproduto' as any)}
+              onPress={() =>
+                router.push('/novoproduto' as any)
+              }
             />
           </View>
 
@@ -266,7 +279,9 @@ export default function HomeScreen() {
               descricao="Crie promoções e destaque seus produtos."
               icone="add-circle-outline"
               corFundo="#EAF2FA"
-              onPress={() => router.push('/novaoferta' as any)}
+              onPress={() =>
+                router.push('/novaoferta' as any)
+              }
             />
           </View>
         </View>
@@ -274,49 +289,55 @@ export default function HomeScreen() {
         <View style={styles.espacoFinal} />
       </ScrollView>
 
-      {/* NAVEGAÇÃO INFERIOR FIXA */}
-      <View style={styles.barraInferior}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.itemNavegacao,
-            pressed && styles.itemPressionado,
-          ]}
-          onPress={() => router.push('/home' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Início"
-        >
-          <Ionicons
-            name="home"
-            size={24}
-            color="#FFFFFF"
-          />
+      {/* RODAPÉ IGUAL AO PERFIL DA EMPRESA */}
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.itemPressionado,
+            ]}
+            onPress={() =>
+              router.push('/homeempresa' as any)
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Início"
+          >
+            <Ionicons
+              name="home"
+              size={27}
+              color="#FFFFFF"
+            />
 
-          <Text style={styles.textoNavegacaoAtivo}>
-            Início
-          </Text>
+            <Text style={styles.textoNavegacao}>
+              Início
+            </Text>
+          </Pressable>
 
-          <View style={styles.indicadorAtivo} />
-        </Pressable>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.itemPressionado,
+            ]}
+            onPress={() =>
+              router.push('/perfilempresa' as any)
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons
+              name="person"
+              size={27}
+              color="#FFFFFF"
+            />
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.itemNavegacao,
-            pressed && styles.itemPressionado,
-          ]}
-          onPress={() => router.push('/perfilempresa' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Perfil"
-        >
-          <Ionicons
-            name="person-outline"
-            size={24}
-            color="#D9E9DD"
-          />
-
-          <Text style={styles.textoNavegacao}>
-            Perfil
-          </Text>
-        </Pressable>
+            <Text style={styles.textoNavegacao}>
+              Perfil
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -513,46 +534,42 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // BARRA INFERIOR FIXA
-  barraInferior: {
-    minHeight: 70,
-    backgroundColor: VERDE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    flexShrink: 0,
+  // RODAPÉ IGUAL AO PERFIL
+  barraContainer: {
+    height: 78,
+    position: 'relative',
+    backgroundColor: FUNDO,
   },
 
-  itemNavegacao: {
-    width: 100,
-    minHeight: 60,
+  barra: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: VERDE,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    height: 67,
+    paddingHorizontal: 45,
+  },
+
+  botaoNavegacao: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
   },
 
+  textoNavegacao: {
+    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+
   itemPressionado: {
     opacity: 0.65,
-  },
-
-  textoNavegacaoAtivo: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-
-  textoNavegacao: {
-    fontSize: 12,
-    color: '#D9E9DD',
-  },
-
-  indicadorAtivo: {
-    width: 24,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
   },
 });
