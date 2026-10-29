@@ -1,3 +1,4 @@
+
 import {
   View,
   Text,
@@ -30,14 +31,8 @@ const categorias = dados.categorias;
 const PRODUTOS_STORAGE_KEY = 'produtos';
 const USUARIOS_STORAGE_KEY = '@banco_usuarios';
 
-// Empresas "fixas" do código (id -> nome). Preencha só se elas NÃO
-// estiverem salvas em @banco_usuarios. As cadastradas localmente
-// sobrescrevem estas.
-const EMPRESAS_FIXAS: Record<string, string> = {
-  // '1': 'Mercado Exemplo',
-};
+const EMPRESAS_FIXAS: Record<string, string> = {};
 
-// Lê a lista de usuários salva e devolve { idDaEmpresa: nome }.
 function montarMapaEmpresas(json: string | null) {
   const mapa: Record<string, string> = { ...EMPRESAS_FIXAS };
 
@@ -50,7 +45,14 @@ function montarMapaEmpresas(json: string | null) {
 
     if (Array.isArray(lista)) {
       for (const u of lista) {
-        if (u && u.id != null && typeof u.nome === 'string') {
+        if (
+          u &&
+          typeof u === 'object' &&
+          'id' in u &&
+          'nome' in u &&
+          u.id != null &&
+          typeof u.nome === 'string'
+        ) {
           mapa[String(u.id)] = u.nome;
         }
       }
@@ -127,6 +129,7 @@ type CardProps = {
   nome: string;
   unidade: string;
   preco: number;
+  precoOferta?: number;
   icone: any;
   imagem?: string;
   oferta?: boolean;
@@ -138,12 +141,31 @@ function CardProduto({
   nome,
   unidade,
   preco,
+  precoOferta,
   icone,
   imagem,
   oferta,
   empresaNome,
 }: CardProps) {
   const router = useRouter();
+
+  // Só considera promoção válida quando o preço promocional
+  // existe, é positivo e é menor que o preço original.
+  const temOferta =
+    oferta === true &&
+    typeof precoOferta === 'number' &&
+    Number.isFinite(precoOferta) &&
+    precoOferta > 0 &&
+    precoOferta < preco;
+
+  const precoExibido = temOferta ? precoOferta : preco;
+
+  function formatarPreco(valor: number) {
+    return valor.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    });
+  }
 
   return (
     <Pressable
@@ -162,8 +184,14 @@ function CardProduto({
           estilo={styles.cardFoto}
         />
 
-        {oferta && (
+        {temOferta && (
           <View style={styles.seloOferta}>
+            <Ionicons
+              name="pricetag"
+              size={11}
+              color="#FFFFFF"
+            />
+
             <Text style={styles.seloOfertaTexto}>
               OFERTA
             </Text>
@@ -201,9 +229,24 @@ function CardProduto({
           {unidade}
         </Text>
 
-        <Text style={styles.cardPreco}>
-          R$ {preco.toFixed(2).replace('.', ',')}
+        {/* Preço original riscado quando existe uma oferta */}
+        {temOferta && (
+          <Text style={styles.cardPrecoOriginal}>
+            {formatarPreco(preco)}
+          </Text>
+        )}
+
+        {/* Mostra o preço promocional em destaque */}
+        <Text
+          style={[
+            styles.cardPreco,
+            temOferta && styles.cardPrecoPromocional,
+          ]}
+        >
+          {formatarPreco(precoExibido)}
         </Text>
+
+      
       </View>
     </Pressable>
   );
@@ -222,7 +265,6 @@ export default function Home() {
     'ofertas' | 'todos' | 'categoria' | 'busca'
   >('ofertas');
 
-  // Controla se a lista mostra todos os produtos ou somente ofertas.
   const [filtroOferta, setFiltroOferta] = useState<
     'todos' | 'ofertas'
   >('ofertas');
@@ -234,7 +276,6 @@ export default function Home() {
   const [carregandoProdutos, setCarregandoProdutos] =
     useState(true);
 
-  // Mapa { idDaEmpresa: nomeDaEmpresa } para exibir nos cards.
   const [empresas, setEmpresas] = useState<Record<string, string>>(
     EMPRESAS_FIXAS
   );
@@ -245,7 +286,7 @@ export default function Home() {
     autorizado,
   } = useAutenticacao('cliente');
 
-  /* ---------- Carregar produtos ---------- */
+  /* ---------- Carregar produtos e empresas ---------- */
 
   useFocusEffect(
     useCallback(() => {
@@ -257,23 +298,21 @@ export default function Home() {
             PRODUTOS_STORAGE_KEY
           );
 
-          const produtosCarregados: unknown = produtosSalvos
-            ? JSON.parse(produtosSalvos)
-            : dados.produtos;
+          let produtosCarregados: Produto[] = dados.produtos;
 
-          if (
-            !Array.isArray(produtosCarregados) ||
-            !produtosCarregados.every(isProduto)
-          ) {
-            throw new Error(
-              'A lista de produtos armazenada não está em formato válido.'
-            );
+          if (produtosSalvos) {
+            const parseados: unknown = JSON.parse(produtosSalvos);
+
+            if (Array.isArray(parseados)) {
+              // Filtra registros inválidos sem descartar a lista inteira.
+              produtosCarregados = parseados.filter(isProduto);
+            }
           }
 
-          // Carrega os usuários (empresas) para mostrar o nome no card.
           const usuariosSalvos = await AsyncStorage.getItem(
             USUARIOS_STORAGE_KEY
           );
+
           const mapaEmpresas = montarMapaEmpresas(usuariosSalvos);
 
           if (ativo) {
@@ -281,10 +320,7 @@ export default function Home() {
             setEmpresas(mapaEmpresas);
           }
         } catch (error) {
-          console.error(
-            'Erro ao carregar produtos:',
-            error
-          );
+          console.error('Erro ao carregar produtos:', error);
 
           if (ativo) {
             Alert.alert(
@@ -321,30 +357,34 @@ export default function Home() {
   /* ---------- Filtrar produtos ---------- */
 
   const produtosLista = produtos.filter((produto) => {
-    // Pesquisa por nome.
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
     if (modoLista === 'busca') {
-      const correspondeBusca = produto.nome
-        .toLowerCase()
-        .includes(busca.trim().toLowerCase());
-
-      return correspondeBusca;
+      return produto.nome.toLocaleLowerCase('pt-BR').includes(termo);
     }
 
-    // Tela inicial: somente ofertas.
     if (modoLista === 'ofertas') {
-      return produto.oferta === true;
+      return (
+        produto.oferta === true &&
+        typeof produto.precoOferta === 'number' &&
+        produto.precoOferta > 0 &&
+        produto.precoOferta < produto.preco
+      );
     }
 
-    // Categoria Todos: todos os produtos ou somente ofertas.
     if (modoLista === 'todos') {
       if (filtroOferta === 'ofertas') {
-        return produto.oferta === true;
+        return (
+          produto.oferta === true &&
+          typeof produto.precoOferta === 'number' &&
+          produto.precoOferta > 0 &&
+          produto.precoOferta < produto.preco
+        );
       }
 
       return true;
     }
 
-    // Categoria específica.
     if (modoLista === 'categoria') {
       let correspondeCategoria = true;
 
@@ -363,9 +403,13 @@ export default function Home() {
         return false;
       }
 
-      // Dentro da categoria, permite filtrar as ofertas.
       if (filtroOferta === 'ofertas') {
-        return produto.oferta === true;
+        return (
+          produto.oferta === true &&
+          typeof produto.precoOferta === 'number' &&
+          produto.precoOferta > 0 &&
+          produto.precoOferta < produto.preco
+        );
       }
 
       return true;
@@ -410,8 +454,6 @@ export default function Home() {
   ) {
     setCategoria(item.id);
     setBusca('');
-
-    // Ao entrar em uma categoria, mostra todos os produtos dela.
     setFiltroOferta('todos');
 
     if (item.id === '__todos__') {
@@ -463,23 +505,17 @@ export default function Home() {
     return null;
   }
 
-  /* ---------- Dados da grade (2 colunas) ---------- */
+  /* ---------- Grade de produtos ---------- */
 
-  // Se a quantidade for ímpar, completa com um espaço vazio para o
-  // último card não ocupar a linha inteira.
   const dadosGrade: (Produto | null)[] =
     produtosLista.length % 2 === 1
       ? [...produtosLista, null]
       : produtosLista;
 
-  /* ---------- Parte de cima da lista (rola junto) ---------- */
+  /* ---------- Cabeçalho da lista ---------- */
 
-  // Importante: é um ELEMENTO (não uma função/componente), assim o
-  // TextInput não perde o foco a cada letra digitada.
   const cabecalhoLista = (
     <>
-      {/* Cabeçalho sem o ícone */}
-
       <View style={styles.cabecalho}>
         <Text style={styles.ola}>
           Olá, {usuario?.nome?.split(' ')[0] || 'tudo bem'}!
@@ -490,7 +526,7 @@ export default function Home() {
         </Text>
       </View>
 
-      {/* Busca corrigida para Expo Web */}
+      {/* Pesquisa */}
 
       <View style={styles.buscaContainer}>
         <Ionicons
@@ -560,24 +596,20 @@ export default function Home() {
                 <View
                   style={[
                     styles.categoriaIcone,
-                    selecionada &&
-                      styles.categoriaIconeAtiva,
+                    selecionada && styles.categoriaIconeAtiva,
                   ]}
                 >
                   <Foto
                     icone={item.icone}
                     tamanhoIcone={29}
-                    corIcone={
-                      selecionada ? '#fff' : corVerde
-                    }
+                    corIcone={selecionada ? '#fff' : corVerde}
                   />
                 </View>
 
                 <Text
                   style={[
                     styles.categoriaTexto,
-                    selecionada &&
-                      styles.categoriaTextoAtiva,
+                    selecionada && styles.categoriaTextoAtiva,
                   ]}
                   numberOfLines={1}
                 >
@@ -591,32 +623,25 @@ export default function Home() {
 
       {/* Filtro Todos / Só ofertas */}
 
-      {(modoLista === 'todos' ||
-        modoLista === 'categoria') && (
+      {(modoLista === 'todos' || modoLista === 'categoria') && (
         <View style={styles.filtroContainer}>
           <Pressable
             style={[
               styles.filtroBotao,
-              filtroOferta === 'todos' &&
-                styles.filtroBotaoAtivo,
+              filtroOferta === 'todos' && styles.filtroBotaoAtivo,
             ]}
             onPress={() => selecionarFiltro('todos')}
           >
             <Ionicons
               name="grid-outline"
               size={17}
-              color={
-                filtroOferta === 'todos'
-                  ? '#fff'
-                  : verdeEscuro
-              }
+              color={filtroOferta === 'todos' ? '#fff' : verdeEscuro}
             />
 
             <Text
               style={[
                 styles.filtroTexto,
-                filtroOferta === 'todos' &&
-                  styles.filtroTextoAtivo,
+                filtroOferta === 'todos' && styles.filtroTextoAtivo,
               ]}
             >
               Todos
@@ -626,26 +651,20 @@ export default function Home() {
           <Pressable
             style={[
               styles.filtroBotao,
-              filtroOferta === 'ofertas' &&
-                styles.filtroBotaoAtivo,
+              filtroOferta === 'ofertas' && styles.filtroBotaoAtivo,
             ]}
             onPress={() => selecionarFiltro('ofertas')}
           >
             <Ionicons
               name="pricetag-outline"
               size={17}
-              color={
-                filtroOferta === 'ofertas'
-                  ? '#fff'
-                  : verdeEscuro
-              }
+              color={filtroOferta === 'ofertas' ? '#fff' : verdeEscuro}
             />
 
             <Text
               style={[
                 styles.filtroTexto,
-                filtroOferta === 'ofertas' &&
-                  styles.filtroTextoAtivo,
+                filtroOferta === 'ofertas' && styles.filtroTextoAtivo,
               ]}
             >
               Só ofertas
@@ -664,7 +683,7 @@ export default function Home() {
 
           <Text style={styles.produtosSubtitulo}>
             {modoLista === 'ofertas' ||
-            filtroOferta === 'ofertas'
+            (modoLista !== 'busca' && filtroOferta === 'ofertas')
               ? 'Economize nas suas compras'
               : `${produtosLista.length} ${
                   produtosLista.length === 1
@@ -698,10 +717,7 @@ export default function Home() {
 
   const estadoVazioLista = carregandoProdutos ? (
     <View style={styles.estadoVazio}>
-      <ActivityIndicator
-        size="large"
-        color={corVerde}
-      />
+      <ActivityIndicator size="large" color={corVerde} />
 
       <Text style={styles.estadoVazioTexto}>
         Carregando produtos...
@@ -712,7 +728,7 @@ export default function Home() {
       <View style={styles.estadoVazioIcone}>
         <Ionicons
           name={
-            filtroOferta === 'ofertas'
+            filtroOferta === 'ofertas' && modoLista !== 'busca'
               ? 'pricetag-outline'
               : 'search-outline'
           }
@@ -722,18 +738,18 @@ export default function Home() {
       </View>
 
       <Text style={styles.estadoVazioTitulo}>
-        {filtroOferta === 'ofertas'
+        {filtroOferta === 'ofertas' && modoLista !== 'busca'
           ? 'Nenhuma oferta encontrada'
           : 'Nenhum produto encontrado'}
       </Text>
 
       <Text style={styles.estadoVazioTexto}>
-        {filtroOferta === 'ofertas'
+        {filtroOferta === 'ofertas' && modoLista !== 'busca'
           ? 'Ainda não há ofertas cadastradas nesta seleção.'
           : 'Tente escolher outra categoria ou pesquisar outro nome.'}
       </Text>
 
-      {filtroOferta === 'ofertas' && (
+      {filtroOferta === 'ofertas' && modoLista !== 'busca' && (
         <Pressable
           style={styles.botaoLimpar}
           onPress={() => selecionarFiltro('todos')}
@@ -753,17 +769,18 @@ export default function Home() {
         contentContainerStyle={styles.conteudo}
         data={carregandoProdutos ? [] : dadosGrade}
         keyExtractor={(item, indice) =>
-          item ? item.id : `espacador-${indice}`
+          item ? String(item.id) : `espacador-${indice}`
         }
         numColumns={2}
         columnWrapperStyle={styles.linhaProdutos}
         renderItem={({ item }) =>
           item ? (
             <CardProduto
-              id={item.id}
+              id={String(item.id)}
               nome={item.nome}
               unidade={item.unidade}
               preco={item.preco}
+              precoOferta={item.precoOferta}
               icone={item.icone}
               imagem={item.imagem}
               oferta={item.oferta === true}
@@ -795,11 +812,7 @@ export default function Home() {
             ]}
             onPress={() => router.push('/home')}
           >
-            <Ionicons
-              name="home"
-              size={27}
-              color="#fff"
-            />
+            <Ionicons name="home" size={27} color="#fff" />
 
             <Text style={styles.textoNavegacao}>
               Início
@@ -814,11 +827,7 @@ export default function Home() {
             ]}
             onPress={() => router.push('/perfil' as any)}
           >
-            <Ionicons
-              name="person-outline"
-              size={27}
-              color="#fff"
-            />
+            <Ionicons name="person-outline" size={27} color="#fff" />
 
             <Text style={styles.textoNavegacao}>
               Perfil
@@ -833,11 +842,7 @@ export default function Home() {
           ]}
           onPress={() => router.push('/carrinho' as any)}
         >
-          <Ionicons
-            name="cart-outline"
-            size={31}
-            color="#fff"
-          />
+          <Ionicons name="cart-outline" size={31} color="#fff" />
         </Pressable>
       </View>
     </View>
@@ -907,8 +912,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlignVertical: 'center',
     includeFontPadding: false,
-
-    // Correção para seleção normal do texto no navegador.
     outlineStyle: 'none',
     userSelect: 'text',
     WebkitUserSelect: 'text',
@@ -970,7 +973,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Filtro de produtos */
+  /* Filtro */
 
   filtroContainer: {
     flexDirection: 'row',
@@ -1102,6 +1105,9 @@ const styles = StyleSheet.create({
     top: 8,
     left: 8,
     backgroundColor: corVerde,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 8,
@@ -1148,11 +1154,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  /* Preços */
+
+  cardPrecoOriginal: {
+    fontSize: 12,
+    color: '#929A93',
+    textDecorationLine: 'line-through',
+    marginTop: 8,
+  },
+
   cardPreco: {
     fontSize: 19,
     fontWeight: '800',
     color: verdeEscuro,
     marginTop: 9,
+  },
+
+  cardPrecoPromocional: {
+    color: '#218044',
+    fontSize: 21,
+    marginTop: 2,
   },
 
   cardEspacador: {

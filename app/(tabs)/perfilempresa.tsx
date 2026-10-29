@@ -437,21 +437,6 @@ export default function PerfilEmpresa() {
           </Pressable>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.carrinho,
-            pressed && styles.botaoPressionado,
-          ]}
-          onPress={() =>
-            router.push('/carrinho' as any)
-          }
-        >
-          <Ionicons
-            name="cart-outline"
-            size={31}
-            color="#FFFFFF"
-          />
-        </Pressable>
       </View>
     </View>
   );
