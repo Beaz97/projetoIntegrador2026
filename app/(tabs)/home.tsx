@@ -106,8 +106,27 @@ function CardProduto({
   icone,
   imagem,
   oferta,
+  empresa
 }: CardProps) {
   const router = useRouter();
+  console.log('empresa', typeof(empresa));
+  // percorrer os usuariso e verificar se o produto pertence a empresa do usuario logado, atribuir o nome do usuario a var let empresaNome, e exibir no card do produto
+  // a lista de usuarios esta no storage em @banco_usuarios.
+  let empresaNome = 'empresa não encontrada';
+  let usuarios= AsyncStorage.getItem('@banco_usuarios').then((usuarios) => {
+    if (usuarios) {
+      const usuariosParse = JSON.parse(usuarios);
+       usuariosParse.forEach((usuario: any) => {
+        let idEmpresa = Number(usuario.id);
+        console.log('idEmpresa', idEmpresa);
+        if (idEmpresa === empresa) {
+          empresaNome = usuario.nome;
+          console.log('empresaNome', empresaNome);
+        }
+      });
+    }
+  });
+
 
   return (
     <Pressable
@@ -141,6 +160,7 @@ function CardProduto({
           numberOfLines={2}
         >
           {nome}
+          {empresaNome}
         </Text>
 
         <Text
@@ -660,6 +680,7 @@ export default function Home() {
                     icone={produto.icone}
                     imagem={produto.imagem}
                     oferta={produto.oferta === true}
+                    empresa={produto.empresa}
                   />
                 ))}
 
