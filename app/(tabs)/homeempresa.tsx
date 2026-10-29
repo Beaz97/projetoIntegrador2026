@@ -515,16 +515,13 @@ const styles = StyleSheet.create({
 
   // BARRA INFERIOR FIXA
   barraInferior: {
-    minHeight: 72,
-    backgroundColor: VERDE_ESCURO,
+    minHeight: 70,
+    backgroundColor: VERDE,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 5,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     flexShrink: 0,
   },
 

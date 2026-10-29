@@ -145,7 +145,7 @@ const produtosIniciais = dados.produtos;
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
-          onPress={() => router.push('/homeempresa' as any)}
+          onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Voltar para o início"
         >
@@ -430,12 +430,13 @@ const produtosIniciais = dados.produtos;
             color="#FFFFFF"
           />
           <Text style={styles.textoAtivo}>Produtos</Text>
+
           <View style={styles.indicadorAtivo} />
         </View>
 
         <Pressable
           style={styles.itemNav}
-          onPress={() => router.push('/ofertasempresa' as any)}
+          onPress={() => router.push('/ofertaempresa' as any)}
         >
           <Ionicons
             name="pricetag-outline"
@@ -447,7 +448,7 @@ const produtosIniciais = dados.produtos;
 
         <Pressable
           style={styles.itemNav}
-          onPress={() => router.push('/perfil' as any)}
+          onPress={() => router.push('/perfilempresa' as any)}
         >
           <Ionicons
             name="person-outline"
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
   },
 
   cabecalho: {
-    backgroundColor: ESCURO,
+    backgroundColor: VERDE,
     paddingTop: 25,
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -799,7 +800,7 @@ const styles = StyleSheet.create({
 
   navegacao: {
     minHeight: 73,
-    backgroundColor: ESCURO,
+    backgroundColor: VERDE,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',

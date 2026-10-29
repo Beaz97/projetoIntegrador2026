@@ -419,7 +419,7 @@ export default function OfertasEmpresa() {
         >
           <Ionicons
             name="home-outline"
-            size={22}
+            size={23}
             color="#D9E9DD"
           />
           <Text style={styles.textoNav}>Início</Text>
@@ -427,11 +427,11 @@ export default function OfertasEmpresa() {
 
         <Pressable
           style={styles.itemNav}
-          onPress={() => router.push("/produtosempresa" as any)}
+          onPress={() => router.push("/produtoempresa" as any)}
         >
           <Ionicons
             name="cube-outline"
-            size={22}
+            size={23}
             color="#D9E9DD"
           />
           <Text style={styles.textoNav}>Produtos</Text>
@@ -441,20 +441,23 @@ export default function OfertasEmpresa() {
           <View style={styles.iconeNavAtivo}>
             <Ionicons
               name="pricetag"
-              size={21}
+              size={23}
               color="#FFFFFF"
             />
           </View>
+
           <Text style={styles.textoAtivo}>Ofertas</Text>
+
+          <View style={styles.indicadorAtivo} />
         </View>
 
         <Pressable
           style={styles.itemNav}
-          onPress={() => router.push("/perfil" as any)}
+          onPress={() => router.push("/perfilempresa" as any)}
         >
           <Ionicons
             name="person-outline"
-            size={22}
+            size={23}
             color="#D9E9DD"
           />
           <Text style={styles.textoNav}>Perfil</Text>
@@ -521,7 +524,7 @@ const styles = StyleSheet.create({
   },
 
   cabecalho: {
-    backgroundColor: ESCURO,
+    backgroundColor: VERDE,
     paddingTop: 55,
     paddingHorizontal: 22,
     paddingBottom: 23,
@@ -851,12 +854,17 @@ const styles = StyleSheet.create({
   },
 
   navegacao: {
-    height: 74,
-    backgroundColor: ESCURO,
+    height: 73,
+    backgroundColor: VERDE,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingBottom: 4,
+    borderTopLeftRadius: 23,
+    borderTopRightRadius: 23,
+    paddingHorizontal: 5,
+    paddingTop: 5,
+    paddingBottom: 5,
+    flexShrink: 0,
   },
 
   itemNav: {
@@ -970,5 +978,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+
+  indicadorAtivo: {
+    width: 21,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
   },
 });

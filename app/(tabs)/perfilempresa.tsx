@@ -434,9 +434,11 @@ export default function PerfilEmpresa() {
             <Text style={styles.textoNavegacao}>
               Perfil
             </Text>
+
+            <View style={styles.indicadorAtivo} />
           </Pressable>
         </View>
-
+        {/*
         <Pressable
           style={({ pressed }) => [
             styles.carrinho,
@@ -452,6 +454,7 @@ export default function PerfilEmpresa() {
             color="#FFFFFF"
           />
         </Pressable>
+         */}
       </View>
     </View>
   );
@@ -711,8 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: VERDE,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    height: 67,
-    paddingHorizontal: 45,
+    height: 70,
   },
 
   botaoNavegacao: {
@@ -736,7 +738,7 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: VERDE_ESCURO,
+    backgroundColor: VERDE,
     borderWidth: 4,
     borderColor: '#F7F9F7',
     alignItems: 'center',
@@ -745,5 +747,13 @@ const styles = StyleSheet.create({
 
   botaoPressionado: {
     opacity: 0.65,
+  },
+
+  indicadorAtivo: {
+    width: 24,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
   },
 });
