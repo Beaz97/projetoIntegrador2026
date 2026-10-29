@@ -317,9 +317,24 @@ const produtosIniciais = dados.produtos;
                       </Text>
                     ) : null}
 
-                    <Text style={styles.precoProduto}>
-                      {preco}
-                    </Text>
+                    {produto.oferta === true &&
+                    typeof produto.precoOferta === 'number' ? (
+                      <View style={styles.linhaPrecos}>
+                        <Text style={styles.precoRiscado}>
+                          {preco}
+                        </Text>
+                        <Text style={styles.precoProduto}>
+                          {produto.precoOferta.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.precoProduto}>
+                        {preco}
+                      </Text>
+                    )}
 
                     {produto.oferta === true && (
                       <View style={styles.seloOferta}>
@@ -715,6 +730,19 @@ const styles = StyleSheet.create({
   unidade: {
     fontSize: 11,
     color: '#849087',
+  },
+
+  linhaPrecos: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+
+  precoRiscado: {
+    fontSize: 13,
+    color: '#8A938C',
+    textDecorationLine: 'line-through',
   },
 
   precoProduto: {

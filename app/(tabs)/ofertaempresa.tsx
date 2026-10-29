@@ -122,16 +122,22 @@ export default function OfertasEmpresa() {
     setOfertaParaExcluir(null);
   }
 
+  // Encerrar a oferta NÃO apaga o produto: só volta ao preço normal.
   async function confirmarExclusao() {
     if (!ofertaParaExcluir) {
       return;
     }
 
     try {
-      const listaAtualizada = todos.filter(
-        (item: any) =>
-          String(item.id) !== String(ofertaParaExcluir.id)
-      );
+      const listaAtualizada = todos.map((item: any) => {
+        if (String(item.id) !== String(ofertaParaExcluir.id)) {
+          return item;
+        }
+
+        const { precoOferta, ...resto } = item;
+
+        return { ...resto, oferta: false };
+      });
 
       await AsyncStorage.setItem(
         CHAVE_PRODUTOS,
@@ -142,9 +148,9 @@ export default function OfertasEmpresa() {
       setErroExclusao("");
       setOfertaParaExcluir(null);
     } catch (erro) {
-      console.error("Erro ao excluir oferta:", erro);
+      console.error("Erro ao encerrar oferta:", erro);
       setErroExclusao(
-        "Não foi possível excluir a oferta. Tente novamente."
+        "Não foi possível encerrar a oferta. Tente novamente."
       );
     }
   }
@@ -336,9 +342,20 @@ export default function OfertasEmpresa() {
                       </Text>
                     ) : null}
 
-                    <Text style={styles.preco}>
-                      {formatarPreco(produto.preco)}
-                    </Text>
+                    {typeof produto.precoOferta === "number" ? (
+                      <View style={styles.linhaPrecos}>
+                        <Text style={styles.precoRiscado}>
+                          {formatarPreco(produto.preco)}
+                        </Text>
+                        <Text style={styles.preco}>
+                          {formatarPreco(produto.precoOferta)}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.preco}>
+                        {formatarPreco(produto.preco)}
+                      </Text>
+                    )}
                   </View>
 
                   <View style={styles.seta}>
@@ -358,7 +375,7 @@ export default function OfertasEmpresa() {
                   onPress={() => pedirExclusao(produto)}
                   hitSlop={6}
                   accessibilityRole="button"
-                  accessibilityLabel={`Excluir ${produto.nome}`}
+                  accessibilityLabel={`Encerrar oferta de ${produto.nome}`}
                 >
                   <Ionicons
                     name="trash-outline"
@@ -387,7 +404,7 @@ export default function OfertasEmpresa() {
               <Text style={styles.estadoDescricao}>
                 {busca
                   ? "Tente buscar por outro nome de produto."
-                  : "Cadastre uma oferta para destacar seus produtos aqui."}
+                  : "Escolha um produto seu e defina o preço da oferta."}
               </Text>
 
               {!busca && (
@@ -477,11 +494,11 @@ export default function OfertasEmpresa() {
               />
             </View>
 
-            <Text style={styles.modalTitulo}>Excluir oferta</Text>
+            <Text style={styles.modalTitulo}>Encerrar oferta</Text>
 
             <Text style={styles.modalTexto}>
-              Deseja excluir "{ofertaParaExcluir?.nome}"? Essa ação não
-              pode ser desfeita.
+              Deseja encerrar a oferta de "{ofertaParaExcluir?.nome}"? O
+              produto continua no catálogo com o preço normal.
             </Text>
 
             {erroExclusao !== "" && (
@@ -503,7 +520,7 @@ export default function OfertasEmpresa() {
                 onPress={confirmarExclusao}
               >
                 <Text style={styles.modalExcluirTexto}>
-                  Excluir
+                  Encerrar
                 </Text>
               </Pressable>
             </View>
@@ -784,6 +801,19 @@ const styles = StyleSheet.create({
     color: "#929B94",
     fontSize: 11,
     marginTop: 3,
+  },
+
+  linhaPrecos: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+
+  precoRiscado: {
+    fontSize: 13,
+    color: "#8A938C",
+    textDecorationLine: "line-through",
   },
 
   preco: {

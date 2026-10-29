@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   View,
@@ -12,11 +12,12 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAutenticacao } from '../components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
@@ -30,6 +31,9 @@ const CHAVE_PRODUTOS = 'produtos';
 const TEMPO_TELA_SUCESSO = 2000;
 const ROTA_HOME = '/homeempresa';
 
+/* ---------- Funções de preço ---------- */
+
+// Máscara de digitação: "150" -> "R$ 1,50"
 function formatarMoeda(valor: string) {
   const numeros = valor.replace(/\D/g, '');
 
@@ -37,19 +41,41 @@ function formatarMoeda(valor: string) {
     return '';
   }
 
-  const centavos = Number(numeros);
-  const valorFormatado = (centavos / 100).toLocaleString('pt-BR', {
+  return `R$ ${(Number(numeros) / 100).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-
-  return `R$ ${valorFormatado}`;
+  })}`;
 }
 
+// "R$ 1,50" -> 1.5
 function converterPreco(valor: string) {
   const numeros = valor.replace(/\D/g, '');
   return Number(numeros) / 100;
 }
+
+// 1.5 -> "R$ 1,50"
+function numeroParaMoeda(valor: number) {
+  return valor.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+}
+
+function produtoValido(valor: unknown): valor is Produto {
+  if (!valor || typeof valor !== 'object') {
+    return false;
+  }
+
+  const produto = valor as Produto;
+
+  return (
+    typeof produto.id === 'string' &&
+    typeof produto.nome === 'string' &&
+    typeof produto.preco === 'number'
+  );
+}
+
+/* ---------- Campo de texto ---------- */
 
 type CampoProps = {
   titulo: string;
@@ -57,8 +83,7 @@ type CampoProps = {
   valor: string;
   aoMudar: (valor: string) => void;
   icone: keyof typeof Ionicons.glyphMap;
-  teclado?: 'default' | 'numeric' | 'url';
-  multiline?: boolean;
+  teclado?: 'default' | 'numeric';
 };
 
 function Campo({
@@ -68,18 +93,12 @@ function Campo({
   aoMudar,
   icone,
   teclado = 'default',
-  multiline = false,
 }: CampoProps) {
   return (
     <View style={styles.grupoCampo}>
       <Text style={styles.rotulo}>{titulo}</Text>
 
-      <View
-        style={[
-          styles.caixaCampo,
-          multiline && styles.caixaMultiline,
-        ]}
-      >
+      <View style={styles.caixaCampo}>
         <Ionicons
           name={icone}
           size={20}
@@ -90,22 +109,19 @@ function Campo({
         <TextInput
           style={[
             styles.input,
-            multiline && styles.inputMultiline,
-            Platform.OS === 'web' && ({
-              outlineStyle: 'none',
-              outlineWidth: 0,
-              boxShadow: 'none',
-            } as any),
+            Platform.OS === 'web' &&
+              ({
+                outlineStyle: 'none',
+                outlineWidth: 0,
+                boxShadow: 'none',
+              } as any),
           ]}
           placeholder={placeholder}
           placeholderTextColor="#9AA49C"
           value={valor}
           onChangeText={aoMudar}
           keyboardType={teclado}
-          autoCapitalize="sentences"
           autoCorrect={false}
-          multiline={multiline}
-          textAlignVertical={multiline ? 'top' : 'center'}
           underlineColorAndroid="transparent"
           selectionColor={VERDE}
         />
@@ -114,32 +130,149 @@ function Campo({
   );
 }
 
+/* ---------- Tela ---------- */
+
 export default function NovaOferta() {
   const router = useRouter();
+
+  // Se vier /novaoferta?id=3, já abre com esse produto escolhido.
+  const { id: idParam } = useLocalSearchParams<{ id?: string }>();
 
   const { usuario, carregando, autorizado } =
     useAutenticacao('empresa');
 
-  const { categorias } = Dados();
+  const [todos, setTodos] = useState<Produto[]>([]);
+  const [carregandoLista, setCarregandoLista] = useState(true);
 
-  const [nome, setNome] = useState('');
-  const [categoria, setCategoria] = useState('');
-  const [preco, setPreco] = useState('');
-  const [imagem, setImagem] = useState('');
-  const [descricao, setDescricao] = useState('');
+  const [busca, setBusca] = useState('');
+  const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
+  const [precoOferta, setPrecoOferta] = useState('');
+
   const [salvando, setSalvando] = useState(false);
   const [tentouSalvar, setTentouSalvar] = useState(false);
   const [sucesso, setSucesso] = useState(false);
 
-  const precoNumerico = converterPreco(preco);
+  /* ----- Carregar produtos (os da empresa são filtrados abaixo) ----- */
 
-  const camposCompletos =
-    nome.trim().length > 0 &&
-    categoria !== '' &&
-    Number.isFinite(precoNumerico) &&
-    precoNumerico > 0;
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
 
-  const mostrarAviso = tentouSalvar && !camposCompletos;
+      async function carregar() {
+        try {
+          const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+          let lista: Produto[] = Dados().produtos;
+
+          if (conteudo) {
+            const parseado: unknown = JSON.parse(conteudo);
+
+            if (Array.isArray(parseado)) {
+              lista = parseado.filter(produtoValido);
+            }
+          }
+
+          if (ativo) {
+            setTodos(lista);
+          }
+        } catch (erro) {
+          console.error('Erro ao carregar produtos:', erro);
+
+          if (ativo) {
+            setTodos(Dados().produtos);
+          }
+        } finally {
+          if (ativo) {
+            setCarregandoLista(false);
+          }
+        }
+      }
+
+      carregar();
+
+      return () => {
+        ativo = false;
+      };
+    }, []),
+  );
+
+  const produtosEmpresa = useMemo(
+    () =>
+      todos.filter(
+        (produto) =>
+          usuario?.id != null &&
+          String(produto.empresa) === String(usuario.id),
+      ),
+    [todos, usuario?.id],
+  );
+
+  const listaFiltrada = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+
+    return produtosEmpresa.filter((produto) =>
+      produto.nome.toLocaleLowerCase('pt-BR').includes(termo),
+    );
+  }, [produtosEmpresa, busca]);
+
+  const produtoSelecionado = produtosEmpresa.find(
+    (produto) => String(produto.id) === String(selecionadoId),
+  );
+
+  /* ----- Seleção ----- */
+
+  function selecionarProduto(produto: Produto) {
+    setSelecionadoId(String(produto.id));
+    setTentouSalvar(false);
+
+    // Se já tem oferta, mostra o preço atual da oferta para editar.
+    setPrecoOferta(
+      produto.oferta === true && typeof produto.precoOferta === 'number'
+        ? numeroParaMoeda(produto.precoOferta)
+        : '',
+    );
+  }
+
+  // Abre já com o produto vindo da URL.
+  useEffect(() => {
+    if (!idParam || selecionadoId !== null) {
+      return;
+    }
+
+    const produto = produtosEmpresa.find(
+      (item) => String(item.id) === String(idParam),
+    );
+
+    if (produto) {
+      selecionarProduto(produto);
+    }
+  }, [idParam, produtosEmpresa]);
+
+  /* ----- Validação ----- */
+
+  const precoOfertaNumerico = converterPreco(precoOferta);
+
+  const precoValido =
+    Number.isFinite(precoOfertaNumerico) && precoOfertaNumerico > 0;
+
+  const menorQueOriginal =
+    produtoSelecionado !== undefined &&
+    precoOfertaNumerico < produtoSelecionado.preco;
+
+  const podeSalvar =
+    produtoSelecionado !== undefined && precoValido && menorQueOriginal;
+
+  let mensagemErro = '';
+
+  if (tentouSalvar && !podeSalvar) {
+    if (!produtoSelecionado) {
+      mensagemErro = 'Escolha o produto que entrará em oferta.';
+    } else if (!precoValido) {
+      mensagemErro = 'Informe o preço da oferta.';
+    } else if (!menorQueOriginal) {
+      mensagemErro = 'O preço da oferta precisa ser menor que o preço atual.';
+    }
+  }
+
+  /* ----- Tela de sucesso ----- */
 
   useEffect(() => {
     if (!sucesso) {
@@ -154,91 +287,47 @@ export default function NovaOferta() {
     return () => clearTimeout(temporizador);
   }, [sucesso]);
 
+  /* ----- Salvar: só altera o produto que já existe ----- */
+
   async function salvar() {
     setTentouSalvar(true);
 
-    if (!camposCompletos) {
-      return;
-    }
-
-    if (!usuario?.id) {
-      Alert.alert(
-        'Erro',
-        'Não foi possível identificar a empresa logada.',
-      );
+    if (!podeSalvar || !produtoSelecionado) {
       return;
     }
 
     setSalvando(true);
 
     try {
-      const dadosIniciais = Dados().produtos;
+      const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+      let lista: Produto[] = Dados().produtos;
 
-      const conteudoSalvo = await AsyncStorage.getItem(
-        CHAVE_PRODUTOS,
-      );
+      if (conteudo) {
+        const parseado: unknown = JSON.parse(conteudo);
 
-      let produtosSalvos: Produto[] = [...dadosIniciais];
-
-      if (conteudoSalvo) {
-        try {
-          const parseado: unknown = JSON.parse(conteudoSalvo);
-
-          if (Array.isArray(parseado)) {
-            const produtosValidos = parseado.filter(
-              (item): item is Produto =>
-                item !== null &&
-                typeof item === 'object' &&
-                typeof (item as Produto).id === 'string' &&
-                typeof (item as Produto).nome === 'string' &&
-                typeof (item as Produto).preco === 'number',
-            );
-
-            produtosSalvos = produtosValidos;
-          }
-        } catch {
-          produtosSalvos = [...dadosIniciais];
+        if (Array.isArray(parseado)) {
+          lista = parseado.filter(produtoValido);
         }
       }
 
-      const maiorId = produtosSalvos.reduce((maior, produto) => {
-        const idNumerico = Number(produto.id);
-
-        return Number.isFinite(idNumerico)
-          ? Math.max(maior, idNumerico)
-          : maior;
-      }, 0);
-
-      const novaOferta: Produto & { descricao?: string } = {
-        id: String(maiorId + 1),
-        nome: nome.trim(),
-        unidade: 'Un',
-        preco: precoNumerico,
-        icone: 'basket-outline',
-        imagem: imagem.trim() || undefined,
-        categoria,
-        empresa: Number(usuario.id),
-        descricao: descricao.trim() || undefined,
-        oferta: true,
-      };
-
-      const listaAtualizada = [
-        ...produtosSalvos.filter(
-          (produto) => String(produto.id) !== novaOferta.id,
-        ),
-        novaOferta,
-      ];
+      const listaAtualizada = lista.map((produto) =>
+        String(produto.id) === String(produtoSelecionado.id)
+          ? {
+              ...produto, // preço original continua intacto em "preco"
+              oferta: true,
+              precoOferta: precoOfertaNumerico,
+            }
+          : produto,
+      );
 
       await AsyncStorage.setItem(
         CHAVE_PRODUTOS,
         JSON.stringify(listaAtualizada),
       );
 
-      setNome('');
-      setCategoria('');
-      setPreco('');
-      setImagem('');
-      setDescricao('');
+      setSelecionadoId(null);
+      setPrecoOferta('');
+      setBusca('');
       setTentouSalvar(false);
       setSucesso(true);
     } catch (erro) {
@@ -246,7 +335,7 @@ export default function NovaOferta() {
 
       Alert.alert(
         'Não foi possível salvar',
-        'Ocorreu um erro ao cadastrar a oferta. Tente novamente.',
+        'Ocorreu um erro ao criar a oferta. Tente novamente.',
       );
     } finally {
       setSalvando(false);
@@ -256,20 +345,13 @@ export default function NovaOferta() {
   if (sucesso) {
     return (
       <View style={styles.telaSucesso}>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={VERDE}
-        />
+        <StatusBar barStyle="light-content" backgroundColor={VERDE} />
 
         <View style={styles.circuloSucesso}>
-          <Ionicons
-            name="checkmark"
-            size={60}
-            color="#FFFFFF"
-          />
+          <Ionicons name="checkmark" size={60} color="#FFFFFF" />
         </View>
 
-        <Text style={styles.textoSucesso}>Oferta cadastrada!</Text>
+        <Text style={styles.textoSucesso}>Oferta criada!</Text>
       </View>
     );
   }
@@ -280,10 +362,7 @@ export default function NovaOferta() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={VERDE_ESCURO}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={VERDE_ESCURO} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -295,20 +374,14 @@ export default function NovaOferta() {
             onPress={() => router.replace(ROTA_HOME as any)}
             activeOpacity={0.75}
           >
-            <Ionicons
-              name="arrow-back"
-              size={23}
-              color="#FFFFFF"
-            />
+            <Ionicons name="arrow-back" size={23} color="#FFFFFF" />
           </TouchableOpacity>
 
           <View style={styles.textosCabecalho}>
-            <Text style={styles.tituloCabecalho}>
-              Nova oferta
-            </Text>
+            <Text style={styles.tituloCabecalho}>Nova oferta</Text>
 
             <Text style={styles.subtituloCabecalho}>
-              Adicione às suas ofertas
+              Coloque um produto seu em promoção
             </Text>
           </View>
         </View>
@@ -319,142 +392,190 @@ export default function NovaOferta() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.cartaoIntroducao}>
-            <View style={styles.iconeIntroducao}>
-              <Ionicons
-                name="leaf-outline"
-                size={25}
-                color={VERDE}
-              />
-            </View>
-
-            <Text style={styles.tituloIntroducao}>
-              Vamos cadastrar?
-            </Text>
-          </View>
-
           <View style={styles.cartaoFormulario}>
-            <Text style={styles.tituloFormulario}>
-              Informações da oferta
-            </Text>
+            <Text style={styles.tituloFormulario}>1. Escolha o produto</Text>
 
             <Text style={styles.textoFormulario}>
-              Preencha os campos abaixo. Os campos com * são obrigatórios.
+              A oferta altera o preço de um produto já cadastrado. O preço
+              original aparece riscado para o cliente.
             </Text>
 
             <Campo
-              titulo="Nome da oferta *"
-              placeholder="Ex.: Arroz branco 5 kg"
-              valor={nome}
-              aoMudar={setNome}
-              icone="pricetag-outline"
+              titulo="Buscar produto"
+              placeholder="Digite o nome"
+              valor={busca}
+              aoMudar={setBusca}
+              icone="search-outline"
             />
 
-            <View style={styles.grupoCampo}>
-              <Text style={styles.rotulo}>Categoria *</Text>
+            {carregandoLista ? (
+              <ActivityIndicator color={VERDE} style={styles.carregando} />
+            ) : listaFiltrada.length === 0 ? (
+              <View style={styles.vazio}>
+                <Ionicons name="cube-outline" size={30} color={VERDE} />
 
-              <View style={styles.listaCategorias}>
-                {categorias.map((item) => {
-                  const selecionada = categoria === item.id;
+                <Text style={styles.vazioTexto}>
+                  {produtosEmpresa.length === 0
+                    ? 'Você ainda não tem produtos. Cadastre um produto primeiro.'
+                    : 'Nenhum produto encontrado.'}
+                </Text>
+
+                {produtosEmpresa.length === 0 && (
+                  <TouchableOpacity
+                    style={styles.botaoCadastrarProduto}
+                    onPress={() => router.push('/novoproduto' as any)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.textoBotaoSalvar}>
+                      Cadastrar produto
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.listaProdutos}>
+                {listaFiltrada.map((produto) => {
+                  const selecionado =
+                    String(produto.id) === String(selecionadoId);
 
                   return (
                     <TouchableOpacity
-                      key={item.id}
+                      key={String(produto.id)}
                       style={[
-                        styles.botaoCategoria,
-                        selecionada && styles.categoriaSelecionada,
+                        styles.itemProduto,
+                        selecionado && styles.itemProdutoSelecionado,
                       ]}
-                      onPress={() => setCategoria(item.id)}
-                      activeOpacity={0.75}
+                      onPress={() => selecionarProduto(produto)}
+                      activeOpacity={0.8}
                     >
-                      <Ionicons
-                        name={item.icone as keyof typeof Ionicons.glyphMap}
-                        size={18}
-                        color={selecionada ? '#FFFFFF' : VERDE}
-                      />
+                      <View style={styles.itemImagem}>
+                        {produto.imagem ? (
+                          <Image
+                            source={{ uri: produto.imagem }}
+                            style={styles.itemFoto}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="cube-outline"
+                            size={24}
+                            color={VERDE}
+                          />
+                        )}
+                      </View>
 
-                      <Text
-                        style={[
-                          styles.textoCategoria,
-                          selecionada &&
-                            styles.textoCategoriaSelecionada,
-                        ]}
-                      >
-                        {item.nome}
-                      </Text>
+                      <View style={styles.itemInfo}>
+                        <Text style={styles.itemNome} numberOfLines={2}>
+                          {produto.nome}
+                        </Text>
+
+                        <Text style={styles.itemPreco}>
+                          {numeroParaMoeda(produto.preco)}
+                          {produto.oferta === true &&
+                          typeof produto.precoOferta === 'number'
+                            ? `  •  oferta ${numeroParaMoeda(
+                                produto.precoOferta,
+                              )}`
+                            : ''}
+                        </Text>
+                      </View>
+
+                      <Ionicons
+                        name={
+                          selecionado
+                            ? 'checkmark-circle'
+                            : 'ellipse-outline'
+                        }
+                        size={24}
+                        color={selecionado ? VERDE : '#B8C4BB'}
+                      />
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            </View>
-
-            <Campo
-              titulo="Preço *"
-              placeholder="R$ 0,00"
-              valor={preco}
-              aoMudar={(valor) => setPreco(formatarMoeda(valor))}
-              icone="cash-outline"
-              teclado="numeric"
-            />
-
-            <Campo
-              titulo="Link da imagem (opcional)"
-              placeholder="https://..."
-              valor={imagem}
-              aoMudar={setImagem}
-              icone="image-outline"
-              teclado="url"
-            />
-
-            <Campo
-              titulo="Descrição (opcional)"
-              placeholder="Informações adicionais sobre a oferta"
-              valor={descricao}
-              aoMudar={setDescricao}
-              icone="document-text-outline"
-              multiline
-            />
-
-            {mostrarAviso && (
-              <View style={styles.avisoErro}>
-                <Ionicons
-                  name="alert-circle-outline"
-                  size={20}
-                  color="#B3261E"
-                />
-
-                <Text style={styles.textoAvisoErro}>
-                  Preencha os campos obrigatórios.
-                </Text>
-              </View>
             )}
+          </View>
 
-            <TouchableOpacity
-              style={[
-                styles.botaoSalvar,
-                salvando && styles.botaoDesabilitado,
-              ]}
-              onPress={salvar}
-              disabled={salvando}
-              activeOpacity={0.85}
-            >
-              {salvando ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
+          {produtoSelecionado && (
+            <View style={[styles.cartaoFormulario, styles.cartaoSeguinte]}>
+              <Text style={styles.tituloFormulario}>2. Preço da oferta</Text>
+
+              <View style={styles.previa}>
+                <Text style={styles.previaRotulo}>Como vai aparecer</Text>
+
+                <View style={styles.previaPrecos}>
+                  <Text style={styles.precoRiscado}>
+                    {numeroParaMoeda(produtoSelecionado.preco)}
+                  </Text>
+
+                  <Text style={styles.precoPromo}>
+                    {precoValido
+                      ? numeroParaMoeda(precoOfertaNumerico)
+                      : 'R$ 0,00'}
+                  </Text>
+                </View>
+              </View>
+
+              <Campo
+                titulo="Preço da oferta *"
+                placeholder="R$ 0,00"
+                valor={precoOferta}
+                aoMudar={(valor) => setPrecoOferta(formatarMoeda(valor))}
+                icone="cash-outline"
+                teclado="numeric"
+              />
+
+              {mensagemErro !== '' && (
+                <View style={styles.avisoErro}>
                   <Ionicons
-                    name="checkmark-circle-outline"
-                    size={21}
-                    color="#FFFFFF"
+                    name="alert-circle-outline"
+                    size={20}
+                    color="#B3261E"
                   />
 
-                  <Text style={styles.textoBotaoSalvar}>
-                    Cadastrar oferta
-                  </Text>
-                </>
+                  <Text style={styles.textoAvisoErro}>{mensagemErro}</Text>
+                </View>
               )}
-            </TouchableOpacity>
-          </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.botaoSalvar,
+                  salvando && styles.botaoDesabilitado,
+                ]}
+                onPress={salvar}
+                disabled={salvando}
+                activeOpacity={0.85}
+              >
+                {salvando ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={21}
+                      color="#FFFFFF"
+                    />
+
+                    <Text style={styles.textoBotaoSalvar}>Criar oferta</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!produtoSelecionado && tentouSalvar && (
+            <View style={styles.avisoErro}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={20}
+                color="#B3261E"
+              />
+
+              <Text style={styles.textoAvisoErro}>
+                Escolha o produto que entrará em oferta.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.espacoFinal} />
         </ScrollView>
@@ -464,14 +585,9 @@ export default function NovaOferta() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
+  flex: { flex: 1 },
 
-  container: {
-    flex: 1,
-    backgroundColor: FUNDO,
-  },
+  container: { flex: 1, backgroundColor: FUNDO },
 
   telaSucesso: {
     flex: 1,
@@ -490,11 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  textoSucesso: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+  textoSucesso: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF' },
 
   cabecalho: {
     backgroundColor: VERDE_ESCURO,
@@ -517,53 +629,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  textosCabecalho: {
-    flex: 1,
-  },
+  textosCabecalho: { flex: 1 },
 
-  tituloCabecalho: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+  tituloCabecalho: { fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' },
 
-  subtituloCabecalho: {
-    fontSize: 13,
-    color: '#D9E9DD',
-    marginTop: 4,
-  },
+  subtituloCabecalho: { fontSize: 13, color: '#D9E9DD', marginTop: 4 },
 
   conteudo: {
     paddingHorizontal: 18,
     paddingTop: 20,
     paddingBottom: 20,
-  },
-
-  cartaoIntroducao: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 19,
-    padding: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E7ECE8',
-  },
-
-  iconeIntroducao: {
-    width: 45,
-    height: 45,
-    borderRadius: 15,
-    backgroundColor: VERDE_CLARO,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  tituloIntroducao: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: VERDE_ESCURO,
   },
 
   cartaoFormulario: {
@@ -574,29 +649,21 @@ const styles = StyleSheet.create({
     borderColor: '#E7ECE8',
   },
 
-  tituloFormulario: {
-    fontSize: 19,
-    fontWeight: 'bold',
-    color: VERDE_ESCURO,
-  },
+  cartaoSeguinte: { marginTop: 16 },
+
+  tituloFormulario: { fontSize: 19, fontWeight: 'bold', color: VERDE_ESCURO },
 
   textoFormulario: {
     fontSize: 12,
     color: CINZA,
     marginTop: 5,
-    marginBottom: 22,
+    marginBottom: 20,
+    lineHeight: 18,
   },
 
-  grupoCampo: {
-    marginBottom: 19,
-  },
+  grupoCampo: { marginBottom: 19 },
 
-  rotulo: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: TEXTO,
-    marginBottom: 9,
-  },
+  rotulo: { fontSize: 13, fontWeight: '600', color: TEXTO, marginBottom: 9 },
 
   caixaCampo: {
     minHeight: 51,
@@ -609,15 +676,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
 
-  caixaMultiline: {
-    minHeight: 100,
-    alignItems: 'flex-start',
-    paddingTop: 13,
-  },
-
-  iconeCampo: {
-    marginRight: 10,
-  },
+  iconeCampo: { marginRight: 10 },
 
   input: {
     flex: 1,
@@ -629,53 +688,79 @@ const styles = StyleSheet.create({
     color: TEXTO,
     backgroundColor: 'transparent',
     borderWidth: 0,
-    ...(Platform.OS === 'web'
-      ? ({
-          outlineStyle: 'none',
-          outlineWidth: 0,
-          boxShadow: 'none',
-        } as any)
-      : {}),
   },
 
-  inputMultiline: {
-    minHeight: 75,
-    paddingTop: 0,
-    textAlignVertical: 'top',
+  carregando: { marginVertical: 20 },
+
+  vazio: { alignItems: 'center', gap: 10, paddingVertical: 18 },
+
+  vazioTexto: { fontSize: 13, color: CINZA, textAlign: 'center' },
+
+  botaoCadastrarProduto: {
+    minHeight: 46,
+    borderRadius: 13,
+    backgroundColor: VERDE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    marginTop: 6,
   },
 
-  listaCategorias: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 9,
-  },
+  listaProdutos: { gap: 10 },
 
-  botaoCategoria: {
+  itemProduto: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 12,
+    gap: 12,
+    padding: 11,
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: '#DCE8DE',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#E1E9E2',
+    backgroundColor: '#FBFCFB',
   },
 
-  categoriaSelecionada: {
-    backgroundColor: VERDE,
+  itemProdutoSelecionado: {
     borderColor: VERDE,
+    backgroundColor: VERDE_CLARO,
   },
 
-  textoCategoria: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: VERDE_ESCURO,
+  itemImagem: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
 
-  textoCategoriaSelecionada: {
-    color: '#FFFFFF',
+  itemFoto: { width: '100%', height: '100%' },
+
+  itemInfo: { flex: 1 },
+
+  itemNome: { fontSize: 14, fontWeight: '700', color: TEXTO },
+
+  itemPreco: { fontSize: 12, color: CINZA, marginTop: 3 },
+
+  previa: {
+    backgroundColor: VERDE_CLARO,
+    borderRadius: 15,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 20,
   },
+
+  previaRotulo: { fontSize: 12, color: CINZA, marginBottom: 6 },
+
+  previaPrecos: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
+
+  precoRiscado: {
+    fontSize: 15,
+    color: '#8A938C',
+    textDecorationLine: 'line-through',
+  },
+
+  precoPromo: { fontSize: 24, fontWeight: '800', color: VERDE_ESCURO },
 
   avisoErro: {
     flexDirection: 'row',
@@ -707,26 +792,15 @@ const styles = StyleSheet.create({
     gap: 9,
     marginTop: 3,
     shadowColor: VERDE,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 3,
   },
 
-  botaoDesabilitado: {
-    opacity: 0.65,
-  },
+  botaoDesabilitado: { opacity: 0.65 },
 
-  textoBotaoSalvar: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
+  textoBotaoSalvar: { fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
 
-  espacoFinal: {
-    height: 20,
-  },
+  espacoFinal: { height: 20 },
 });
