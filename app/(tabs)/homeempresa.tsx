@@ -303,7 +303,7 @@ export default function HomeScreen() {
             styles.itemNavegacao,
             pressed && styles.itemPressionado,
           ]}
-          onPress={() => router.push('/perfil' as any)}
+          onPress={() => router.push('/perfilempresa' as any)}
           accessibilityRole="button"
           accessibilityLabel="Perfil"
         >

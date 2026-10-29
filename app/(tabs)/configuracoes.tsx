@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+
 import {
   View,
   Text,
@@ -9,7 +10,9 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
@@ -18,40 +21,148 @@ type Icone = keyof typeof Ionicons.glyphMap;
 const CHAVE_USUARIOS = '@banco_usuarios';
 const CHAVE_USUARIO_LOGADO = '@usuario_logado';
 
-/* ---------- Funções de armazenamento ---------- */
+type Usuario = {
+  id?: string | number;
+  nome?: string;
+  nomeEmpresa?: string;
+  email?: string;
+  senha?: string;
+  documento?: string;
+  telefone?: string;
+  endereco?: string;
+  enderecoCompleto?: string;
+  tipo?: string;
+  tipoUsuario?: string;
+  perfil?: string;
+  role?: string;
+  tipoConta?: string;
+  [key: string]: any;
+};
 
-async function lerUsuarioLogado(): Promise<any | null> {
+/* ---------- Funções de armazenamento e segurança ---------- */
+
+async function lerUsuarioLogado(): Promise<Usuario | null> {
   try {
     const dados = await AsyncStorage.getItem(CHAVE_USUARIO_LOGADO);
     return dados ? JSON.parse(dados) : null;
   } catch (erro) {
-    console.log('Erro ao carregar usuário:', erro);
+    console.error('Erro ao carregar usuário:', erro);
     return null;
   }
 }
 
-async function salvarDadosUsuario(
-  id: string | number,
-  dadosAtualizados: Record<string, string>
-) {
-  const dadosUsuarios = await AsyncStorage.getItem(CHAVE_USUARIOS);
-  const usuarios = dadosUsuarios ? JSON.parse(dadosUsuarios) : [];
+async function lerUsuarios(): Promise<Usuario[]> {
+  const dados = await AsyncStorage.getItem(CHAVE_USUARIOS);
+
+  if (!dados) {
+    throw new Error('Não foi possível carregar o cadastro de usuários.');
+  }
+
+  const usuarios = JSON.parse(dados);
 
   if (!Array.isArray(usuarios)) {
     throw new Error('A lista de usuários está inválida.');
   }
 
-  const indice = usuarios.findIndex(
-    (usuario: any) => String(usuario.id) === String(id)
+  return usuarios;
+}
+
+function ehEmpresa(usuario: Usuario | null): boolean {
+  if (!usuario) return false;
+
+  const tipo = [
+    usuario.tipo,
+    usuario.tipoUsuario,
+    usuario.perfil,
+    usuario.role,
+    usuario.tipoConta,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    tipo.includes('empresa') ||
+    tipo.includes('empresarial') ||
+    !!usuario.nomeEmpresa
   );
+}
+
+function mesmoUsuario(a: Usuario, b: Usuario): boolean {
+  if (a.id != null && b.id != null) {
+    return String(a.id) === String(b.id);
+  }
+
+  return Boolean(
+    a.email &&
+      b.email &&
+      a.email.trim().toLowerCase() === b.email.trim().toLowerCase()
+  );
+}
+
+async function hashSenha(senha: string): Promise<string> {
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    senha
+  );
+}
+
+async function verificarSenha(
+  senhaDigitada: string,
+  senhaArmazenada: string
+): Promise<boolean> {
+  if (!senhaDigitada || !senhaArmazenada) {
+    return false;
+  }
+
+  const hash = await hashSenha(senhaDigitada);
+
+  // Compatibilidade com cadastros que tenham senha em texto puro.
+  return hash === senhaArmazenada || senhaDigitada === senhaArmazenada;
+}
+
+async function buscarCadastroDoUsuario(
+  usuarioOriginal: Usuario
+): Promise<{ usuarios: Usuario[]; indice: number }> {
+  const usuarios = await lerUsuarios();
+
+  let indice = -1;
+
+  if (usuarioOriginal.id != null) {
+    indice = usuarios.findIndex(
+      (usuario) =>
+        usuario.id != null &&
+        String(usuario.id) === String(usuarioOriginal.id)
+    );
+  }
+
+  if (indice === -1 && usuarioOriginal.email) {
+    const emailOriginal = usuarioOriginal.email.trim().toLowerCase();
+
+    indice = usuarios.findIndex(
+      (usuario) =>
+        usuario.email?.trim().toLowerCase() === emailOriginal
+    );
+  }
 
   if (indice === -1) {
     throw new Error('Usuário não encontrado no cadastro.');
   }
 
-  const usuarioAtualizado = {
+  return { usuarios, indice };
+}
+
+async function salvarDadosUsuario(
+  usuarioOriginal: Usuario,
+  dadosAtualizados: Partial<Usuario>
+): Promise<void> {
+  const { usuarios, indice } =
+    await buscarCadastroDoUsuario(usuarioOriginal);
+
+  const usuarioAtualizado: Usuario = {
     ...usuarios[indice],
     ...dadosAtualizados,
+    id: usuarios[indice].id,
   };
 
   usuarios[indice] = usuarioAtualizado;
@@ -63,18 +174,27 @@ async function salvarDadosUsuario(
 
   const usuarioLogado = await lerUsuarioLogado();
 
-  if (usuarioLogado && String(usuarioLogado.id) === String(id)) {
+  if (usuarioLogado && mesmoUsuario(usuarioOriginal, usuarioLogado)) {
+    const { senha: _senha, ...usuarioSemSenha } = usuarioAtualizado;
+
     await AsyncStorage.setItem(
       CHAVE_USUARIO_LOGADO,
-      JSON.stringify({
-        ...usuarioLogado,
-        ...dadosAtualizados,
-      })
+      JSON.stringify(usuarioSemSenha)
     );
   }
 }
 
-/* ---------- Peças reutilizáveis ---------- */
+async function validarSenhaAtual(
+  usuarioOriginal: Usuario,
+  senhaAtual: string
+): Promise<boolean> {
+  const { usuarios, indice } =
+    await buscarCadastroDoUsuario(usuarioOriginal);
+
+  return verificarSenha(senhaAtual, usuarios[indice].senha || '');
+}
+
+/* ---------- Componentes reutilizáveis ---------- */
 
 type TelaProps = {
   titulo: string;
@@ -83,18 +203,31 @@ type TelaProps = {
   children: React.ReactNode;
 };
 
-function Tela({ titulo, subtitulo, onVoltar, children }: TelaProps) {
+function Tela({
+  titulo,
+  subtitulo,
+  onVoltar,
+  children,
+}: TelaProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.cabecalho}>
-          <Pressable onPress={onVoltar} style={styles.voltar}>
-            <Ionicons name="arrow-back" size={30} color="#44805c" />
+          <Pressable
+            onPress={onVoltar}
+            style={styles.botaoVoltar}
+            hitSlop={10}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={27}
+              color="#44805c"
+            />
           </Pressable>
 
           <Text style={styles.titulo}>{titulo}</Text>
 
-          <View style={styles.voltar} />
+          <View style={styles.espacador} />
         </View>
 
         <Text style={styles.subtitulo}>{subtitulo}</Text>
@@ -122,8 +255,8 @@ function Botao({
       disabled={desativado}
       style={[
         styles.botao,
-        vermelho && { backgroundColor: '#b3352f' },
-        desativado && { opacity: 0.6 },
+        vermelho && styles.botaoVermelho,
+        desativado && styles.botaoDesativado,
       ]}
     >
       <Text style={styles.botaoTxt}>{titulo}</Text>
@@ -156,24 +289,50 @@ function Toggle({
 
 /* ---------- Minha conta ---------- */
 
-function Conta({ onVoltar }: { onVoltar: () => void }) {
+function Conta({
+  onVoltar,
+}: {
+  onVoltar: () => void;
+}) {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [emailOriginal, setEmailOriginal] = useState('');
+  const [senhaAtualEmail, setSenhaAtualEmail] = useState('');
   const [tel, setTel] = useState('');
+  const [empresa, setEmpresa] = useState(false);
+  const [usuarioOriginal, setUsuarioOriginal] =
+    useState<Usuario | null>(null);
+
   const [msg, setMsg] = useState('');
+  const [sucesso, setSucesso] = useState(false);
   const [salvando, setSalvando] = useState(false);
+
+  const emailFoiAlterado =
+    email.trim().toLowerCase() !== emailOriginal.trim().toLowerCase();
 
   useEffect(() => {
     async function carregarDados() {
       const usuario = await lerUsuarioLogado();
 
-      if (usuario) {
-        setNome(usuario.nome ?? '');
-        setEmail(usuario.email ?? '');
-        setTel(usuario.telefone ?? '');
-      } else {
+      if (!usuario) {
         setMsg('Não foi possível encontrar o usuário conectado.');
+        return;
       }
+
+      const contaEmpresa = ehEmpresa(usuario);
+
+      setUsuarioOriginal(usuario);
+      setEmpresa(contaEmpresa);
+
+      setNome(
+        contaEmpresa
+          ? usuario.nomeEmpresa || usuario.nome || ''
+          : usuario.nome || ''
+      );
+
+      setEmail(usuario.email || '');
+      setEmailOriginal(usuario.email || '');
+      setTel(usuario.telefone || '');
     }
 
     carregarDados();
@@ -182,32 +341,92 @@ function Conta({ onVoltar }: { onVoltar: () => void }) {
   async function salvarAlteracoes() {
     if (salvando) return;
 
+    setMsg('');
+    setSucesso(false);
+
     if (!nome.trim() || !email.trim()) {
       setMsg('Preencha o nome e o e-mail.');
       return;
     }
 
+    const emailNormalizado = email.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
+      setMsg('Digite um endereço de e-mail válido.');
+      return;
+    }
+
+    if (emailFoiAlterado && !senhaAtualEmail) {
+      setMsg('Digite sua senha atual para confirmar a alteração do e-mail.');
+      return;
+    }
+
     try {
       setSalvando(true);
-      setMsg('');
 
-      const usuario = await lerUsuarioLogado();
+      const usuario = usuarioOriginal || await lerUsuarioLogado();
 
       if (!usuario) {
         setMsg('Nenhum usuário conectado.');
         return;
       }
 
-      await salvarDadosUsuario(usuario.id, {
-        nome: nome.trim(),
-        email: email.trim(),
+      if (emailFoiAlterado) {
+        const senhaCorreta = await validarSenhaAtual(
+          usuario,
+          senhaAtualEmail
+        );
+
+        if (!senhaCorreta) {
+          setMsg('A senha atual está incorreta. O e-mail não foi alterado.');
+          return;
+        }
+
+        const { usuarios, indice } =
+          await buscarCadastroDoUsuario(usuario);
+
+        const emailDuplicado = usuarios.some(
+          (outro, index) =>
+            index !== indice &&
+            outro.email?.trim().toLowerCase() === emailNormalizado
+        );
+
+        if (emailDuplicado) {
+          setMsg('Este e-mail já está cadastrado em outra conta.');
+          return;
+        }
+      }
+
+      const dadosAtualizados: Partial<Usuario> = {
+        email: emailNormalizado,
         telefone: tel.trim(),
+      };
+
+      if (empresa) {
+        dadosAtualizados.nomeEmpresa = nome.trim();
+        dadosAtualizados.nome = nome.trim();
+      } else {
+        dadosAtualizados.nome = nome.trim();
+      }
+
+      await salvarDadosUsuario(usuario, dadosAtualizados);
+
+      setUsuarioOriginal({
+        ...usuario,
+        ...dadosAtualizados,
       });
 
+      setEmailOriginal(emailNormalizado);
+      setSenhaAtualEmail('');
+      setSucesso(true);
       setMsg('Dados atualizados com sucesso!');
     } catch (erro) {
-      console.log('Erro ao salvar os dados:', erro);
-      setMsg('Não foi possível salvar. Tente novamente.');
+      console.error('Erro ao salvar os dados:', erro);
+      setMsg(
+        erro instanceof Error
+          ? erro.message
+          : 'Não foi possível salvar os dados. Tente novamente.'
+      );
     } finally {
       setSalvando(false);
     }
@@ -215,20 +434,32 @@ function Conta({ onVoltar }: { onVoltar: () => void }) {
 
   return (
     <Tela
-      titulo="Minha conta"
-      subtitulo="Atualize seus dados pessoais."
+      titulo={empresa ? 'Dados da empresa' : 'Minha conta'}
+      subtitulo={
+        empresa
+          ? 'Atualize as informações da sua empresa.'
+          : 'Atualize seus dados pessoais.'
+      }
       onVoltar={onVoltar}
     >
-      <ScrollView contentContainerStyle={styles.conteudo}>
-        <Text style={styles.label}>Nome</Text>
+      <ScrollView
+        contentContainerStyle={styles.conteudo}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.label}>
+          {empresa ? 'Nome da empresa' : 'Nome completo'}
+        </Text>
+
         <TextInput
           style={styles.input}
           value={nome}
           onChangeText={setNome}
-          placeholder="Seu nome"
+          placeholder={empresa ? 'Nome da empresa' : 'Seu nome'}
+          autoCapitalize="words"
         />
 
         <Text style={styles.label}>E-mail</Text>
+
         <TextInput
           style={styles.input}
           value={email}
@@ -236,9 +467,39 @@ function Conta({ onVoltar }: { onVoltar: () => void }) {
           placeholder="Seu e-mail"
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
         />
 
+        {emailFoiAlterado && (
+          <View style={styles.aviso}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={20}
+              color="#44805c"
+            />
+            <Text style={styles.avisoTexto}>
+              Por segurança, confirme sua senha atual para mudar o e-mail.
+            </Text>
+          </View>
+        )}
+
+        {emailFoiAlterado && (
+          <>
+            <Text style={styles.label}>Senha atual</Text>
+
+            <TextInput
+              style={styles.input}
+              value={senhaAtualEmail}
+              onChangeText={setSenhaAtualEmail}
+              placeholder="Confirme sua senha atual"
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </>
+        )}
+
         <Text style={styles.label}>Telefone</Text>
+
         <TextInput
           style={styles.input}
           value={tel}
@@ -253,7 +514,16 @@ function Conta({ onVoltar }: { onVoltar: () => void }) {
           desativado={salvando}
         />
 
-        {msg !== '' && <Text style={styles.msg}>{msg}</Text>}
+        {msg !== '' && (
+          <Text
+            style={[
+              styles.msg,
+              sucesso ? styles.msgSucesso : styles.msgErro,
+            ]}
+          >
+            {msg}
+          </Text>
+        )}
       </ScrollView>
     </Tela>
   );
@@ -262,88 +532,257 @@ function Conta({ onVoltar }: { onVoltar: () => void }) {
 /* ---------- Endereços ---------- */
 
 type Endereco = {
-  id: number;
+  id: string;
   nome: string;
   texto: string;
 };
 
-function Enderecos({ onVoltar }: { onVoltar: () => void }) {
-  const [lista, setLista] = useState<Endereco[]>([
-    { id: 1, nome: 'Casa', texto: 'Rua das Flores, 123 - Criciúma' },
-    { id: 2, nome: 'Trabalho', texto: 'Av. Centenário, 456 - Criciúma' },
-  ]);
-
+function Enderecos({
+  onVoltar,
+}: {
+  onVoltar: () => void;
+}) {
+  const [lista, setLista] = useState<Endereco[]>([]);
   const [nome, setNome] = useState('');
   const [texto, setTexto] = useState('');
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [chaveEnderecos, setChaveEnderecos] =
+    useState<string | null>(null);
 
-  const adicionar = () => {
-    if (!nome.trim() || !texto.trim()) return;
+  useEffect(() => {
+    async function carregarEnderecos() {
+      try {
+        const usuario = await lerUsuarioLogado();
 
-    setLista([
+        if (!usuario) {
+          setMsg('Nenhum usuário conectado.');
+          return;
+        }
+
+        const identificador =
+          usuario.id != null
+            ? String(usuario.id)
+            : usuario.email?.toLowerCase();
+
+        if (!identificador) {
+          setMsg('Não foi possível identificar sua conta.');
+          return;
+        }
+
+        const chave = `@enderecos_usuario_${identificador}`;
+        setChaveEnderecos(chave);
+
+        const enderecosTexto = await AsyncStorage.getItem(chave);
+
+        if (enderecosTexto) {
+          const enderecos = JSON.parse(enderecosTexto);
+
+          if (Array.isArray(enderecos)) {
+            setLista(enderecos);
+          }
+        } else {
+          const enderecoAtual =
+            usuario.endereco || usuario.enderecoCompleto || '';
+
+          if (enderecoAtual) {
+            setLista([
+              {
+                id: 'principal',
+                nome: 'Principal',
+                texto: enderecoAtual,
+              },
+            ]);
+          }
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar endereços:', erro);
+        setMsg('Não foi possível carregar os endereços.');
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarEnderecos();
+  }, []);
+
+  async function persistirEnderecos(novaLista: Endereco[]) {
+    if (!chaveEnderecos) {
+      setMsg('Não foi possível identificar sua conta.');
+      return false;
+    }
+
+    try {
+      setSalvando(true);
+
+      await AsyncStorage.setItem(
+        chaveEnderecos,
+        JSON.stringify(novaLista)
+      );
+
+      setLista(novaLista);
+      setMsg('Endereços atualizados.');
+      return true;
+    } catch (erro) {
+      console.error('Erro ao salvar endereços:', erro);
+      setMsg('Não foi possível salvar os endereços.');
+      return false;
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function adicionar() {
+    if (!nome.trim() || !texto.trim()) {
+      setMsg('Preencha o nome do local e o endereço.');
+      return;
+    }
+
+    const novoEndereco: Endereco = {
+      id: String(Date.now()),
+      nome: nome.trim(),
+      texto: texto.trim(),
+    };
+
+    const salvou = await persistirEnderecos([
       ...lista,
-      {
-        id: Date.now(),
-        nome: nome.trim(),
-        texto: texto.trim(),
-      },
+      novoEndereco,
     ]);
 
-    setNome('');
-    setTexto('');
-  };
+    if (salvou) {
+      setNome('');
+      setTexto('');
+    }
+  }
+
+  async function remover(id: string) {
+    const novaLista = lista.filter(
+      (endereco) => endereco.id !== id
+    );
+
+    await persistirEnderecos(novaLista);
+  }
+
+  async function definirPrincipal(item: Endereco) {
+    try {
+      const usuario = await lerUsuarioLogado();
+
+      if (!usuario) {
+        setMsg('Nenhum usuário conectado.');
+        return;
+      }
+
+      await salvarDadosUsuario(usuario, {
+        endereco: item.texto,
+        enderecoCompleto: item.texto,
+      });
+
+      setMsg('Endereço principal atualizado!');
+    } catch (erro) {
+      console.error('Erro ao atualizar endereço principal:', erro);
+      setMsg('Não foi possível atualizar o endereço.');
+    }
+  }
 
   const renderItem = ({ item }: { item: Endereco }) => (
     <View style={[styles.card, styles.linha]}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.negrito}>{item.nome}</Text>
-        <Text style={styles.suave}>{item.texto}</Text>
+      <View style={styles.iconeEndereco}>
+        <Ionicons
+          name="location-outline"
+          size={23}
+          color="#44805c"
+        />
       </View>
 
-      <Pressable
-        onPress={() =>
-          setLista(lista.filter((endereco) => endereco.id !== item.id))
-        }
-      >
-        <Text style={{ color: '#b3352f' }}>Remover</Text>
+      <View style={styles.enderecoTexto}>
+        <Text style={styles.negrito}>{item.nome}</Text>
+        <Text style={styles.suave}>{item.texto}</Text>
+
+        <Pressable
+          onPress={() => definirPrincipal(item)}
+          style={styles.linkEndereco}
+        >
+          <Text style={styles.linkEnderecoTexto}>
+            Usar como endereço principal
+          </Text>
+        </Pressable>
+      </View>
+
+      <Pressable onPress={() => remover(item.id)} hitSlop={8}>
+        <Ionicons
+          name="trash-outline"
+          size={21}
+          color="#b3352f"
+        />
       </Pressable>
     </View>
   );
 
   const formulario = (
-    <View style={{ marginTop: 8 }}>
+    <View style={{ marginTop: 12 }}>
+      <Text style={styles.secao}>Adicionar endereço</Text>
+
       <Text style={styles.label}>Nome do local</Text>
+
       <TextInput
         style={styles.input}
         value={nome}
         onChangeText={setNome}
-        placeholder="Ex.: Casa"
+        placeholder="Ex.: Loja principal"
       />
 
-      <Text style={styles.label}>Endereço</Text>
+      <Text style={styles.label}>Endereço completo</Text>
+
       <TextInput
         style={styles.input}
         value={texto}
         onChangeText={setTexto}
-        placeholder="Rua, número, cidade"
+        placeholder="Rua, número, bairro e cidade"
       />
 
-      <Botao titulo="Adicionar endereço" onPress={adicionar} />
+      <Botao
+        titulo={salvando ? 'Salvando...' : 'Adicionar endereço'}
+        onPress={adicionar}
+        desativado={salvando}
+      />
+
+      {msg !== '' && <Text style={styles.msg}>{msg}</Text>}
     </View>
   );
 
   return (
     <Tela
       titulo="Meus endereços"
-      subtitulo="Gerencie seus locais."
+      subtitulo="Gerencie os endereços da sua conta."
       onVoltar={onVoltar}
     >
-      <FlatList
-        data={lista}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderItem}
-        ListFooterComponent={formulario}
-        contentContainerStyle={styles.conteudo}
-      />
+      {carregando ? (
+        <View style={styles.carregando}>
+          <Text style={styles.suave}>Carregando endereços...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={lista}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <View style={styles.vazio}>
+              <Ionicons
+                name="location-outline"
+                size={38}
+                color="#8B968C"
+              />
+              <Text style={styles.suave}>
+                Nenhum endereço cadastrado.
+              </Text>
+            </View>
+          }
+          ListFooterComponent={formulario}
+          contentContainerStyle={styles.conteudo}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
     </Tela>
   );
 }
@@ -362,7 +801,11 @@ const OPCOES: Opcao[] = [
   { id: 'push', nome: 'Push' },
 ];
 
-function Notificacoes({ onVoltar }: { onVoltar: () => void }) {
+function Notificacoes({
+  onVoltar,
+}: {
+  onVoltar: () => void;
+}) {
   const [ativas, setAtivas] = useState<Record<string, boolean>>({
     alertas: true,
     promocoes: false,
@@ -372,7 +815,9 @@ function Notificacoes({ onVoltar }: { onVoltar: () => void }) {
 
   const renderItem = ({ item }: { item: Opcao }) => (
     <View style={[styles.card, styles.linha]}>
-      <Text style={[styles.negrito, { flex: 1 }]}>{item.nome}</Text>
+      <Text style={[styles.negrito, { flex: 1 }]}>
+        {item.nome}
+      </Text>
 
       <Toggle
         ligado={ativas[item.id]}
@@ -402,26 +847,86 @@ function Notificacoes({ onVoltar }: { onVoltar: () => void }) {
   );
 }
 
-/* ---------- Privacidade ---------- */
+/* ---------- Privacidade e alteração de senha ---------- */
 
-function Privacidade({ onVoltar }: { onVoltar: () => void }) {
+function Privacidade({
+  onVoltar,
+}: {
+  onVoltar: () => void;
+}) {
   const [atual, setAtual] = useState('');
   const [nova, setNova] = useState('');
+  const [confirmacao, setConfirmacao] = useState('');
+  const [salvandoSenha, setSalvandoSenha] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [msg, setMsg] = useState('');
+  const [sucesso, setSucesso] = useState(false);
 
-  const trocarSenha = () => {
-    if (!atual || nova.length < 6) {
+  async function trocarSenha() {
+    if (salvandoSenha) return;
+
+    setMsg('');
+    setSucesso(false);
+
+    if (!atual || !nova || !confirmacao) {
+      setMsg('Preencha todos os campos para alterar a senha.');
+      return;
+    }
+
+    if (nova.length < 6) {
       setMsg('A nova senha precisa ter ao menos 6 caracteres.');
       return;
     }
 
-    setAtual('');
-    setNova('');
-    setMsg(
-      'A alteração ainda precisa ser conectada ao cadastro para ser salva.'
-    );
-  };
+    if (nova !== confirmacao) {
+      setMsg('A nova senha e a confirmação não são iguais.');
+      return;
+    }
+
+    if (atual === nova) {
+      setMsg('A nova senha precisa ser diferente da senha atual.');
+      return;
+    }
+
+    try {
+      setSalvandoSenha(true);
+
+      const usuario = await lerUsuarioLogado();
+
+      if (!usuario) {
+        setMsg('Nenhum usuário conectado.');
+        return;
+      }
+
+      const senhaCorreta = await validarSenhaAtual(usuario, atual);
+
+      if (!senhaCorreta) {
+        setMsg('A senha atual está incorreta.');
+        return;
+      }
+
+      const senhaCriptografada = await hashSenha(nova);
+
+      await salvarDadosUsuario(usuario, {
+        senha: senhaCriptografada,
+      });
+
+      setAtual('');
+      setNova('');
+      setConfirmacao('');
+      setSucesso(true);
+      setMsg('Senha alterada com sucesso!');
+    } catch (erro) {
+      console.error('Erro ao alterar senha:', erro);
+      setMsg(
+        erro instanceof Error
+          ? erro.message
+          : 'Não foi possível alterar a senha. Tente novamente.'
+      );
+    } finally {
+      setSalvandoSenha(false);
+    }
+  }
 
   return (
     <Tela
@@ -432,38 +937,79 @@ function Privacidade({ onVoltar }: { onVoltar: () => void }) {
       <ScrollView contentContainerStyle={styles.conteudo}>
         <Text style={styles.secao}>Alterar senha</Text>
 
+        <Text style={styles.suave}>
+          Confirme sua senha atual para cadastrar uma nova senha.
+        </Text>
+
         <Text style={styles.label}>Senha atual</Text>
+
         <TextInput
           style={styles.input}
           value={atual}
           onChangeText={setAtual}
           secureTextEntry
+          placeholder="Digite sua senha atual"
+          autoCapitalize="none"
         />
 
         <Text style={styles.label}>Nova senha</Text>
+
         <TextInput
           style={styles.input}
           value={nova}
           onChangeText={setNova}
           secureTextEntry
+          placeholder="Mínimo de 6 caracteres"
+          autoCapitalize="none"
         />
 
-        <Botao titulo="Atualizar senha" onPress={trocarSenha} />
+        <Text style={styles.label}>Confirmar nova senha</Text>
 
-        {msg !== '' && <Text style={styles.msg}>{msg}</Text>}
+        <TextInput
+          style={styles.input}
+          value={confirmacao}
+          onChangeText={setConfirmacao}
+          secureTextEntry
+          placeholder="Digite a nova senha novamente"
+          autoCapitalize="none"
+        />
+
+        <Botao
+          titulo={salvandoSenha ? 'Atualizando...' : 'Atualizar senha'}
+          onPress={trocarSenha}
+          desativado={salvandoSenha}
+        />
+
+        {msg !== '' && (
+          <Text
+            style={[
+              styles.msg,
+              sucesso ? styles.msgSucesso : styles.msgErro,
+            ]}
+          >
+            {msg}
+          </Text>
+        )}
 
         <View style={[styles.card, { marginTop: 28 }]}>
           <Text style={styles.negrito}>Excluir conta</Text>
-          <Text style={styles.suave}>Esta ação é permanente.</Text>
+          <Text style={styles.suave}>
+            Esta ação é permanente.
+          </Text>
 
           {excluindo ? (
             <>
               <Text style={[styles.negrito, { marginTop: 12 }]}>
-                Excluir sua conta definitivamente?
+                Deseja continuar?
+              </Text>
+
+              <Text style={styles.suave}>
+                A exclusão real da conta ainda não está conectada ao
+                sistema de cadastro.
               </Text>
 
               <Botao
-                titulo="Sim, excluir"
+                titulo="Entendi"
                 vermelho
                 onPress={() => setExcluindo(false)}
               />
@@ -497,13 +1043,14 @@ const FAQ: Pergunta[] = [
   {
     id: '1',
     pergunta: 'Como altero meus dados?',
-    resposta: 'Vá em Minha conta e edite seus dados pessoais.',
+    resposta:
+      'Acesse Minha conta, edite as informações e toque em Salvar alterações.',
   },
   {
     id: '2',
     pergunta: 'Como adiciono um endereço?',
     resposta:
-      'Em Meus endereços, preencha os campos e toque em Adicionar.',
+      'Acesse Meus endereços, preencha os campos e toque em Adicionar endereço.',
   },
   {
     id: '3',
@@ -513,7 +1060,11 @@ const FAQ: Pergunta[] = [
   },
 ];
 
-function Ajuda({ onVoltar }: { onVoltar: () => void }) {
+function Ajuda({
+  onVoltar,
+}: {
+  onVoltar: () => void;
+}) {
   const [aberto, setAberto] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [msg, setMsg] = useState('');
@@ -521,12 +1072,22 @@ function Ajuda({ onVoltar }: { onVoltar: () => void }) {
   const renderItem = ({ item }: { item: Pergunta }) => (
     <Pressable
       style={styles.card}
-      onPress={() => setAberto(aberto === item.id ? '' : item.id)}
+      onPress={() =>
+        setAberto(aberto === item.id ? '' : item.id)
+      }
     >
-      <Text style={styles.negrito}>{item.pergunta}</Text>
+      <View style={styles.linhaPergunta}>
+        <Text style={styles.negrito}>{item.pergunta}</Text>
+
+        <Ionicons
+          name={aberto === item.id ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color="#44805c"
+        />
+      </View>
 
       {aberto === item.id && (
-        <Text style={[styles.suave, { marginTop: 6 }]}>
+        <Text style={[styles.suave, { marginTop: 10, lineHeight: 20 }]}>
           {item.resposta}
         </Text>
       )}
@@ -542,15 +1103,20 @@ function Ajuda({ onVoltar }: { onVoltar: () => void }) {
         value={mensagem}
         onChangeText={setMensagem}
         placeholder="Como podemos ajudar?"
+        multiline
       />
 
       <Botao
         titulo="Enviar"
         onPress={() => {
-          if (!mensagem.trim()) return;
+          if (!mensagem.trim()) {
+            setMsg('Digite sua mensagem.');
+            return;
+          }
 
-          setMensagem('');
-          setMsg('Mensagem enviada!');
+          setMsg(
+            'O envio precisa ser conectado a um serviço de atendimento.'
+          );
         }}
       />
 
@@ -570,6 +1136,7 @@ function Ajuda({ onVoltar }: { onVoltar: () => void }) {
         renderItem={renderItem}
         ListFooterComponent={contato}
         contentContainerStyle={styles.conteudo}
+        keyboardShouldPersistTaps="handled"
       />
     </Tela>
   );
@@ -627,27 +1194,74 @@ const MENU: ItemMenu[] = [
 
 export default function Configuracoes() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ tela?: string }>();
-  const veioDoPerfil = params.tela === 'enderecos';
+
+  const params = useLocalSearchParams<{
+    tela?: string | string[];
+  }>();
+
+  const telaInicial = Array.isArray(params.tela)
+    ? params.tela[0]
+    : params.tela;
+
+  const veioDiretoParaEnderecos = telaInicial === 'enderecos';
 
   const [tela, setTela] = useState<Rota>(
-    veioDoPerfil ? 'enderecos' : 'home'
+    veioDiretoParaEnderecos ? 'enderecos' : 'home'
   );
+
+  const [rotaPerfil, setRotaPerfil] =
+    useState<'/perfil' | '/perfilempresa'>('/perfil');
+
   const [saindo, setSaindo] = useState(false);
 
-  const voltar = () => {
-    if (veioDoPerfil) {
-      router.push('/perfil');
-    } else {
-      setTela('home');
-    }
-  };
+  useEffect(() => {
+    async function identificarConta() {
+      const usuario = await lerUsuarioLogado();
 
-  if (tela === 'conta') return <Conta onVoltar={voltar} />;
-  if (tela === 'enderecos') return <Enderecos onVoltar={voltar} />;
-  if (tela === 'notificacoes') return <Notificacoes onVoltar={voltar} />;
-  if (tela === 'privacidade') return <Privacidade onVoltar={voltar} />;
-  if (tela === 'ajuda') return <Ajuda onVoltar={voltar} />;
+      setRotaPerfil(
+        ehEmpresa(usuario) ? '/perfilempresa' : '/perfil'
+      );
+    }
+
+    identificarConta();
+  }, []);
+
+  function voltarParaPerfil() {
+    router.replace(rotaPerfil as any);
+  }
+
+  function voltarDaSecao() {
+    if (veioDiretoParaEnderecos) {
+      voltarParaPerfil();
+      return;
+    }
+
+    setTela('home');
+  }
+
+  function sairDaConta() {
+    router.replace('/' as any);
+  }
+
+  if (tela === 'conta') {
+    return <Conta onVoltar={voltarDaSecao} />;
+  }
+
+  if (tela === 'enderecos') {
+    return <Enderecos onVoltar={voltarDaSecao} />;
+  }
+
+  if (tela === 'notificacoes') {
+    return <Notificacoes onVoltar={voltarDaSecao} />;
+  }
+
+  if (tela === 'privacidade') {
+    return <Privacidade onVoltar={voltarDaSecao} />;
+  }
+
+  if (tela === 'ajuda') {
+    return <Ajuda onVoltar={voltarDaSecao} />;
+  }
 
   const renderItem = ({ item }: { item: ItemMenu }) => (
     <Pressable
@@ -655,29 +1269,38 @@ export default function Configuracoes() {
       onPress={() => setTela(item.id)}
     >
       <View style={styles.iconeBox}>
-        <Ionicons name={item.icone} size={28} color="#44805c" />
+        <Ionicons
+          name={item.icone}
+          size={27}
+          color="#44805c"
+        />
       </View>
 
-      <View style={{ flex: 1 }}>
+      <View style={styles.textosMenu}>
         <Text style={styles.itemTitulo}>{item.titulo}</Text>
         <Text style={styles.suave}>{item.sub}</Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={22} color="#44805c" />
+      <Ionicons
+        name="chevron-forward"
+        size={22}
+        color="#44805c"
+      />
     </Pressable>
   );
 
   const rodape = saindo ? (
     <View style={styles.card}>
       <Text style={styles.negrito}>Sair da conta?</Text>
+
       <Text style={styles.suave}>
-        Você precisará entrar novamente.
+        Você será direcionado para a tela inicial.
       </Text>
 
       <Botao
         titulo="Sair"
         vermelho
-        onPress={() => router.replace('/')}
+        onPress={sairDaConta}
       />
 
       <Pressable onPress={() => setSaindo(false)}>
@@ -697,12 +1320,18 @@ export default function Configuracoes() {
       >
         <Ionicons
           name="log-out-outline"
-          size={28}
+          size={27}
           color="#b3352f"
         />
       </View>
 
       <Text style={styles.sair}>Sair da conta</Text>
+
+      <Ionicons
+        name="chevron-forward"
+        size={22}
+        color="#b3352f"
+      />
     </Pressable>
   );
 
@@ -710,7 +1339,7 @@ export default function Configuracoes() {
     <Tela
       titulo="Configurações"
       subtitulo="Gerencie sua conta e suas preferências."
-      onVoltar={() => router.push('/perfil')}
+      onVoltar={voltarParaPerfil}
     >
       <FlatList
         data={MENU}
@@ -728,18 +1357,21 @@ export default function Configuracoes() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F7F9F7',
   },
 
   conteudo: {
-    padding: 16,
-    paddingBottom: 100,
+    padding: 18,
+    paddingBottom: 40,
   },
 
   header: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingTop: 48,
+    paddingHorizontal: 18,
+    paddingBottom: 15,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8EEE9',
   },
 
   cabecalho: {
@@ -748,62 +1380,79 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  voltar: {
-    width: 40,
+  botaoVoltar: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#E5F1E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  espacador: {
+    width: 42,
   },
 
   titulo: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#193D27',
   },
 
   subtitulo: {
-    fontSize: 14,
-    color: '#000',
+    fontSize: 13,
+    color: '#777F78',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
+    lineHeight: 19,
   },
 
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 13,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 12,
-    padding: 12,
+    borderColor: '#E5ECE6',
+    borderRadius: 16,
+    padding: 13,
     marginBottom: 12,
+    minHeight: 78,
   },
 
   iconeBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#dcebdf',
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: '#E5F1E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
+  textosMenu: {
+    flex: 1,
+  },
+
   itemTitulo: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#26382A',
   },
 
   sair: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#b3352f',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#B3352F',
   },
 
   card: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 12,
+    borderColor: '#E5ECE6',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
   },
@@ -811,50 +1460,80 @@ const styles = StyleSheet.create({
   linha: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
 
   secao: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
+    fontWeight: '800',
+    color: '#193D27',
+    marginBottom: 8,
   },
 
   label: {
     fontSize: 13,
-    color: '#555',
-    marginTop: 12,
-    marginBottom: 6,
+    fontWeight: '600',
+    color: '#4D5A50',
+    marginTop: 15,
+    marginBottom: 7,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#000',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    borderColor: '#DCE5DD',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
     fontSize: 15,
+    color: '#26382A',
+  },
+
+  aviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EAF4EC',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+
+  avisoTexto: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#315D3D',
   },
 
   botao: {
     backgroundColor: '#44805c',
-    borderRadius: 25,
-    padding: 14,
+    borderRadius: 14,
+    padding: 15,
     alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+
+  botaoVermelho: {
+    backgroundColor: '#B3352F',
+  },
+
+  botaoDesativado: {
+    opacity: 0.6,
   },
 
   botaoTxt: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '700',
     fontSize: 15,
   },
 
   cancelar: {
-    color: '#555',
+    color: '#69746B',
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 14,
+    fontWeight: '600',
   },
 
   trilho: {
@@ -869,24 +1548,79 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
 
   negrito: {
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 15,
-    color: '#000',
+    color: '#26382A',
   },
 
   suave: {
-    color: '#777',
+    color: '#778078',
     fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
   },
 
   msg: {
-    color: '#44805c',
     marginTop: 14,
     textAlign: 'center',
-    fontWeight: 'bold',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+
+  msgSucesso: {
+    color: '#2F7A4B',
+  },
+
+  msgErro: {
+    color: '#B3352F',
+  },
+
+  carregando: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  vazio: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    gap: 8,
+  },
+
+  iconeEndereco: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: '#E5F1E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  enderecoTexto: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  linkEndereco: {
+    alignSelf: 'flex-start',
+    marginTop: 9,
+  },
+
+  linkEnderecoTexto: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#41805A',
+  },
+
+  linhaPergunta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
   },
 });
