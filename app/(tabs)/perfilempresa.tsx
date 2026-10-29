@@ -405,7 +405,7 @@ export default function PerfilEmpresa() {
             }
           >
             <Ionicons
-              name="home"
+              name="home-outline"
               size={27}
               color="#FFFFFF"
             />

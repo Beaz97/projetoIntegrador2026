@@ -381,7 +381,7 @@ export default function Perfil() {
             onPress={() => router.push('/home')}
           >
             <Ionicons
-              name="home"
+              name="home-outline"
               size={27}
               color="#FFFFFF"
             />
