@@ -1,3 +1,4 @@
+
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
@@ -25,9 +26,7 @@ const FUNDO = '#F7F9F7';
 const CHAVE_PRODUTOS = 'produtos';
 
 function produtoValido(valor: unknown): valor is Produto {
-  if (!valor || typeof valor !== 'object') {
-    return false;
-  }
+  if (!valor || typeof valor !== 'object') return false;
 
   const produto = valor as Produto;
 
@@ -39,7 +38,17 @@ function produtoValido(valor: unknown): valor is Produto {
   );
 }
 
-export default function ProdutosEmpresa() {
+function ofertaValida(produto: Produto) {
+  return (
+    produto.oferta === true &&
+    typeof produto.precoOferta === 'number' &&
+    Number.isFinite(produto.precoOferta) &&
+    produto.precoOferta > 0 &&
+    produto.precoOferta < produto.preco
+  );
+}
+
+export default function OfertasEmpresa() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
@@ -65,13 +74,12 @@ export default function ProdutosEmpresa() {
       const parseado: unknown = JSON.parse(conteudo);
 
       if (!Array.isArray(parseado)) {
-        throw new Error('A lista de produtos armazenada não é válida.');
+        throw new Error('Lista de produtos inválida.');
       }
 
-      const produtosSalvos = parseado.filter(produtoValido);
-      setProdutos(produtosSalvos);
+      setProdutos(parseado.filter(produtoValido));
     } catch (erro) {
-      console.error('Erro ao carregar produtos:', erro);
+      console.error('Erro ao carregar ofertas:', erro);
       setProdutos(produtosIniciais);
     }
   }, [produtosIniciais]);
@@ -85,7 +93,6 @@ export default function ProdutosEmpresa() {
   async function excluirProduto(produto: Produto) {
     try {
       const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
-
       const parseado: unknown = conteudo
         ? JSON.parse(conteudo)
         : produtos;
@@ -94,115 +101,79 @@ export default function ProdutosEmpresa() {
         !Array.isArray(parseado) ||
         !parseado.every(produtoValido)
       ) {
-        throw new Error('A lista de produtos armazenada não é válida.');
+        throw new Error('Lista de produtos inválida.');
       }
 
-      const produtosAtualizados = parseado.filter(
+      const atualizados = parseado.filter(
         (item) => String(item.id) !== String(produto.id)
       );
 
       await AsyncStorage.setItem(
         CHAVE_PRODUTOS,
-        JSON.stringify(produtosAtualizados)
+        JSON.stringify(atualizados)
       );
 
-      setProdutos(produtosAtualizados);
+      setProdutos(atualizados);
     } catch (erro) {
-      console.error('Erro ao excluir produto:', erro);
-
+      console.error('Erro ao excluir oferta:', erro);
       Alert.alert(
         'Não foi possível excluir',
-        'O produto não foi removido. Tente novamente.'
+        'A oferta não foi removida. Tente novamente.'
       );
     }
   }
 
   function confirmarExclusao(produto: Produto) {
     Alert.alert(
-      'Excluir produto',
-      `Deseja realmente excluir "${produto.nome}"?`,
+      'Excluir oferta',
+      `Deseja realmente excluir a oferta de "${produto.nome}"?`,
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: () => {
-            void excluirProduto(produto);
-          },
+          onPress: () => void excluirProduto(produto),
         },
       ]
     );
   }
 
-  const produtosDaEmpresa = useMemo(() => {
-    if (usuario?.id == null) {
-      return [];
-    }
+  const ofertasDaEmpresa = useMemo(() => {
+    if (usuario?.id == null) return [];
 
     return produtos.filter(
       (produto) =>
-        String(produto.empresa) === String(usuario.id)
+        String(produto.empresa) === String(usuario.id) &&
+        ofertaValida(produto)
     );
   }, [produtos, usuario?.id]);
 
   const lista = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
 
-    return produtosDaEmpresa.filter((produto) =>
-      String(produto.nome ?? '')
-        .toLocaleLowerCase('pt-BR')
-        .includes(termo)
+    return ofertasDaEmpresa.filter((produto) =>
+      produto.nome.toLocaleLowerCase('pt-BR').includes(termo)
     );
-  }, [produtosDaEmpresa, busca]);
+  }, [ofertasDaEmpresa, busca]);
 
-  if (carregando || !autorizado) {
-    return null;
-  }
+  if (carregando || !autorizado) return null;
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={VERDE}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={VERDE} />
 
-      {/* CABEÇALHO: MESMO FORMATO, SOMENTE A COR ALTERADA */}
+      {/* CABEÇALHO */}
       <View style={styles.cabecalho}>
-        <Pressable
-          style={styles.botaoVoltar}
-          onPress={() => router.push('/homeempresa' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar para o início"
-        >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#FFFFFF"
-          />
-        </Pressable>
-
-        <View style={styles.titulos}>
-          <Text style={styles.titulo}>
-            Meus produtos
-          </Text>
-
+        <View style={styles.cabecalhoTexto}>
+          <Text style={styles.boasVindas}>Minhas ofertas</Text>
           <Text style={styles.subtitulo}>
-            Gerencie seu catálogo
+            Gerencie suas promoções
           </Text>
         </View>
 
-        <View style={styles.contador}>
-          <Text style={styles.contadorNumero}>
-            {produtosDaEmpresa.length}
-          </Text>
-
-          <Text style={styles.contadorTexto}>
-            produtos
-          </Text>
-        </View>
+        <Text style={styles.textoCabecalho}>
+          Destaque seus produtos com preços especiais.
+        </Text>
       </View>
 
       {/* CONTEÚDO */}
@@ -216,7 +187,7 @@ export default function ProdutosEmpresa() {
 
           <TextInput
             style={styles.input}
-            placeholder="Buscar produto..."
+            placeholder="Buscar oferta..."
             placeholderTextColor="#929C94"
             value={busca}
             onChangeText={setBusca}
@@ -224,7 +195,7 @@ export default function ProdutosEmpresa() {
             autoCapitalize="none"
             underlineColorAndroid="transparent"
             selectionColor={VERDE}
-            accessibilityLabel="Buscar produtos pelo nome"
+            accessibilityLabel="Buscar ofertas pelo nome do produto"
           />
 
           {busca.length > 0 && (
@@ -246,31 +217,27 @@ export default function ProdutosEmpresa() {
         <View style={styles.linhaTitulo}>
           <View style={styles.tituloArea}>
             <Text style={styles.tituloLista}>
-              Seu catálogo
+              Suas ofertas
             </Text>
 
             <Text style={styles.subtituloLista}>
               {busca.trim()
-                ? `${lista.length} resultado(s) encontrado(s)`
-                : 'Todos os produtos cadastrados'}
+                ? `${lista.length} oferta(s) encontrada(s)`
+                : `${ofertasDaEmpresa.length} promoção(ões) ativa(s)`}
             </Text>
           </View>
 
           <Pressable
             style={styles.botaoAdicionar}
-            onPress={() => router.push('/novoproduto' as any)}
+            onPress={() => router.push('/novaoferta' as any)}
             accessibilityRole="button"
-            accessibilityLabel="Adicionar novo produto"
+            accessibilityLabel="Criar nova oferta"
           >
-            <Ionicons
-              name="add"
-              size={27}
-              color="#FFFFFF"
-            />
+            <Ionicons name="add" size={27} color="#FFFFFF" />
           </Pressable>
         </View>
 
-        {/* LISTA DE PRODUTOS */}
+        {/* LISTA: SOMENTE OFERTAS VÁLIDAS */}
         <ScrollView
           style={styles.listaScroll}
           contentContainerStyle={styles.listaConteudo}
@@ -283,18 +250,15 @@ export default function ProdutosEmpresa() {
                 ? produto.imagem
                 : null;
 
-            const preco =
-              produto.preco.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              });
+            const precoOriginal = produto.preco.toLocaleString(
+              'pt-BR',
+              { style: 'currency', currency: 'BRL' }
+            );
 
-            const temOferta =
-              produto.oferta === true &&
-              typeof produto.precoOferta === 'number' &&
-              Number.isFinite(produto.precoOferta) &&
-              produto.precoOferta > 0 &&
-              produto.precoOferta < produto.preco;
+            const precoOferta = produto.precoOferta!.toLocaleString(
+              'pt-BR',
+              { style: 'currency', currency: 'BRL' }
+            );
 
             return (
               <View
@@ -315,7 +279,7 @@ export default function ProdutosEmpresa() {
                     )
                   }
                   accessibilityRole="button"
-                  accessibilityLabel={`${produto.nome}, ${preco}`}
+                  accessibilityLabel={`${produto.nome}, oferta ${precoOferta}`}
                 >
                   <View style={styles.areaImagem}>
                     {imagem ? (
@@ -327,11 +291,10 @@ export default function ProdutosEmpresa() {
                     ) : (
                       <View style={styles.imagemVazia}>
                         <Ionicons
-                          name="cube-outline"
+                          name="pricetag-outline"
                           size={37}
                           color={VERDE}
                         />
-
                         <Text style={styles.textoImagemVazia}>
                           Sem foto
                         </Text>
@@ -348,49 +311,30 @@ export default function ProdutosEmpresa() {
                     </Text>
 
                     {produto.unidade ? (
-                      <Text
-                        style={styles.unidade}
-                        numberOfLines={1}
-                      >
+                      <Text style={styles.unidade} numberOfLines={1}>
                         {produto.unidade}
                       </Text>
                     ) : null}
 
-                    {temOferta ? (
-                      <View style={styles.linhaPrecos}>
-                        <Text style={styles.precoRiscado}>
-                          {preco}
-                        </Text>
-
-                        <Text style={styles.precoProduto}>
-                          {produto.precoOferta!.toLocaleString(
-                            'pt-BR',
-                            {
-                              style: 'currency',
-                              currency: 'BRL',
-                            }
-                          )}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.precoProduto}>
-                        {preco}
+                    <View style={styles.linhaPrecos}>
+                      <Text style={styles.precoRiscado}>
+                        {precoOriginal}
                       </Text>
-                    )}
+                      <Text style={styles.precoProduto}>
+                        {precoOferta}
+                      </Text>
+                    </View>
 
-                    {temOferta && (
-                      <View style={styles.seloOferta}>
-                        <Ionicons
-                          name="pricetag"
-                          size={12}
-                          color={VERDE_ESCURO}
-                        />
-
-                        <Text style={styles.textoOferta}>
-                          Em oferta
-                        </Text>
-                      </View>
-                    )}
+                    <View style={styles.seloOferta}>
+                      <Ionicons
+                        name="pricetag"
+                        size={12}
+                        color={VERDE_ESCURO}
+                      />
+                      <Text style={styles.textoOferta}>
+                        Em oferta
+                      </Text>
+                    </View>
                   </View>
 
                   <Ionicons
@@ -404,7 +348,7 @@ export default function ProdutosEmpresa() {
                   style={styles.botaoExcluir}
                   onPress={() => confirmarExclusao(produto)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Excluir ${produto.nome}`}
+                  accessibilityLabel={`Excluir oferta de ${produto.nome}`}
                   hitSlop={6}
                 >
                   <Ionicons
@@ -421,7 +365,7 @@ export default function ProdutosEmpresa() {
             <View style={styles.estadoVazio}>
               <View style={styles.iconeVazio}>
                 <Ionicons
-                  name="search-outline"
+                  name="pricetag-outline"
                   size={34}
                   color={VERDE}
                 />
@@ -429,31 +373,24 @@ export default function ProdutosEmpresa() {
 
               <Text style={styles.tituloVazio}>
                 {busca.trim()
-                  ? 'Nenhum produto encontrado'
-                  : 'Seu catálogo está vazio'}
+                  ? 'Nenhuma oferta encontrada'
+                  : 'Você ainda não tem ofertas'}
               </Text>
 
               <Text style={styles.textoVazio}>
                 {busca.trim()
                   ? 'Tente pesquisar com outro nome.'
-                  : 'Adicione seu primeiro produto para começar.'}
+                  : 'Crie uma promoção para ela aparecer aqui.'}
               </Text>
 
               {!busca.trim() && (
                 <Pressable
                   style={styles.botaoVazio}
-                  onPress={() =>
-                    router.push('/produtoempresa' as any)
-                  }
+                  onPress={() => router.push('/novaoferta' as any)}
                 >
-                  <Ionicons
-                    name="add"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
                   <Text style={styles.textoBotaoVazio}>
-                    Adicionar produto
+                    Criar oferta
                   </Text>
                 </Pressable>
               )}
@@ -464,74 +401,29 @@ export default function ProdutosEmpresa() {
         </ScrollView>
       </View>
 
-      {/* RODAPÉ VERDE COM CARRINHO CENTRAL */}
-      <View style={styles.rodape}>
-        <View style={styles.navegacao}>
+      {/* RODAPÉ IGUAL AO DA TELA INICIAL */}
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
           <Pressable
-            style={styles.itemNav}
+            hitSlop={10}
+            style={styles.botaoNavegacao}
             onPress={() => router.push('/homeempresa' as any)}
             accessibilityRole="button"
             accessibilityLabel="Início"
           >
-            <Ionicons
-              name="home-outline"
-              size={23}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoNav}>
-              Início
-            </Text>
-          </Pressable>
-
-          <View style={styles.itemNav}>
-            <Ionicons
-              name="cube"
-              size={23}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoAtivo}>
-              Produtos
-            </Text>
-
-            <View style={styles.indicadorAtivo} />
-          </View>
-
-    
-
-          <Pressable
-            style={styles.itemNav}
-            onPress={() => router.push('/ofertaempresa' as any)}
-            accessibilityRole="button"
-            accessibilityLabel="Ofertas"
-          >
-            <Ionicons
-              name="pricetag-outline"
-              size={23}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoNav}>
-              Ofertas
-            </Text>
+            <Ionicons name="home" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Início</Text>
           </Pressable>
 
           <Pressable
-            style={styles.itemNav}
+            hitSlop={10}
+            style={styles.botaoNavegacao}
             onPress={() => router.push('/perfilempresa' as any)}
             accessibilityRole="button"
             accessibilityLabel="Perfil"
           >
-            <Ionicons
-              name="person-outline"
-              size={23}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoNav}>
-              Perfil
-            </Text>
+            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -545,69 +437,39 @@ const styles = StyleSheet.create({
     backgroundColor: FUNDO,
   },
 
-  // CABEÇALHO: MESMA ESTRUTURA, COR VERDE
   cabecalho: {
     backgroundColor: VERDE,
-    paddingTop: 25,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     flexShrink: 0,
   },
 
-  botaoVoltar: {
-    width: 43,
-    height: 43,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.17)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  cabecalhoTexto: {
+    flexShrink: 1,
   },
 
-  titulos: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  titulo: {
-    fontSize: 24,
+  boasVindas: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
 
   subtitulo: {
-    fontSize: 13,
+    fontSize: 16,
     color: '#E7F2E9',
     marginTop: 5,
   },
 
-  contador: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 53,
-    paddingVertical: 8,
-    paddingHorizontal: 7,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.17)',
-  },
-
-  contadorNumero: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  textoCabecalho: {
+    fontSize: 14,
     color: '#FFFFFF',
+    marginTop: 20,
+    opacity: 0.95,
   },
 
-  contadorTexto: {
-    fontSize: 9,
-    color: '#E2EFE5',
-    marginTop: 2,
-  },
-
-  // CONTEÚDO
   conteudo: {
     flex: 1,
     minHeight: 0,
@@ -680,10 +542,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: VERDE,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 3,
@@ -710,10 +569,7 @@ const styles = StyleSheet.create({
     gap: 13,
     minHeight: 116,
     shadowColor: '#244D32',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 2,
@@ -885,62 +741,37 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // ÁREA EXTERNA DO RODAPÉ
-  rodape: {
+  barraContainer: {
+    height: 78,
+    position: 'relative',
     backgroundColor: FUNDO,
-    paddingTop: 8,
-    flexShrink: 0,
   },
 
-  // BARRA VERDE DO RODAPÉ
-  navegacao: {
-    height: 67,
-    backgroundColor: VERDE,
+  barra: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    backgroundColor: VERDE,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    paddingHorizontal: 5,
+    height: 67,
+    paddingHorizontal: 45,
   },
 
-  itemNav: {
+  botaoNavegacao: {
     flex: 1,
-    minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
 
-  textoNav: {
-    fontSize: 10,
+  textoNavegacao: {
+    fontSize: 11,
     color: '#FFFFFF',
-  },
-
-  textoAtivo: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-
-  indicadorAtivo: {
-    width: 21,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
-  },
-
-  // BOTÃO CENTRAL DO CARRINHO
-  botaoCarrinho: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: VERDE_ESCURO,
-    borderWidth: 4,
-    borderColor: FUNDO,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -24,
+    fontWeight: '600',
   },
 });

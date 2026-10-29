@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -20,7 +21,7 @@ import { useRouter } from 'expo-router';
 import { useAutenticacao } from '../components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
-const VERDE = '#3D8054';
+const VERDE = '#41805a';
 const VERDE_ESCURO = '#245D39';
 const VERDE_CLARO = '#EAF4EC';
 const FUNDO = '#F7F9F7';
@@ -152,7 +153,7 @@ export default function NovoProduto() {
     }, TEMPO_TELA_SUCESSO);
 
     return () => clearTimeout(temporizador);
-  }, [sucesso]);
+  }, [sucesso, router]);
 
   async function salvar() {
     setTentouSalvar(true);
@@ -269,7 +270,9 @@ export default function NovoProduto() {
           />
         </View>
 
-        <Text style={styles.textoSucesso}>Produto cadastrado!</Text>
+        <Text style={styles.textoSucesso}>
+          Produto cadastrado!
+        </Text>
       </View>
     );
   }
@@ -282,22 +285,25 @@ export default function NovoProduto() {
     <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={VERDE_ESCURO}
+        backgroundColor={VERDE}
       />
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
+        {/* CABEÇALHO IGUAL AO DE MEUS PRODUTOS */}
         <View style={styles.cabecalho}>
           <TouchableOpacity
             style={styles.botaoVoltar}
-            onPress={() => router.replace(ROTA_HOME as any)}
+            onPress={() => router.push('/homeempresa' as any)}
             activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar para o início"
           >
             <Ionicons
               name="arrow-back"
-              size={23}
+              size={24}
               color="#FFFFFF"
             />
           </TouchableOpacity>
@@ -496,29 +502,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
+  // CABEÇALHO NO MESMO PADRÃO DE MEUS PRODUTOS
   cabecalho: {
-    backgroundColor: VERDE_ESCURO,
+    backgroundColor: VERDE,
+    paddingTop: 25,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 27,
-    borderBottomRightRadius: 27,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 13,
+    flexShrink: 0,
   },
 
   botaoVoltar: {
     width: 43,
     height: 43,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.17)',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   textosCabecalho: {
     flex: 1,
+    minWidth: 0,
   },
 
   tituloCabecalho: {
@@ -529,8 +538,8 @@ const styles = StyleSheet.create({
 
   subtituloCabecalho: {
     fontSize: 13,
-    color: '#D9E9DD',
-    marginTop: 4,
+    color: '#E7F2E9',
+    marginTop: 5,
   },
 
   conteudo: {

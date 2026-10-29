@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -21,7 +22,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAutenticacao } from '../components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
-const VERDE = '#3D8054';
+const VERDE = '#41805a';
 const VERDE_ESCURO = '#245D39';
 const VERDE_CLARO = '#EAF4EC';
 const FUNDO = '#F7F9F7';
@@ -31,15 +32,9 @@ const CHAVE_PRODUTOS = 'produtos';
 const TEMPO_TELA_SUCESSO = 2000;
 const ROTA_HOME = '/homeempresa';
 
-/* ---------- Funções de preço ---------- */
-
-// Máscara de digitação: "150" -> "R$ 1,50"
 function formatarMoeda(valor: string) {
   const numeros = valor.replace(/\D/g, '');
-
-  if (!numeros) {
-    return '';
-  }
+  if (!numeros) return '';
 
   return `R$ ${(Number(numeros) / 100).toLocaleString('pt-BR', {
     minimumFractionDigits: 2,
@@ -47,13 +42,11 @@ function formatarMoeda(valor: string) {
   })}`;
 }
 
-// "R$ 1,50" -> 1.5
 function converterPreco(valor: string) {
   const numeros = valor.replace(/\D/g, '');
   return Number(numeros) / 100;
 }
 
-// 1.5 -> "R$ 1,50"
 function numeroParaMoeda(valor: number) {
   return valor.toLocaleString('pt-BR', {
     style: 'currency',
@@ -62,9 +55,7 @@ function numeroParaMoeda(valor: number) {
 }
 
 function produtoValido(valor: unknown): valor is Produto {
-  if (!valor || typeof valor !== 'object') {
-    return false;
-  }
+  if (!valor || typeof valor !== 'object') return false;
 
   const produto = valor as Produto;
 
@@ -74,8 +65,6 @@ function produtoValido(valor: unknown): valor is Produto {
     typeof produto.preco === 'number'
   );
 }
-
-/* ---------- Campo de texto ---------- */
 
 type CampoProps = {
   titulo: string;
@@ -109,12 +98,11 @@ function Campo({
         <TextInput
           style={[
             styles.input,
-            Platform.OS === 'web' &&
-              ({
-                outlineStyle: 'none',
-                outlineWidth: 0,
-                boxShadow: 'none',
-              } as any),
+            Platform.OS === 'web' && ({
+              outlineStyle: 'none',
+              outlineWidth: 0,
+              boxShadow: 'none',
+            } as any),
           ]}
           placeholder={placeholder}
           placeholderTextColor="#9AA49C"
@@ -130,12 +118,8 @@ function Campo({
   );
 }
 
-/* ---------- Tela ---------- */
-
 export default function NovaOferta() {
   const router = useRouter();
-
-  // Se vier /novaoferta?id=3, já abre com esse produto escolhido.
   const { id: idParam } = useLocalSearchParams<{ id?: string }>();
 
   const { usuario, carregando, autorizado } =
@@ -151,8 +135,6 @@ export default function NovaOferta() {
   const [salvando, setSalvando] = useState(false);
   const [tentouSalvar, setTentouSalvar] = useState(false);
   const [sucesso, setSucesso] = useState(false);
-
-  /* ----- Carregar produtos (os da empresa são filtrados abaixo) ----- */
 
   useFocusEffect(
     useCallback(() => {
@@ -171,19 +153,13 @@ export default function NovaOferta() {
             }
           }
 
-          if (ativo) {
-            setTodos(lista);
-          }
+          if (ativo) setTodos(lista);
         } catch (erro) {
           console.error('Erro ao carregar produtos:', erro);
 
-          if (ativo) {
-            setTodos(Dados().produtos);
-          }
+          if (ativo) setTodos(Dados().produtos);
         } finally {
-          if (ativo) {
-            setCarregandoLista(false);
-          }
+          if (ativo) setCarregandoLista(false);
         }
       }
 
@@ -217,13 +193,10 @@ export default function NovaOferta() {
     (produto) => String(produto.id) === String(selecionadoId),
   );
 
-  /* ----- Seleção ----- */
-
   function selecionarProduto(produto: Produto) {
     setSelecionadoId(String(produto.id));
     setTentouSalvar(false);
 
-    // Se já tem oferta, mostra o preço atual da oferta para editar.
     setPrecoOferta(
       produto.oferta === true && typeof produto.precoOferta === 'number'
         ? numeroParaMoeda(produto.precoOferta)
@@ -231,22 +204,15 @@ export default function NovaOferta() {
     );
   }
 
-  // Abre já com o produto vindo da URL.
   useEffect(() => {
-    if (!idParam || selecionadoId !== null) {
-      return;
-    }
+    if (!idParam || selecionadoId !== null) return;
 
     const produto = produtosEmpresa.find(
       (item) => String(item.id) === String(idParam),
     );
 
-    if (produto) {
-      selecionarProduto(produto);
-    }
-  }, [idParam, produtosEmpresa]);
-
-  /* ----- Validação ----- */
+    if (produto) selecionarProduto(produto);
+  }, [idParam, produtosEmpresa, selecionadoId]);
 
   const precoOfertaNumerico = converterPreco(precoOferta);
 
@@ -272,12 +238,8 @@ export default function NovaOferta() {
     }
   }
 
-  /* ----- Tela de sucesso ----- */
-
   useEffect(() => {
-    if (!sucesso) {
-      return;
-    }
+    if (!sucesso) return;
 
     const temporizador = setTimeout(() => {
       setSucesso(false);
@@ -285,16 +247,12 @@ export default function NovaOferta() {
     }, TEMPO_TELA_SUCESSO);
 
     return () => clearTimeout(temporizador);
-  }, [sucesso]);
-
-  /* ----- Salvar: só altera o produto que já existe ----- */
+  }, [sucesso, router]);
 
   async function salvar() {
     setTentouSalvar(true);
 
-    if (!podeSalvar || !produtoSelecionado) {
-      return;
-    }
+    if (!podeSalvar || !produtoSelecionado) return;
 
     setSalvando(true);
 
@@ -313,7 +271,7 @@ export default function NovaOferta() {
       const listaAtualizada = lista.map((produto) =>
         String(produto.id) === String(produtoSelecionado.id)
           ? {
-              ...produto, // preço original continua intacto em "preco"
+              ...produto,
               oferta: true,
               precoOferta: precoOfertaNumerico,
             }
@@ -356,13 +314,11 @@ export default function NovaOferta() {
     );
   }
 
-  if (carregando || !autorizado) {
-    return null;
-  }
+  if (carregando || !autorizado) return null;
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={VERDE_ESCURO} />
+      <StatusBar barStyle="light-content" backgroundColor={VERDE} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -371,15 +327,16 @@ export default function NovaOferta() {
         <View style={styles.cabecalho}>
           <TouchableOpacity
             style={styles.botaoVoltar}
-            onPress={() => router.replace(ROTA_HOME as any)}
+            onPress={() => router.push(ROTA_HOME as any)}
             activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar para o início"
           >
-            <Ionicons name="arrow-back" size={23} color="#FFFFFF" />
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <View style={styles.textosCabecalho}>
             <Text style={styles.tituloCabecalho}>Nova oferta</Text>
-
             <Text style={styles.subtituloCabecalho}>
               Coloque um produto seu em promoção
             </Text>
@@ -473,9 +430,7 @@ export default function NovaOferta() {
                           {numeroParaMoeda(produto.preco)}
                           {produto.oferta === true &&
                           typeof produto.precoOferta === 'number'
-                            ? `  •  oferta ${numeroParaMoeda(
-                                produto.precoOferta,
-                              )}`
+                            ? `  •  oferta ${numeroParaMoeda(produto.precoOferta)}`
                             : ''}
                         </Text>
                       </View>
@@ -532,7 +487,6 @@ export default function NovaOferta() {
                     size={20}
                     color="#B3261E"
                   />
-
                   <Text style={styles.textoAvisoErro}>{mensagemErro}</Text>
                 </View>
               )}
@@ -555,7 +509,6 @@ export default function NovaOferta() {
                       size={21}
                       color="#FFFFFF"
                     />
-
                     <Text style={styles.textoBotaoSalvar}>Criar oferta</Text>
                   </>
                 )}
@@ -570,7 +523,6 @@ export default function NovaOferta() {
                 size={20}
                 color="#B3261E"
               />
-
               <Text style={styles.textoAvisoErro}>
                 Escolha o produto que entrará em oferta.
               </Text>
@@ -586,7 +538,6 @@ export default function NovaOferta() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-
   container: { flex: 1, backgroundColor: FUNDO },
 
   telaSucesso: {
@@ -596,7 +547,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 22,
   },
-
   circuloSucesso: {
     width: 110,
     height: 110,
@@ -605,42 +555,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  textoSucesso: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF' },
-
-  cabecalho: {
-    backgroundColor: VERDE_ESCURO,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 27,
-    borderBottomRightRadius: 27,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+  textoSucesso: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
 
+  cabecalho: {
+    backgroundColor: VERDE,
+    paddingTop: 25,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    flexShrink: 0,
+  },
   botaoVoltar: {
     width: 43,
     height: 43,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.17)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  textosCabecalho: { flex: 1 },
-
-  tituloCabecalho: { fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' },
-
-  subtituloCabecalho: { fontSize: 13, color: '#D9E9DD', marginTop: 4 },
+  textosCabecalho: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tituloCabecalho: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  subtituloCabecalho: {
+    fontSize: 13,
+    color: '#E7F2E9',
+    marginTop: 5,
+  },
 
   conteudo: {
     paddingHorizontal: 18,
     paddingTop: 20,
     paddingBottom: 20,
   },
-
   cartaoFormulario: {
     backgroundColor: '#FFFFFF',
     borderRadius: 21,
@@ -648,11 +608,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E7ECE8',
   },
-
   cartaoSeguinte: { marginTop: 16 },
-
-  tituloFormulario: { fontSize: 19, fontWeight: 'bold', color: VERDE_ESCURO },
-
+  tituloFormulario: {
+    fontSize: 19,
+    fontWeight: 'bold',
+    color: VERDE_ESCURO,
+  },
   textoFormulario: {
     fontSize: 12,
     color: CINZA,
@@ -660,11 +621,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 18,
   },
-
   grupoCampo: { marginBottom: 19 },
-
-  rotulo: { fontSize: 13, fontWeight: '600', color: TEXTO, marginBottom: 9 },
-
+  rotulo: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXTO,
+    marginBottom: 9,
+  },
   caixaCampo: {
     minHeight: 51,
     borderRadius: 14,
@@ -675,9 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 13,
   },
-
   iconeCampo: { marginRight: 10 },
-
   input: {
     flex: 1,
     minWidth: 0,
@@ -689,13 +650,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
   },
-
   carregando: { marginVertical: 20 },
-
-  vazio: { alignItems: 'center', gap: 10, paddingVertical: 18 },
-
-  vazioTexto: { fontSize: 13, color: CINZA, textAlign: 'center' },
-
+  vazio: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 18,
+  },
+  vazioTexto: {
+    fontSize: 13,
+    color: CINZA,
+    textAlign: 'center',
+  },
   botaoCadastrarProduto: {
     minHeight: 46,
     borderRadius: 13,
@@ -705,9 +670,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 6,
   },
-
   listaProdutos: { gap: 10 },
-
   itemProduto: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -718,12 +681,10 @@ const styles = StyleSheet.create({
     borderColor: '#E1E9E2',
     backgroundColor: '#FBFCFB',
   },
-
   itemProdutoSelecionado: {
     borderColor: VERDE,
     backgroundColor: VERDE_CLARO,
   },
-
   itemImagem: {
     width: 52,
     height: 52,
@@ -733,15 +694,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-
   itemFoto: { width: '100%', height: '100%' },
-
   itemInfo: { flex: 1 },
-
-  itemNome: { fontSize: 14, fontWeight: '700', color: TEXTO },
-
-  itemPreco: { fontSize: 12, color: CINZA, marginTop: 3 },
-
+  itemNome: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TEXTO,
+  },
+  itemPreco: {
+    fontSize: 12,
+    color: CINZA,
+    marginTop: 3,
+  },
   previa: {
     backgroundColor: VERDE_CLARO,
     borderRadius: 15,
@@ -749,19 +713,26 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 20,
   },
-
-  previaRotulo: { fontSize: 12, color: CINZA, marginBottom: 6 },
-
-  previaPrecos: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
-
+  previaRotulo: {
+    fontSize: 12,
+    color: CINZA,
+    marginBottom: 6,
+  },
+  previaPrecos: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
+  },
   precoRiscado: {
     fontSize: 15,
     color: '#8A938C',
     textDecorationLine: 'line-through',
   },
-
-  precoPromo: { fontSize: 24, fontWeight: '800', color: VERDE_ESCURO },
-
+  precoPromo: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+  },
   avisoErro: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -774,14 +745,12 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     marginBottom: 14,
   },
-
   textoAvisoErro: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: '#B3261E',
   },
-
   botaoSalvar: {
     minHeight: 53,
     borderRadius: 15,
@@ -797,10 +766,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-
   botaoDesabilitado: { opacity: 0.65 },
-
-  textoBotaoSalvar: { fontSize: 15, fontWeight: 'bold', color: '#FFFFFF' },
-
+  textoBotaoSalvar: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
   espacoFinal: { height: 20 },
 });
