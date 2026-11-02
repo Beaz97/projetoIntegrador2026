@@ -513,16 +513,11 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // BARRA INFERIOR FIXA
-  barraInferior: {
-    minHeight: 70,
-    backgroundColor: VERDE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    flexShrink: 0,
+  // RODAPÉ IGUAL AO PERFIL
+  barraContainer: {
+    height: 78,
+    position: 'relative',
+    backgroundColor: FUNDO,
   },
 
   itemNavegacao: {

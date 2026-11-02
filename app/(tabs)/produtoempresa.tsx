@@ -439,40 +439,20 @@ export default function ProdutosEmpresa() {
           <Text style={styles.textoNav}>Início</Text>
         </Pressable>
 
-        <View style={styles.itemNav}>
-          <Ionicons
-            name="cube"
-            size={23}
-            color="#FFFFFF"
-          />
-          <Text style={styles.textoAtivo}>Produtos</Text>
-
-          <View style={styles.indicadorAtivo} />
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.botaoPressionado,
+            ]}
+            onPress={() => router.push('/perfilempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Perfil</Text>
+          </Pressable>
         </View>
-
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push('/ofertaempresa' as any)}
-        >
-          <Ionicons
-            name="pricetag-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Ofertas</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push('/perfilempresa' as any)}
-        >
-          <Ionicons
-            name="person-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Perfil</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -814,17 +794,11 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  navegacao: {
-    minHeight: 73,
-    backgroundColor: VERDE,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    paddingHorizontal: 5,
-    paddingTop: 5,
-    paddingBottom: 5,
+  // RODAPÉ IGUAL AO HOME
+  barraContainer: {
+    height: 78,
+    position: 'relative',
+    backgroundColor: '#F7F9F7',
     flexShrink: 0,
   },
 
