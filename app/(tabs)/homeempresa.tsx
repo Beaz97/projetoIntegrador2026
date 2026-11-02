@@ -1,4 +1,3 @@
-
 import React, { useCallback, useState } from 'react';
 import {
   Alert,
@@ -275,48 +274,50 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* NAVEGAÇÃO INFERIOR FIXA */}
-      <View style={styles.barraInferior}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.itemNavegacao,
-            pressed && styles.itemPressionado,
-          ]}
-          onPress={() => router.push('/home' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Início"
-        >
-          <Ionicons
-            name="home"
-            size={24}
-            color="#FFFFFF"
-          />
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.itemNavegacao,
+              pressed && styles.itemPressionado,
+            ]}
+            onPress={() => router.push('/homeempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Início"
+          >
+            <Ionicons
+              name="home"
+              size={24}
+              color="#FFFFFF"
+            />
 
-          <Text style={styles.textoNavegacaoAtivo}>
-            Início
-          </Text>
+            <Text style={styles.textoNavegacaoAtivo}>
+              Início
+            </Text>
 
-          <View style={styles.indicadorAtivo} />
-        </Pressable>
+            <View style={styles.indicadorAtivo} />
+          </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.itemNavegacao,
-            pressed && styles.itemPressionado,
-          ]}
-          onPress={() => router.push('/perfilempresa' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Perfil"
-        >
-          <Ionicons
-            name="person-outline"
-            size={24}
-            color="#D9E9DD"
-          />
+          <Pressable
+            style={({ pressed }) => [
+              styles.itemNavegacao,
+              pressed && styles.itemPressionado,
+            ]}
+            onPress={() => router.push('/perfilempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons
+              name="person-outline"
+              size={24}
+              color="#D9E9DD"
+            />
 
-          <Text style={styles.textoNavegacao}>
-            Perfil
-          </Text>
-        </Pressable>
+            <Text style={styles.textoNavegacao}>
+              Perfil
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -513,11 +514,24 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // RODAPÉ IGUAL AO PERFIL
+  // RODAPÉ COM BORDAS ARREDONDADAS
   barraContainer: {
     height: 78,
-    position: 'relative',
     backgroundColor: FUNDO,
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  },
+
+  barra: {
+    height: 70,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: VERDE,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    overflow: 'hidden',
   },
 
   itemNavegacao: {

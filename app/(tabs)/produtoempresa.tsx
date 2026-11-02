@@ -426,7 +426,7 @@ export default function ProdutosEmpresa() {
         </ScrollView>
       </View>
 
-      <View style={styles.navegacao}>
+           <View style={styles.navegacao}>
         <Pressable
           style={styles.itemNav}
           onPress={() => router.push('/homeempresa' as any)}
@@ -439,20 +439,20 @@ export default function ProdutosEmpresa() {
           <Text style={styles.textoNav}>Início</Text>
         </Pressable>
 
-          <Pressable
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.botaoNavegacao,
-              pressed && styles.botaoPressionado,
-            ]}
-            onPress={() => router.push('/perfilempresa' as any)}
-            accessibilityRole="button"
-            accessibilityLabel="Perfil"
-          >
-            <Ionicons name="person" size={27} color="#FFFFFF" />
-            <Text style={styles.textoNavegacao}>Perfil</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          hitSlop={10}
+          style={styles.itemNav}
+          onPress={() => router.push('/perfilempresa' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Perfil"
+        >
+          <Ionicons
+            name="person-outline"
+            size={23}
+            color="#D9E9DD"
+          />
+          <Text style={styles.textoNav}>Perfil</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -801,7 +801,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F9F7',
     flexShrink: 0,
   },
-
+  navegacao: {
+    height: 75,
+    backgroundColor: VERDE,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    flexShrink: 0,
+  },
   itemNav: {
     flex: 1,
     minWidth: 0,

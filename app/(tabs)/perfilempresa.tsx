@@ -851,25 +851,22 @@ const styles = StyleSheet.create({
     color: VERDE_ESCURO,
   },
 
-  barraContainer: {
-    height: 78,
-    position: 'relative',
-    backgroundColor: FUNDO,
-  },
-
-  barra: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: VERDE,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    height: 70,
-  },
+    barraContainer: {
+  height: 78,
+  backgroundColor: FUNDO,
+  justifyContent: 'flex-end',
+},
+barra: {
+  height: 70,
+  width: '100%',
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  backgroundColor: VERDE,
+  borderTopLeftRadius: 25,
+  borderTopRightRadius: 25,
+  overflow: 'hidden',
+},
 
   botaoNavegacao: {
     flex: 1,
