@@ -14,8 +14,13 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  useFocusEffect,
+  useRouter,
+  useLocalSearchParams,
+} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
@@ -41,16 +46,26 @@ function produtoValido(valor: unknown): valor is Produto {
 
 export default function ProdutosEmpresa() {
   const router = useRouter();
+  const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { width } = useWindowDimensions();
 
   const { usuario, carregando, autorizado } =
     useAutenticacao('empresa');
 
-const dados = useMemo(() => Dados(), []);
-const produtosIniciais = dados.produtos;
+  const dados = useMemo(() => Dados(), []);
+  const produtosIniciais = dados.produtos;
 
   const [busca, setBusca] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>(produtosIniciais);
+
+  // VOLTAR PARA A TELA DE ONDE VEIO
+  function voltar() {
+    if (origem === 'perfil') {
+      router.replace('/perfilempresa' as any);
+    } else {
+      router.replace('/homeempresa' as any);
+    }
+  }
 
   const carregarProdutos = useCallback(async () => {
     try {
@@ -100,6 +115,7 @@ const produtosIniciais = dados.produtos;
         CHAVE_PRODUTOS,
         JSON.stringify(produtosAtualizados),
       );
+
       setProdutos(produtosAtualizados);
     } catch (erro) {
       console.error('Erro ao excluir produto:', erro);
@@ -145,9 +161,9 @@ const produtosIniciais = dados.produtos;
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
-          onPress={() => router.back()}
+          onPress={voltar}
           accessibilityRole="button"
-          accessibilityLabel="Voltar para o início"
+          accessibilityLabel="Voltar para a tela anterior"
         >
           <Ionicons
             name="arrow-back"
@@ -823,7 +839,7 @@ const styles = StyleSheet.create({
 
   textoNav: {
     fontSize: 10,
-    color: '#D9E9DD', 
+    color: '#D9E9DD',
   },
 
   textoAtivo: {

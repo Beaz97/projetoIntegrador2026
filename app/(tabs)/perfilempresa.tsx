@@ -1,4 +1,6 @@
 
+import React, { useCallback, useState } from 'react';
+
 import {
   View,
   Text,
@@ -7,15 +9,16 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { useCallback, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 
 const VERDE = '#41805a';
 const VERDE_ESCURO = '#245D39';
 const VERDE_CLARO = '#E5F1E8';
+const FUNDO = '#F7F9F7';
 
 const CHAVE_USUARIOS = '@banco_usuarios';
 const CHAVE_USUARIO_LOGADO = '@usuario_logado';
@@ -30,7 +33,6 @@ export default function PerfilEmpresa() {
   const router = useRouter();
 
   const [nomeEmpresa, setNomeEmpresa] = useState('');
-  const [emailEmpresa, setEmailEmpresa] = useState('');
   const [enderecoEmpresa, setEnderecoEmpresa] = useState('');
 
   const { usuario, carregando, autorizado } =
@@ -39,12 +41,11 @@ export default function PerfilEmpresa() {
   const carregarDadosEmpresa = useCallback(async () => {
     try {
       const usuarioTexto = await AsyncStorage.getItem(
-        CHAVE_USUARIO_LOGADO
+        CHAVE_USUARIO_LOGADO,
       );
 
       if (!usuarioTexto) {
         setNomeEmpresa('');
-        setEmailEmpresa('');
         setEnderecoEmpresa('');
         return;
       }
@@ -53,7 +54,7 @@ export default function PerfilEmpresa() {
       let empresaAtualizada = usuarioSalvo;
 
       const usuariosTexto = await AsyncStorage.getItem(
-        CHAVE_USUARIOS
+        CHAVE_USUARIOS,
       );
 
       if (usuariosTexto) {
@@ -72,8 +73,12 @@ export default function PerfilEmpresa() {
 
             return Boolean(
               usuarioSalvo.email &&
-              u.email?.trim().toLowerCase() ===
-                usuarioSalvo.email.trim().toLowerCase()
+                String(u.email ?? '')
+                  .trim()
+                  .toLowerCase() ===
+                  String(usuarioSalvo.email)
+                    .trim()
+                    .toLowerCase(),
             );
           });
 
@@ -88,14 +93,19 @@ export default function PerfilEmpresa() {
           empresaAtualizada.nome ||
           usuarioSalvo.nomeEmpresa ||
           usuarioSalvo.nome ||
-          ''
+          '',
       );
 
-      setEmailEmpresa(
-        empresaAtualizada.email ||
-          usuarioSalvo.email ||
-          ''
-      );
+      const identificador =
+        empresaAtualizada.id != null
+          ? String(empresaAtualizada.id)
+          : String(
+              empresaAtualizada.email ||
+                usuarioSalvo.email ||
+                '',
+            )
+              .trim()
+              .toLowerCase();
 
       let enderecoEncontrado =
         empresaAtualizada.enderecoCompleto ||
@@ -104,38 +114,23 @@ export default function PerfilEmpresa() {
         usuarioSalvo.endereco ||
         '';
 
-      const identificador =
-        empresaAtualizada.id != null
-          ? String(empresaAtualizada.id)
-          : (
-              empresaAtualizada.email ||
-              usuarioSalvo.email ||
-              ''
-            ).trim().toLowerCase();
-
       if (identificador) {
         const chaveEnderecos =
           `@enderecos_usuario_${identificador}`;
 
-        const enderecosTexto =
-          await AsyncStorage.getItem(chaveEnderecos);
+        const enderecosTexto = await AsyncStorage.getItem(
+          chaveEnderecos,
+        );
 
-        if (enderecosTexto) {
+        if (enderecosTexto !== null) {
           const enderecos: Endereco[] =
             JSON.parse(enderecosTexto);
 
-          if (
-            Array.isArray(enderecos) &&
-            enderecos.length > 0
-          ) {
-            const principalNaLista = enderecos.find(
-              (item) => item.texto === enderecoEncontrado
-            );
-
-            if (!enderecoEncontrado || !principalNaLista) {
-              enderecoEncontrado =
-                enderecos[0].texto || '';
-            }
+          if (Array.isArray(enderecos)) {
+            enderecoEncontrado =
+              enderecos.length > 0
+                ? enderecos[0].texto || ''
+                : '';
           }
         }
       }
@@ -144,7 +139,7 @@ export default function PerfilEmpresa() {
     } catch (erro) {
       console.error(
         'Erro ao carregar dados da empresa:',
-        erro
+        erro,
       );
     }
   }, []);
@@ -152,7 +147,7 @@ export default function PerfilEmpresa() {
   useFocusEffect(
     useCallback(() => {
       carregarDadosEmpresa();
-    }, [carregarDadosEmpresa])
+    }, [carregarDadosEmpresa]),
   );
 
   if (carregando || !autorizado) {
@@ -166,22 +161,20 @@ export default function PerfilEmpresa() {
     'Minha empresa';
 
   function abrirConfiguracoes() {
-    router.push('/configuracoes' as any);
-  }
+  router.push({
+    pathname: '/configuracoes',
+    params: { origem: 'empresa' },
+  } as any);
+}
 
   function alterarEndereco() {
     router.push({
       pathname: '/configuracoes',
-      params: { tela: 'enderecos' },
+      params: {
+        tela: 'enderecos',
+        origem: 'empresa',
+      },
     } as any);
-  }
-
-  function abrirProdutos() {
-    router.push('/produtosempresa' as any);
-  }
-
-  function abrirOfertas() {
-    router.push('/ofertasempresa' as any);
   }
 
   return (
@@ -230,7 +223,10 @@ export default function PerfilEmpresa() {
             </View>
 
             <View style={styles.informacoesEmpresa}>
-              <Text style={styles.nome} numberOfLines={2}>
+              <Text
+                style={styles.nome}
+                numberOfLines={2}
+              >
                 {nome}
               </Text>
 
@@ -249,103 +245,77 @@ export default function PerfilEmpresa() {
           </View>
         </View>
 
-        {/* CONTEÚDO */}
+        {/* CONTEÚDO DO PERFIL */}
         <View style={styles.conteudoPrincipal}>
           <Text style={styles.tituloSecao}>
             Área da empresa
           </Text>
 
           <Text style={styles.descricaoSecao}>
-            Acesse rapidamente os recursos da sua loja.
+            Confira as informações da sua empresa.
           </Text>
 
-          {/* MEUS PRODUTOS */}
-          <Pressable
-            onPress={() => router.push('/produtoempresa' as any)}
-            style={({ pressed }) => [
-              styles.cartaoInformacao,
-              pressed && styles.botaoPressionado,
-            ]}
-          >
-            <View style={styles.iconeInformacao}>
-              <Ionicons
-                name="cube-outline"
-                size={24}
-                color={VERDE}
-              />
-            </View>
-
-            <View style={styles.textosInformacao}>
-              <Text style={styles.rotuloInformacao}>
-                Meus produtos
-              </Text>
-
-              <Text style={styles.valorInformacao}>
-                Gerencie os produtos da sua loja
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={VERDE}
-            />
-          </Pressable>
-
-          {/* MINHAS OFERTAS */}
-          <Pressable
-            onPress={() => router.push('/ofertaempresa' as any)}
-            style={({ pressed }) => [
-              styles.cartaoInformacao,
-              pressed && styles.botaoPressionado,
-            ]}
-          >
-            <View style={styles.iconeInformacao}>
-              <Ionicons
-                name="pricetag-outline"
-                size={24}
-                color={VERDE}
-              />
-            </View>
-
-            <View style={styles.textosInformacao}>
-              <Text style={styles.rotuloInformacao}>
-                Minhas ofertas
-              </Text>
-
-              <Text style={styles.valorInformacao}>
-                Confira as ofertas cadastradas
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={VERDE}
-            />
-          </Pressable>
-
-          {/* ENDEREÇO */}
+          {/* ENDEREÇO DA EMPRESA */}
           <View style={styles.cartaoEndereco}>
             <View style={styles.enderecoCabecalho}>
-              <View style={styles.iconeInformacao}>
+              <View style={styles.iconeEndereco}>
                 <Ionicons
-                  name="location-outline"
-                  size={24}
+                  name="location"
+                  size={25}
                   color={VERDE}
                 />
               </View>
 
-              <View style={styles.textosInformacao}>
-                <Text style={styles.rotuloInformacao}>
+              <View style={styles.enderecoTitulos}>
+                <Text style={styles.tituloEndereco}>
                   Endereço da empresa
                 </Text>
 
-                <Text style={styles.valorEndereco}>
-                  {enderecoEmpresa ||
-                    'Nenhum endereço cadastrado'}
+                <Text style={styles.subtituloEndereco}>
+                  Localização da sua loja
                 </Text>
               </View>
+            </View>
+
+            <View style={styles.enderecoConteudo}>
+              {enderecoEmpresa ? (
+                <>
+                  <View style={styles.enderecoStatus}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={16}
+                      color={VERDE}
+                    />
+
+                    <Text style={styles.enderecoStatusTexto}>
+                      Endereço cadastrado
+                    </Text>
+                  </View>
+
+                  <Text style={styles.valorEndereco}>
+                    {enderecoEmpresa}
+                  </Text>
+                </>
+              ) : (
+                <View style={styles.enderecoVazio}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={21}
+                    color={VERDE}
+                  />
+
+                  <View style={styles.enderecoVazioTextos}>
+                    <Text style={styles.enderecoVazioTitulo}>
+                      Nenhum endereço cadastrado
+                    </Text>
+
+                    <Text style={styles.enderecoVazioDescricao}>
+                      Adicione o endereço para manter os dados
+                      da sua empresa atualizados.
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             <Pressable
@@ -356,35 +326,112 @@ export default function PerfilEmpresa() {
               ]}
             >
               <Ionicons
-                name="create-outline"
-                size={18}
+                name={
+                  enderecoEmpresa
+                    ? 'create-outline'
+                    : 'add-circle-outline'
+                }
+                size={19}
                 color="#FFFFFF"
               />
 
               <Text style={styles.textoBotaoEndereco}>
-                Alterar endereço
+                {enderecoEmpresa
+                  ? 'Alterar endereço'
+                  : 'Cadastrar endereço'}
               </Text>
+
+              <Ionicons
+                name="arrow-forward"
+                size={17}
+                color="#FFFFFF"
+              />
             </Pressable>
           </View>
 
-          {/* DICA */}
-          <View style={styles.cartaoDica}>
-            <View style={styles.dicaIcone}>
-              <Ionicons
-                name="leaf-outline"
-                size={26}
-                color={VERDE}
-              />
+          {/* ODS 12 — CONSUMO E PRODUÇÃO RESPONSÁVEIS */}
+          <View style={styles.cartaoODS}>
+            <View style={styles.odsCabecalho}>
+              <View style={styles.odsIcone}>
+                <Ionicons
+                  name="leaf-outline"
+                  size={27}
+                  color={VERDE}
+                />
+              </View>
+
+              <View style={styles.odsTitulos}>
+                <Text style={styles.odsIdentificacao}>
+                  ODS 12
+                </Text>
+
+                <Text style={styles.odsTitulo}>
+                  Consumo e produção responsáveis
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.dicaTextos}>
-              <Text style={styles.dicaTitulo}>
-                Sua empresa no Economize
-              </Text>
+            <Text style={styles.odsDescricao}>
+              O Economize incentiva práticas de consumo mais
+              conscientes, aproximando clientes de ofertas e
+              ajudando na comparação de preços.
+            </Text>
 
-              <Text style={styles.dicaDescricao}>
-                Mantenha seus dados atualizados para que
-                os clientes encontrem sua empresa com mais facilidade.
+            <View style={styles.odsDivisor} />
+
+            <Text style={styles.odsSubtitulo}>
+              Como sua empresa pode contribuir?
+            </Text>
+
+            <View style={styles.odsItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={19}
+                color={VERDE}
+              />
+
+              <Text style={styles.odsItemTexto}>
+                Divulgue ofertas para ajudar os clientes a
+                economizar e planejar suas compras.
+              </Text>
+            </View>
+
+            <View style={styles.odsItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={19}
+                color={VERDE}
+              />
+
+              <Text style={styles.odsItemTexto}>
+                Evite desperdícios e utilize os recursos da
+                sua empresa de forma responsável.
+              </Text>
+            </View>
+
+            <View style={styles.odsItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={19}
+                color={VERDE}
+              />
+
+              <Text style={styles.odsItemTexto}>
+                Mantenha os preços e as informações dos
+                produtos atualizados para os consumidores.
+              </Text>
+            </View>
+
+            <View style={styles.odsRodape}>
+              <Ionicons
+                name="earth-outline"
+                size={17}
+                color={VERDE_ESCURO}
+              />
+
+              <Text style={styles.odsRodapeTexto}>
+                Pequenas atitudes contribuem para um consumo
+                mais responsável.
               </Text>
             </View>
           </View>
@@ -406,7 +453,7 @@ export default function PerfilEmpresa() {
           >
             <Ionicons
               name="home-outline"
-              size={27}
+              size={26}
               color="#FFFFFF"
             />
 
@@ -427,7 +474,7 @@ export default function PerfilEmpresa() {
           >
             <Ionicons
               name="person"
-              size={27}
+              size={26}
               color="#FFFFFF"
             />
 
@@ -438,23 +485,6 @@ export default function PerfilEmpresa() {
             <View style={styles.indicadorAtivo} />
           </Pressable>
         </View>
-        {/*
-        <Pressable
-          style={({ pressed }) => [
-            styles.carrinho,
-            pressed && styles.botaoPressionado,
-          ]}
-          onPress={() =>
-            router.push('/carrinho' as any)
-          }
-        >
-          <Ionicons
-            name="cart-outline"
-            size={31}
-            color="#FFFFFF"
-          />
-        </Pressable>
-         */}
       </View>
     </View>
   );
@@ -463,7 +493,7 @@ export default function PerfilEmpresa() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F9F7',
+    backgroundColor: FUNDO,
   },
 
   scroll: {
@@ -471,7 +501,7 @@ const styles = StyleSheet.create({
   },
 
   conteudo: {
-    paddingBottom: 22,
+    paddingBottom: 24,
   },
 
   cabecalho: {
@@ -583,52 +613,21 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  cartaoInformacao: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 17,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5ECE6',
-    minHeight: 78,
-  },
-
-  iconeInformacao: {
-    width: 47,
-    height: 47,
-    borderRadius: 14,
-    backgroundColor: VERDE_CLARO,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  textosInformacao: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: 13,
-  },
-
-  rotuloInformacao: {
-    fontSize: 12,
-    color: '#7B837B',
-    marginBottom: 5,
-  },
-
-  valorInformacao: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#26382A',
-  },
-
   cartaoEndereco: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 15,
-    marginBottom: 12,
+    borderRadius: 20,
+    padding: 17,
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: '#E5ECE6',
+    borderColor: '#E1EAE2',
+    shadowColor: '#193D27',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
 
   enderecoCabecalho: {
@@ -636,71 +635,209 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  iconeEndereco: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  enderecoTitulos: {
+    flex: 1,
+    marginLeft: 13,
+  },
+
+  tituloEndereco: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#26382A',
+  },
+
+  subtituloEndereco: {
+    fontSize: 12,
+    color: '#7B837B',
+    marginTop: 4,
+  },
+
+  enderecoConteudo: {
+    backgroundColor: '#F7FAF7',
+    borderRadius: 14,
+    padding: 13,
+    marginTop: 17,
+  },
+
+  enderecoStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+
+  enderecoStatusTexto: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: VERDE_ESCURO,
+  },
+
   valorEndereco: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     fontWeight: '600',
     color: '#26382A',
+  },
+
+  enderecoVazio: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+  },
+
+  enderecoVazioTextos: {
+    flex: 1,
+  },
+
+  enderecoVazioTitulo: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#26382A',
+  },
+
+  enderecoVazioDescricao: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#6F7B71',
+    marginTop: 5,
   },
 
   botaoEndereco: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 9,
     backgroundColor: VERDE,
     borderRadius: 13,
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 15,
-    marginTop: 16,
+    marginTop: 15,
   },
 
   textoBotaoEndereco: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
   },
 
-  cartaoDica: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: VERDE_CLARO,
-    borderRadius: 18,
-    padding: 16,
-    marginTop: 10,
+  cartaoODS: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginTop: 2,
+    borderWidth: 1,
+    borderColor: '#DCE9DE',
+    shadowColor: '#193D27',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
 
-  dicaIcone: {
-    width: 47,
-    height: 47,
-    borderRadius: 15,
-    backgroundColor: '#FFFFFF',
+  odsCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  odsIcone: {
+    width: 52,
+    height: 52,
+    borderRadius: 17,
+    backgroundColor: VERDE_CLARO,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  dicaTextos: {
+  odsTitulos: {
     flex: 1,
     marginLeft: 13,
   },
 
-  dicaTitulo: {
+  odsIdentificacao: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: VERDE,
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+
+  odsTitulo: {
     fontSize: 15,
+    lineHeight: 21,
     fontWeight: '800',
     color: VERDE_ESCURO,
   },
 
-  dicaDescricao: {
+  odsDescricao: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#56665A',
+    marginTop: 16,
+  },
+
+  odsDivisor: {
+    height: 1,
+    backgroundColor: '#E5ECE6',
+    marginVertical: 16,
+  },
+
+  odsSubtitulo: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#26382A',
+    marginBottom: 12,
+  },
+
+  odsItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    marginBottom: 12,
+  },
+
+  odsItemTexto: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 19,
+    color: '#526256',
+  },
+
+  odsRodape: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: VERDE_CLARO,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 3,
+  },
+
+  odsRodapeTexto: {
+    flex: 1,
     fontSize: 12,
     lineHeight: 18,
-    color: '#46664D',
-    marginTop: 5,
+    fontWeight: '600',
+    color: VERDE_ESCURO,
   },
 
   barraContainer: {
     height: 78,
     position: 'relative',
-    backgroundColor: '#F7F9F7',
+    backgroundColor: FUNDO,
   },
 
   barra: {
@@ -730,30 +867,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  carrinho: {
-    position: 'absolute',
-    top: -7,
-    left: '50%',
-    marginLeft: -31,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: VERDE,
-    borderWidth: 4,
-    borderColor: '#F7F9F7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  botaoPressionado: {
-    opacity: 0.65,
-  },
-
   indicadorAtivo: {
     width: 24,
     height: 3,
     borderRadius: 3,
     backgroundColor: '#FFFFFF',
     marginTop: 1,
+  },
+
+  botaoPressionado: {
+    opacity: 0.65,
   },
 });
