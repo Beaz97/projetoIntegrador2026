@@ -481,8 +481,6 @@ export default function PerfilEmpresa() {
             <Text style={styles.textoNavegacao}>
               Perfil
             </Text>
-
-            <View style={styles.indicadorAtivo} />
           </Pressable>
         </View>
         {/*

@@ -313,8 +313,6 @@ export default function HomeScreen() {
             <Text style={styles.textoNavegacao}>
               Início
             </Text>
-
-            <View style={styles.indicadorAtivo} />
           </Pressable>
 
           <Pressable
