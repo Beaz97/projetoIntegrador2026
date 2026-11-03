@@ -1,3 +1,4 @@
+
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
@@ -14,18 +15,13 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import {
-  useFocusEffect,
-  useRouter,
-  useLocalSearchParams,
-} from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
-const VERDE = '#3D8054';
-const ESCURO = '#245D39';
+const VERDE = '#41805a';
+const VERDE_ESCURO = '#245D39';
 const FUNDO = '#F7F9F7';
 const CHAVE_PRODUTOS = 'produtos';
 
@@ -46,7 +42,6 @@ function produtoValido(valor: unknown): valor is Produto {
 
 export default function ProdutosEmpresa() {
   const router = useRouter();
-  const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { width } = useWindowDimensions();
 
   const { usuario, carregando, autorizado } =
@@ -56,16 +51,8 @@ export default function ProdutosEmpresa() {
   const produtosIniciais = dados.produtos;
 
   const [busca, setBusca] = useState('');
-  const [produtos, setProdutos] = useState<Produto[]>(produtosIniciais);
-
-  // VOLTAR PARA A TELA DE ONDE VEIO
-  function voltar() {
-    if (origem === 'perfil') {
-      router.replace('/perfilempresa' as any);
-    } else {
-      router.replace('/homeempresa' as any);
-    }
-  }
+  const [produtos, setProdutos] =
+    useState<Produto[]>(produtosIniciais);
 
   const carregarProdutos = useCallback(async () => {
     try {
@@ -82,8 +69,7 @@ export default function ProdutosEmpresa() {
         throw new Error('A lista de produtos armazenada não é válida.');
       }
 
-      const produtosSalvos = parseado.filter(produtoValido);
-      setProdutos(produtosSalvos);
+      setProdutos(parseado.filter(produtoValido));
     } catch (erro) {
       console.error('Erro ao carregar produtos:', erro);
       setProdutos(produtosIniciais);
@@ -92,8 +78,8 @@ export default function ProdutosEmpresa() {
 
   useFocusEffect(
     useCallback(() => {
-      carregarProdutos();
-    }, [carregarProdutos]),
+      void carregarProdutos();
+    }, [carregarProdutos])
   );
 
   async function excluirProduto(produto: Produto) {
@@ -103,27 +89,46 @@ export default function ProdutosEmpresa() {
         ? JSON.parse(conteudo)
         : produtos;
 
-      if (!Array.isArray(parseado) || !parseado.every(produtoValido)) {
+      if (
+        !Array.isArray(parseado) ||
+        !parseado.every(produtoValido)
+      ) {
         throw new Error('A lista de produtos armazenada não é válida.');
       }
 
       const produtosAtualizados = parseado.filter(
-        (item) => String(item.id) !== String(produto.id),
+        (item) => String(item.id) !== String(produto.id)
       );
 
       await AsyncStorage.setItem(
         CHAVE_PRODUTOS,
-        JSON.stringify(produtosAtualizados),
+        JSON.stringify(produtosAtualizados)
       );
 
       setProdutos(produtosAtualizados);
     } catch (erro) {
       console.error('Erro ao excluir produto:', erro);
+
       Alert.alert(
         'Não foi possível excluir',
-        'O produto não foi removido. Tente novamente.',
+        'O produto não foi removido. Tente novamente.'
       );
     }
+  }
+
+  function confirmarExclusao(produto: Produto) {
+    Alert.alert(
+      'Excluir produto',
+      `Deseja realmente excluir "${produto.nome}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => void excluirProduto(produto),
+        },
+      ]
+    );
   }
 
   const produtosDaEmpresa = useMemo(() => {
@@ -132,8 +137,7 @@ export default function ProdutosEmpresa() {
     }
 
     return produtos.filter(
-      (produto) =>
-        String(produto.empresa) === String(usuario.id),
+      (produto) => String(produto.empresa) === String(usuario.id)
     );
   }, [produtos, usuario?.id]);
 
@@ -143,7 +147,7 @@ export default function ProdutosEmpresa() {
     return produtosDaEmpresa.filter((produto) =>
       String(produto.nome ?? '')
         .toLocaleLowerCase('pt-BR')
-        .includes(termo),
+        .includes(termo)
     );
   }, [produtosDaEmpresa, busca]);
 
@@ -153,30 +157,21 @@ export default function ProdutosEmpresa() {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={ESCURO}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={VERDE} />
 
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
-          onPress={voltar}
+          onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Voltar para a tela anterior"
+          accessibilityLabel="Voltar para o início"
         >
-          <Ionicons
-            name="arrow-back"
-            size={24}
-            color="#FFFFFF"
-          />
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
 
         <View style={styles.titulos}>
           <Text style={styles.titulo}>Meus produtos</Text>
-          <Text style={styles.subtitulo}>
-            Gerencie seu catálogo
-          </Text>
+          <Text style={styles.subtitulo}>Gerencie seu catálogo</Text>
         </View>
 
         <View style={styles.contador}>
@@ -189,11 +184,7 @@ export default function ProdutosEmpresa() {
 
       <View style={styles.conteudo}>
         <View style={styles.pesquisa}>
-          <Ionicons
-            name="search-outline"
-            size={21}
-            color="#849087"
-          />
+          <Ionicons name="search-outline" size={21} color="#849087" />
 
           <TextInput
             style={styles.input}
@@ -215,21 +206,14 @@ export default function ProdutosEmpresa() {
               accessibilityRole="button"
               accessibilityLabel="Limpar pesquisa"
             >
-              <Ionicons
-                name="close-circle"
-                size={21}
-                color="#849087"
-              />
+              <Ionicons name="close-circle" size={21} color="#849087" />
             </Pressable>
           )}
         </View>
 
         <View style={styles.linhaTitulo}>
-          <View>
-            <Text style={styles.tituloLista}>
-              Seu catálogo
-            </Text>
-
+          <View style={styles.tituloArea}>
+            <Text style={styles.tituloLista}>Seu catálogo</Text>
             <Text style={styles.subtituloLista}>
               {busca.trim()
                 ? `${lista.length} resultado(s) encontrado(s)`
@@ -238,19 +222,12 @@ export default function ProdutosEmpresa() {
           </View>
 
           <Pressable
-            style={({ pressed }) => [
-              styles.botaoAdicionar,
-              pressed && styles.botaoPressionado,
-            ]}
+            style={styles.botaoAdicionar}
             onPress={() => router.push('/novoproduto' as any)}
             accessibilityRole="button"
             accessibilityLabel="Adicionar novo produto"
           >
-            <Ionicons
-              name="add"
-              size={27}
-              color="#FFFFFF"
-            />
+            <Ionicons name="add" size={27} color="#FFFFFF" />
           </Pressable>
         </View>
 
@@ -262,17 +239,19 @@ export default function ProdutosEmpresa() {
         >
           {lista.map((produto) => {
             const imagem =
-              typeof produto.imagem === 'string'
-                ? produto.imagem
-                : null;
+              typeof produto.imagem === 'string' ? produto.imagem : null;
 
-            const preco =
-              typeof produto.preco === 'number'
-                ? produto.preco.toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })
-                : String(produto.preco ?? 'Preço não informado');
+            const preco = produto.preco.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL',
+            });
+
+            const temOferta =
+              produto.oferta === true &&
+              typeof produto.precoOferta === 'number' &&
+              Number.isFinite(produto.precoOferta) &&
+              produto.precoOferta > 0 &&
+              produto.precoOferta < produto.preco;
 
             return (
               <View
@@ -289,7 +268,7 @@ export default function ProdutosEmpresa() {
                   ]}
                   onPress={() =>
                     router.push(
-                      `/rotas/produtos/${produto.id}?origem=empresa` as any,
+                      `/rotas/produtos/${produto.id}?origem=empresa` as any
                     )
                   }
                   accessibilityRole="button"
@@ -317,36 +296,38 @@ export default function ProdutosEmpresa() {
                   </View>
 
                   <View style={styles.informacao}>
-                    <Text
-                      style={styles.nomeProduto}
-                      numberOfLines={2}
-                    >
+                    <Text style={styles.nomeProduto} numberOfLines={2}>
                       {produto.nome}
                     </Text>
 
                     {produto.unidade ? (
-                      <Text
-                        style={styles.unidade}
-                        numberOfLines={1}
-                      >
+                      <Text style={styles.unidade} numberOfLines={1}>
                         {produto.unidade}
                       </Text>
                     ) : null}
 
-                    <Text style={styles.precoProduto}>
-                      {preco}
-                    </Text>
+                    {temOferta ? (
+                      <View style={styles.linhaPrecos}>
+                        <Text style={styles.precoRiscado}>{preco}</Text>
+                        <Text style={styles.precoProduto}>
+                          {produto.precoOferta!.toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.precoProduto}>{preco}</Text>
+                    )}
 
-                    {produto.oferta === true && (
+                    {temOferta && (
                       <View style={styles.seloOferta}>
                         <Ionicons
                           name="pricetag"
                           size={12}
-                          color={ESCURO}
+                          color={VERDE_ESCURO}
                         />
-                        <Text style={styles.textoOferta}>
-                          Em oferta
-                        </Text>
+                        <Text style={styles.textoOferta}>Em oferta</Text>
                       </View>
                     )}
                   </View>
@@ -359,13 +340,8 @@ export default function ProdutosEmpresa() {
                 </Pressable>
 
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.botaoExcluir,
-                    pressed && styles.botaoExcluirPressionado,
-                  ]}
-                  onPress={() => {
-                    void excluirProduto(produto);
-                  }}
+                  style={styles.botaoExcluir}
+                  onPress={() => confirmarExclusao(produto)}
                   accessibilityRole="button"
                   accessibilityLabel={`Excluir ${produto.nome}`}
                   hitSlop={6}
@@ -405,15 +381,9 @@ export default function ProdutosEmpresa() {
               {!busca.trim() && (
                 <Pressable
                   style={styles.botaoVazio}
-                  onPress={() =>
-                    router.push('/novoproduto' as any)
-                  }
+                  onPress={() => router.push('/novoproduto' as any)}
                 >
-                  <Ionicons
-                    name="add"
-                    size={20}
-                    color="#FFFFFF"
-                  />
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
                   <Text style={styles.textoBotaoVazio}>
                     Adicionar produto
                   </Text>
@@ -426,33 +396,37 @@ export default function ProdutosEmpresa() {
         </ScrollView>
       </View>
 
-           <View style={styles.navegacao}>
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push('/homeempresa' as any)}
-        >
-          <Ionicons
-            name="home-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Início</Text>
-        </Pressable>
+      {/* RODAPÉ IGUAL AO HOME */}
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.botaoPressionado,
+            ]}
+            onPress={() => router.push('/homeempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Início"
+          >
+            <Ionicons name="home" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Início</Text>
+          </Pressable>
 
-        <Pressable
-          hitSlop={10}
-          style={styles.itemNav}
-          onPress={() => router.push('/perfilempresa' as any)}
-          accessibilityRole="button"
-          accessibilityLabel="Perfil"
-        >
-          <Ionicons
-            name="person-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Perfil</Text>
-        </Pressable>
+          <Pressable
+            hitSlop={10}
+            style={({ pressed }) => [
+              styles.botaoNavegacao,
+              pressed && styles.botaoPressionado,
+            ]}
+            onPress={() => router.push('/perfilempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Perfil</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -481,7 +455,7 @@ const styles = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: 'rgba(255,255,255,0.17)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -499,7 +473,7 @@ const styles = StyleSheet.create({
 
   subtitulo: {
     fontSize: 13,
-    color: '#D9E9DD',
+    color: '#E7F2E9',
     marginTop: 5,
   },
 
@@ -510,7 +484,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 7,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: 'rgba(255,255,255,0.17)',
   },
 
   contadorNumero: {
@@ -551,7 +525,7 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 0,
     paddingVertical: 0,
-    color: ESCURO,
+    color: VERDE_ESCURO,
     fontSize: 14,
     backgroundColor: 'transparent',
     borderWidth: 0,
@@ -572,10 +546,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
+  tituloArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+
   tituloLista: {
     fontSize: 21,
     fontWeight: 'bold',
-    color: ESCURO,
+    color: VERDE_ESCURO,
   },
 
   subtituloLista: {
@@ -592,18 +571,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: VERDE,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 3,
-  },
-
-  botaoPressionado: {
-    opacity: 0.75,
-    transform: [{ scale: 0.96 }],
   },
 
   listaScroll: {
@@ -627,13 +598,15 @@ const styles = StyleSheet.create({
     gap: 13,
     minHeight: 116,
     shadowColor: '#244D32',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 2,
+  },
+
+  cardPequeno: {
+    gap: 9,
+    padding: 9,
   },
 
   conteudoProduto: {
@@ -644,27 +617,8 @@ const styles = StyleSheet.create({
     gap: 13,
   },
 
-  cardPequeno: {
-    gap: 9,
-    padding: 9,
-  },
-
   cardPressionado: {
     opacity: 0.78,
-  },
-
-  botaoExcluir: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: '#FFF1F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  botaoExcluirPressionado: {
-    opacity: 0.7,
-    transform: [{ scale: 0.96 }],
   },
 
   areaImagem: {
@@ -714,6 +668,19 @@ const styles = StyleSheet.create({
     color: '#849087',
   },
 
+  linhaPrecos: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+
+  precoRiscado: {
+    fontSize: 13,
+    color: '#8A938C',
+    textDecorationLine: 'line-through',
+  },
+
   precoProduto: {
     fontSize: 17,
     fontWeight: 'bold',
@@ -736,7 +703,16 @@ const styles = StyleSheet.create({
   textoOferta: {
     fontSize: 10,
     fontWeight: '600',
-    color: ESCURO,
+    color: VERDE_ESCURO,
+  },
+
+  botaoExcluir: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: '#FFF1F0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   estadoVazio: {
@@ -760,7 +736,7 @@ const styles = StyleSheet.create({
   tituloVazio: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: ESCURO,
+    color: VERDE_ESCURO,
     textAlign: 'center',
   },
 
@@ -801,40 +777,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F9F7',
     flexShrink: 0,
   },
-  navegacao: {
-    height: 75,
-    backgroundColor: VERDE,
+
+  barra: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    flexShrink: 0,
+    alignItems: 'center',
+    backgroundColor: VERDE,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    height: 67,
+    paddingHorizontal: 45,
   },
-  itemNav: {
+
+  botaoNavegacao: {
     flex: 1,
-    minWidth: 0,
-    minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
 
-  textoNav: {
-    fontSize: 10,
-    color: '#D9E9DD',
-  },
-
-  textoAtivo: {
-    fontSize: 10,
+  textoNavegacao: {
+    fontSize: 11,
     color: '#FFFFFF',
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
-  indicadorAtivo: {
-    width: 21,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
+  botaoPressionado: {
+    opacity: 0.65,
   },
 });
