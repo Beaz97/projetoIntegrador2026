@@ -60,7 +60,7 @@ export default function Index() {
         </View>
 
         {/* RODAPÉ */}
-        <View style={styles.rodapePagina1}>
+        <View style={styles.rodapeBranco}>
 
           <Text style={styles.tituloBranco}>
             os melhores preços dos{'\n'}
@@ -72,6 +72,16 @@ export default function Index() {
             titulo="Começar"
             onPress={() => setPagina(1)}
           />
+
+          <Text style={styles.login}>
+          Já tem uma conta?{' '}
+
+            <Pressable onPress={() => router.push('/senha')}>
+              <Text style={styles.loginVerde}>
+                Faça login
+              </Text>
+            </Pressable>
+          </Text>
 
           {/* BOLINHAS */}
           <View style={styles.bolinhas}>
