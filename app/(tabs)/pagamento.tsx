@@ -156,10 +156,6 @@ export default function Pagamento() {
       const compra = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         data: dataCompra,
-        mercado:
-          produtosComprados[0]?.mercado ??
-          produtosComprados[0]?.nomeMercado ??
-          "Compra no Economize",
         produtos: produtosComprados,
         quantidadeItens,
         total: totalCompra,

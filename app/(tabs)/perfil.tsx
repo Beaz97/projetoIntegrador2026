@@ -70,11 +70,16 @@ export default function Perfil() {
         }
       }
 
-      setHistoricoAtualizado(
-        Array.isArray(usuarioAtualizado.historicoCompras)
-          ? usuarioAtualizado.historicoCompras
-          : []
-      );
+      const compras = Array.isArray(usuarioAtualizado.historicoCompras)
+        ? usuarioAtualizado.historicoCompras.filter(
+            (compra: any) =>
+              Array.isArray(compra.produtos) &&
+              typeof compra.total === 'number' &&
+              typeof compra.data === 'string',
+          )
+        : [];
+
+      setHistoricoAtualizado(compras);
 
       setNomeAtualizado(usuarioAtualizado.nome || '');
       setEmailAtualizado(usuarioAtualizado.email || '');
@@ -312,22 +317,19 @@ export default function Perfil() {
                     </View>
 
                     <View style={styles.historicoTextos}>
-                      <Text style={styles.historicoMercado}>
-                        {compra.mercado || 'Compra realizada'}
+                      <Text style={styles.historicoTitulo}>
+                        Compra realizada
                       </Text>
-
                       <Text style={styles.historicoData}>
-                        {compra.data || 'Data não informada'}
+                        {new Date(compra.data).toLocaleDateString('pt-BR')}
                       </Text>
                     </View>
 
                     <Text style={styles.historicoPreco}>
-                      R${' '}
-                      {typeof compra.total === 'number'
-                        ? compra.total
-                            .toFixed(2)
-                            .replace('.', ',')
-                        : compra.total ?? '0,00'}
+                      {compra.total.toLocaleString('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      })}
                     </Text>
                   </View>
                 ))
@@ -607,7 +609,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     marginRight: 8,
   },
-  historicoMercado: {
+  historicoTitulo: {
     fontSize: 13,
     fontWeight: '700',
     color: '#26382A',
