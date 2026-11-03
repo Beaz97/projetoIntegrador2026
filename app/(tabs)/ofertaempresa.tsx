@@ -123,21 +123,6 @@ export default function OfertasEmpresa() {
     }
   }
 
-  function confirmarExclusao(produto: Produto) {
-    Alert.alert(
-      'Excluir oferta',
-      `Deseja realmente excluir a oferta de "${produto.nome}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => void excluirProduto(produto),
-        },
-      ]
-    );
-  }
-
   const ofertasDaEmpresa = useMemo(() => {
     if (usuario?.id == null) return [];
 
@@ -164,11 +149,22 @@ export default function OfertasEmpresa() {
 
       {/* CABEÇALHO */}
       <View style={styles.cabecalho}>
-        <View style={styles.cabecalhoTexto}>
-          <Text style={styles.boasVindas}>Minhas ofertas</Text>
-          <Text style={styles.subtitulo}>
-            Gerencie suas promoções
-          </Text>
+        <View style={styles.linhaCabecalho}>
+          <Pressable
+            style={styles.botaoVoltar}
+            onPress={() => router.push('/homeempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar para o início"
+          >
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          </Pressable>
+
+          <View style={styles.cabecalhoTexto}>
+            <Text style={styles.boasVindas}>Minhas ofertas</Text>
+            <Text style={styles.subtitulo}>
+              Gerencie suas promoções
+            </Text>
+          </View>
         </View>
 
         <Text style={styles.textoCabecalho}>
@@ -346,7 +342,7 @@ export default function OfertasEmpresa() {
 
                 <Pressable
                   style={styles.botaoExcluir}
-                  onPress={() => confirmarExclusao(produto)}
+                  onPress={() => void excluirProduto(produto)}
                   accessibilityRole="button"
                   accessibilityLabel={`Excluir oferta de ${produto.nome}`}
                   hitSlop={6}
@@ -447,7 +443,24 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 
+  linhaCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+  },
+
+  botaoVoltar: {
+    width: 43,
+    height: 43,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.17)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   cabecalhoTexto: {
+    flex: 1,
+    minWidth: 0,
     flexShrink: 1,
   },
 

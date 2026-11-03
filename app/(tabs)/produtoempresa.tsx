@@ -116,21 +116,6 @@ export default function ProdutosEmpresa() {
     }
   }
 
-  function confirmarExclusao(produto: Produto) {
-    Alert.alert(
-      'Excluir produto',
-      `Deseja realmente excluir "${produto.nome}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: () => void excluirProduto(produto),
-        },
-      ]
-    );
-  }
-
   const produtosDaEmpresa = useMemo(() => {
     if (usuario?.id == null) {
       return [];
@@ -162,7 +147,7 @@ export default function ProdutosEmpresa() {
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
-          onPress={() => router.back()}
+          onPress={() => router.push('/homeempresa' as any)}
           accessibilityRole="button"
           accessibilityLabel="Voltar para o início"
         >
@@ -341,7 +326,7 @@ export default function ProdutosEmpresa() {
 
                 <Pressable
                   style={styles.botaoExcluir}
-                  onPress={() => confirmarExclusao(produto)}
+                  onPress={() => void excluirProduto(produto)}
                   accessibilityRole="button"
                   accessibilityLabel={`Excluir ${produto.nome}`}
                   hitSlop={6}
