@@ -1,1150 +1,39 @@
 
-import { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   View,
   Text,
   TextInput,
   Pressable,
-  FlatList,
   ScrollView,
   StyleSheet,
+  Alert,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 
+import {
+  useRouter,
+  useLocalSearchParams,
+  useFocusEffect,
+} from 'expo-router';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 
-type Icone = keyof typeof Ionicons.glyphMap;
+import { useAutenticacao } from '@/app/components/autenticaTelas';
+import * as userController from '@/app/rotaServidor/userController';
 
-const CHAVE_USUARIOS = '@banco_usuarios';
+const VERDE = '#41805A';
+const VERDE_ESCURO = '#245D39';
+const VERDE_CLARO = '#E5F1E8';
+const FUNDO = '#F7F9F7';
+
 const CHAVE_USUARIO_LOGADO = '@usuario_logado';
+const CHAVE_USUARIOS = '@banco_usuarios';
 
-type Usuario = {
-  id?: string | number;
-  nome?: string;
-  nomeEmpresa?: string;
-  email?: string;
-  senha?: string;
-  documento?: string;
-  telefone?: string;
-  endereco?: string;
-  enderecoCompleto?: string;
-  tipo?: string;
-  tipoUsuario?: string;
-  perfil?: string;
-  role?: string;
-  tipoConta?: string;
-  [key: string]: any;
-};
-
-/* ---------- Funções de armazenamento e segurança ---------- */
-
-async function lerUsuarioLogado(): Promise<Usuario | null> {
-  try {
-    const dados = await AsyncStorage.getItem(CHAVE_USUARIO_LOGADO);
-    return dados ? JSON.parse(dados) : null;
-  } catch (erro) {
-    console.error('Erro ao carregar usuário:', erro);
-    return null;
-  }
-}
-
-async function lerUsuarios(): Promise<Usuario[]> {
-  const dados = await AsyncStorage.getItem(CHAVE_USUARIOS);
-
-  if (!dados) {
-    throw new Error('Não foi possível carregar o cadastro de usuários.');
-  }
-
-  const usuarios = JSON.parse(dados);
-
-  if (!Array.isArray(usuarios)) {
-    throw new Error('A lista de usuários está inválida.');
-  }
-
-  return usuarios;
-}
-
-function ehEmpresa(usuario: Usuario | null): boolean {
-  if (!usuario) return false;
-
-  const tipo = [
-    usuario.tipo,
-    usuario.tipoUsuario,
-    usuario.perfil,
-    usuario.role,
-    usuario.tipoConta,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  return (
-    tipo.includes('empresa') ||
-    tipo.includes('empresarial') ||
-    !!usuario.nomeEmpresa
-  );
-}
-
-function mesmoUsuario(a: Usuario, b: Usuario): boolean {
-  if (a.id != null && b.id != null) {
-    return String(a.id) === String(b.id);
-  }
-
-  return Boolean(
-    a.email &&
-      b.email &&
-      a.email.trim().toLowerCase() === b.email.trim().toLowerCase()
-  );
-}
-
-async function hashSenha(senha: string): Promise<string> {
-  return Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    senha
-  );
-}
-
-async function verificarSenha(
-  senhaDigitada: string,
-  senhaArmazenada: string
-): Promise<boolean> {
-  if (!senhaDigitada || !senhaArmazenada) {
-    return false;
-  }
-
-  const hash = await hashSenha(senhaDigitada);
-
-  // Compatibilidade com cadastros que tenham senha em texto puro.
-  return hash === senhaArmazenada || senhaDigitada === senhaArmazenada;
-}
-
-async function buscarCadastroDoUsuario(
-  usuarioOriginal: Usuario
-): Promise<{ usuarios: Usuario[]; indice: number }> {
-  const usuarios = await lerUsuarios();
-
-  let indice = -1;
-
-  if (usuarioOriginal.id != null) {
-    indice = usuarios.findIndex(
-      (usuario) =>
-        usuario.id != null &&
-        String(usuario.id) === String(usuarioOriginal.id)
-    );
-  }
-
-  if (indice === -1 && usuarioOriginal.email) {
-    const emailOriginal = usuarioOriginal.email.trim().toLowerCase();
-
-    indice = usuarios.findIndex(
-      (usuario) =>
-        usuario.email?.trim().toLowerCase() === emailOriginal
-    );
-  }
-
-  if (indice === -1) {
-    throw new Error('Usuário não encontrado no cadastro.');
-  }
-
-  return { usuarios, indice };
-}
-
-async function salvarDadosUsuario(
-  usuarioOriginal: Usuario,
-  dadosAtualizados: Partial<Usuario>
-): Promise<void> {
-  const { usuarios, indice } =
-    await buscarCadastroDoUsuario(usuarioOriginal);
-
-  const usuarioAtualizado: Usuario = {
-    ...usuarios[indice],
-    ...dadosAtualizados,
-    id: usuarios[indice].id,
-  };
-
-  usuarios[indice] = usuarioAtualizado;
-
-  await AsyncStorage.setItem(
-    CHAVE_USUARIOS,
-    JSON.stringify(usuarios)
-  );
-
-  const usuarioLogado = await lerUsuarioLogado();
-
-  if (usuarioLogado && mesmoUsuario(usuarioOriginal, usuarioLogado)) {
-    const { senha: _senha, ...usuarioSemSenha } = usuarioAtualizado;
-
-    await AsyncStorage.setItem(
-      CHAVE_USUARIO_LOGADO,
-      JSON.stringify(usuarioSemSenha)
-    );
-  }
-}
-
-async function validarSenhaAtual(
-  usuarioOriginal: Usuario,
-  senhaAtual: string
-): Promise<boolean> {
-  const { usuarios, indice } =
-    await buscarCadastroDoUsuario(usuarioOriginal);
-
-  return verificarSenha(senhaAtual, usuarios[indice].senha || '');
-}
-
-/* ---------- Componentes reutilizáveis ---------- */
-
-type TelaProps = {
-  titulo: string;
-  subtitulo: string;
-  onVoltar?: () => void;
-  children: React.ReactNode;
-};
-
-function Tela({
-  titulo,
-  subtitulo,
-  onVoltar,
-  children,
-}: TelaProps) {
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.cabecalho}>
-          <Pressable
-            onPress={onVoltar}
-            style={styles.botaoVoltar}
-            hitSlop={10}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={27}
-              color="#44805c"
-            />
-          </Pressable>
-
-          <Text style={styles.titulo}>{titulo}</Text>
-
-          <View style={styles.espacador} />
-        </View>
-
-        <Text style={styles.subtitulo}>{subtitulo}</Text>
-      </View>
-
-      {children}
-    </View>
-  );
-}
-
-function Botao({
-  titulo,
-  onPress,
-  vermelho,
-  desativado,
-}: {
-  titulo: string;
-  onPress: () => void;
-  vermelho?: boolean;
-  desativado?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={desativado}
-      style={[
-        styles.botao,
-        vermelho && styles.botaoVermelho,
-        desativado && styles.botaoDesativado,
-      ]}
-    >
-      <Text style={styles.botaoTxt}>{titulo}</Text>
-    </Pressable>
-  );
-}
-
-function Toggle({
-  ligado,
-  onMudar,
-}: {
-  ligado: boolean;
-  onMudar: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onMudar}
-      style={[
-        styles.trilho,
-        {
-          backgroundColor: ligado ? '#44805c' : '#c9cfcb',
-          alignItems: ligado ? 'flex-end' : 'flex-start',
-        },
-      ]}
-    >
-      <View style={styles.bolinha} />
-    </Pressable>
-  );
-}
-
-/* ---------- Minha conta ---------- */
-
-function Conta({
-  onVoltar,
-}: {
-  onVoltar: () => void;
-}) {
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [emailOriginal, setEmailOriginal] = useState('');
-  const [senhaAtualEmail, setSenhaAtualEmail] = useState('');
-  const [tel, setTel] = useState('');
-  const [empresa, setEmpresa] = useState(false);
-  const [usuarioOriginal, setUsuarioOriginal] =
-    useState<Usuario | null>(null);
-
-  const [msg, setMsg] = useState('');
-  const [sucesso, setSucesso] = useState(false);
-  const [salvando, setSalvando] = useState(false);
-
-  const emailFoiAlterado =
-    email.trim().toLowerCase() !== emailOriginal.trim().toLowerCase();
-
-  useEffect(() => {
-    async function carregarDados() {
-      const usuario = await lerUsuarioLogado();
-
-      if (!usuario) {
-        setMsg('Não foi possível encontrar o usuário conectado.');
-        return;
-      }
-
-      const contaEmpresa = ehEmpresa(usuario);
-
-      setUsuarioOriginal(usuario);
-      setEmpresa(contaEmpresa);
-
-      setNome(
-        contaEmpresa
-          ? usuario.nomeEmpresa || usuario.nome || ''
-          : usuario.nome || ''
-      );
-
-      setEmail(usuario.email || '');
-      setEmailOriginal(usuario.email || '');
-      setTel(usuario.telefone || '');
-    }
-
-    carregarDados();
-  }, []);
-
-  async function salvarAlteracoes() {
-    if (salvando) return;
-
-    setMsg('');
-    setSucesso(false);
-
-    if (!nome.trim() || !email.trim()) {
-      setMsg('Preencha o nome e o e-mail.');
-      return;
-    }
-
-    const emailNormalizado = email.trim().toLowerCase();
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado)) {
-      setMsg('Digite um endereço de e-mail válido.');
-      return;
-    }
-
-    if (emailFoiAlterado && !senhaAtualEmail) {
-      setMsg('Digite sua senha atual para confirmar a alteração do e-mail.');
-      return;
-    }
-
-    try {
-      setSalvando(true);
-
-      const usuario = usuarioOriginal || await lerUsuarioLogado();
-
-      if (!usuario) {
-        setMsg('Nenhum usuário conectado.');
-        return;
-      }
-
-      if (emailFoiAlterado) {
-        const senhaCorreta = await validarSenhaAtual(
-          usuario,
-          senhaAtualEmail
-        );
-
-        if (!senhaCorreta) {
-          setMsg('A senha atual está incorreta. O e-mail não foi alterado.');
-          return;
-        }
-
-        const { usuarios, indice } =
-          await buscarCadastroDoUsuario(usuario);
-
-        const emailDuplicado = usuarios.some(
-          (outro, index) =>
-            index !== indice &&
-            outro.email?.trim().toLowerCase() === emailNormalizado
-        );
-
-        if (emailDuplicado) {
-          setMsg('Este e-mail já está cadastrado em outra conta.');
-          return;
-        }
-      }
-
-      const dadosAtualizados: Partial<Usuario> = {
-        email: emailNormalizado,
-        telefone: tel.trim(),
-      };
-
-      if (empresa) {
-        dadosAtualizados.nomeEmpresa = nome.trim();
-        dadosAtualizados.nome = nome.trim();
-      } else {
-        dadosAtualizados.nome = nome.trim();
-      }
-
-      await salvarDadosUsuario(usuario, dadosAtualizados);
-
-      setUsuarioOriginal({
-        ...usuario,
-        ...dadosAtualizados,
-      });
-
-      setEmailOriginal(emailNormalizado);
-      setSenhaAtualEmail('');
-      setSucesso(true);
-      setMsg('Dados atualizados com sucesso!');
-    } catch (erro) {
-      console.error('Erro ao salvar os dados:', erro);
-      setMsg(
-        erro instanceof Error
-          ? erro.message
-          : 'Não foi possível salvar os dados. Tente novamente.'
-      );
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  return (
-    <Tela
-      titulo={empresa ? 'Dados da empresa' : 'Minha conta'}
-      subtitulo={
-        empresa
-          ? 'Atualize as informações da sua empresa.'
-          : 'Atualize seus dados pessoais.'
-      }
-      onVoltar={onVoltar}
-    >
-      <ScrollView
-        contentContainerStyle={styles.conteudo}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.label}>
-          {empresa ? 'Nome da empresa' : 'Nome completo'}
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          value={nome}
-          onChangeText={setNome}
-          placeholder={empresa ? 'Nome da empresa' : 'Seu nome'}
-          autoCapitalize="words"
-        />
-
-        <Text style={styles.label}>E-mail</Text>
-
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Seu e-mail"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        {emailFoiAlterado && (
-          <View style={styles.aviso}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={20}
-              color="#44805c"
-            />
-            <Text style={styles.avisoTexto}>
-              Por segurança, confirme sua senha atual para mudar o e-mail.
-            </Text>
-          </View>
-        )}
-
-        {emailFoiAlterado && (
-          <>
-            <Text style={styles.label}>Senha atual</Text>
-
-            <TextInput
-              style={styles.input}
-              value={senhaAtualEmail}
-              onChangeText={setSenhaAtualEmail}
-              placeholder="Confirme sua senha atual"
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          </>
-        )}
-
-        <Text style={styles.label}>Telefone</Text>
-
-        <TextInput
-          style={styles.input}
-          value={tel}
-          onChangeText={setTel}
-          placeholder="Seu telefone"
-          keyboardType="phone-pad"
-        />
-
-        <Botao
-          titulo={salvando ? 'Salvando...' : 'Salvar alterações'}
-          onPress={salvarAlteracoes}
-          desativado={salvando}
-        />
-
-        {msg !== '' && (
-          <Text
-            style={[
-              styles.msg,
-              sucesso ? styles.msgSucesso : styles.msgErro,
-            ]}
-          >
-            {msg}
-          </Text>
-        )}
-      </ScrollView>
-    </Tela>
-  );
-}
-
-/* ---------- Endereços ---------- */
-
-type Endereco = {
-  id: string;
-  nome: string;
-  texto: string;
-};
-
-function Enderecos({
-  onVoltar,
-}: {
-  onVoltar: () => void;
-}) {
-  const [lista, setLista] = useState<Endereco[]>([]);
-  const [nome, setNome] = useState('');
-  const [texto, setTexto] = useState('');
-  const [carregando, setCarregando] = useState(true);
-  const [salvando, setSalvando] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [chaveEnderecos, setChaveEnderecos] =
-    useState<string | null>(null);
-
-  useEffect(() => {
-    async function carregarEnderecos() {
-      try {
-        const usuario = await lerUsuarioLogado();
-
-        if (!usuario) {
-          setMsg('Nenhum usuário conectado.');
-          return;
-        }
-
-        const identificador =
-          usuario.id != null
-            ? String(usuario.id)
-            : usuario.email?.toLowerCase();
-
-        if (!identificador) {
-          setMsg('Não foi possível identificar sua conta.');
-          return;
-        }
-
-        const chave = `@enderecos_usuario_${identificador}`;
-        setChaveEnderecos(chave);
-
-        const enderecosTexto = await AsyncStorage.getItem(chave);
-
-        if (enderecosTexto) {
-          const enderecos = JSON.parse(enderecosTexto);
-
-          if (Array.isArray(enderecos)) {
-            setLista(enderecos);
-          }
-        } else {
-          const enderecoAtual =
-            usuario.endereco || usuario.enderecoCompleto || '';
-
-          if (enderecoAtual) {
-            setLista([
-              {
-                id: 'principal',
-                nome: 'Principal',
-                texto: enderecoAtual,
-              },
-            ]);
-          }
-        }
-      } catch (erro) {
-        console.error('Erro ao carregar endereços:', erro);
-        setMsg('Não foi possível carregar os endereços.');
-      } finally {
-        setCarregando(false);
-      }
-    }
-
-    carregarEnderecos();
-  }, []);
-
-  async function persistirEnderecos(novaLista: Endereco[]) {
-    if (!chaveEnderecos) {
-      setMsg('Não foi possível identificar sua conta.');
-      return false;
-    }
-
-    try {
-      setSalvando(true);
-
-      await AsyncStorage.setItem(
-        chaveEnderecos,
-        JSON.stringify(novaLista)
-      );
-
-      setLista(novaLista);
-      setMsg('Endereços atualizados.');
-      return true;
-    } catch (erro) {
-      console.error('Erro ao salvar endereços:', erro);
-      setMsg('Não foi possível salvar os endereços.');
-      return false;
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  async function adicionar() {
-    if (!nome.trim() || !texto.trim()) {
-      setMsg('Preencha o nome do local e o endereço.');
-      return;
-    }
-
-    const novoEndereco: Endereco = {
-      id: String(Date.now()),
-      nome: nome.trim(),
-      texto: texto.trim(),
-    };
-
-    const salvou = await persistirEnderecos([
-      ...lista,
-      novoEndereco,
-    ]);
-
-    if (salvou) {
-      setNome('');
-      setTexto('');
-    }
-  }
-
-  async function remover(id: string) {
-    const novaLista = lista.filter(
-      (endereco) => endereco.id !== id
-    );
-
-    await persistirEnderecos(novaLista);
-  }
-
-  async function definirPrincipal(item: Endereco) {
-    try {
-      const usuario = await lerUsuarioLogado();
-
-      if (!usuario) {
-        setMsg('Nenhum usuário conectado.');
-        return;
-      }
-
-      await salvarDadosUsuario(usuario, {
-        endereco: item.texto,
-        enderecoCompleto: item.texto,
-      });
-
-      setMsg('Endereço principal atualizado!');
-    } catch (erro) {
-      console.error('Erro ao atualizar endereço principal:', erro);
-      setMsg('Não foi possível atualizar o endereço.');
-    }
-  }
-
-  const renderItem = ({ item }: { item: Endereco }) => (
-    <View style={[styles.card, styles.linha]}>
-      <View style={styles.iconeEndereco}>
-        <Ionicons
-          name="location-outline"
-          size={23}
-          color="#44805c"
-        />
-      </View>
-
-      <View style={styles.enderecoTexto}>
-        <Text style={styles.negrito}>{item.nome}</Text>
-        <Text style={styles.suave}>{item.texto}</Text>
-
-        <Pressable
-          onPress={() => definirPrincipal(item)}
-          style={styles.linkEndereco}
-        >
-          <Text style={styles.linkEnderecoTexto}>
-            Usar como endereço principal
-          </Text>
-        </Pressable>
-      </View>
-
-      <Pressable onPress={() => remover(item.id)} hitSlop={8}>
-        <Ionicons
-          name="trash-outline"
-          size={21}
-          color="#b3352f"
-        />
-      </Pressable>
-    </View>
-  );
-
-  const formulario = (
-    <View style={{ marginTop: 12 }}>
-      <Text style={styles.secao}>Adicionar endereço</Text>
-
-      <Text style={styles.label}>Nome do local</Text>
-
-      <TextInput
-        style={styles.input}
-        value={nome}
-        onChangeText={setNome}
-        placeholder="Ex.: Loja principal"
-      />
-
-      <Text style={styles.label}>Endereço completo</Text>
-
-      <TextInput
-        style={styles.input}
-        value={texto}
-        onChangeText={setTexto}
-        placeholder="Rua, número, bairro e cidade"
-      />
-
-      <Botao
-        titulo={salvando ? 'Salvando...' : 'Adicionar endereço'}
-        onPress={adicionar}
-        desativado={salvando}
-      />
-
-      {msg !== '' && <Text style={styles.msg}>{msg}</Text>}
-    </View>
-  );
-
-  return (
-    <Tela
-      titulo="Meus endereços"
-      subtitulo="Gerencie os endereços da sua conta."
-      onVoltar={onVoltar}
-    >
-      {carregando ? (
-        <View style={styles.carregando}>
-          <Text style={styles.suave}>Carregando endereços...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={lista}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListEmptyComponent={
-            <View style={styles.vazio}>
-              <Ionicons
-                name="location-outline"
-                size={38}
-                color="#8B968C"
-              />
-              <Text style={styles.suave}>
-                Nenhum endereço cadastrado.
-              </Text>
-            </View>
-          }
-          ListFooterComponent={formulario}
-          contentContainerStyle={styles.conteudo}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
-    </Tela>
-  );
-}
-
-/* ---------- Notificações ---------- */
-
-type Opcao = {
-  id: string;
-  nome: string;
-};
-
-const OPCOES: Opcao[] = [
-  { id: 'alertas', nome: 'Alertas' },
-  { id: 'promocoes', nome: 'Promoções' },
-  { id: 'email', nome: 'E-mail' },
-  { id: 'push', nome: 'Push' },
-];
-
-function Notificacoes({
-  onVoltar,
-}: {
-  onVoltar: () => void;
-}) {
-  const [ativas, setAtivas] = useState<Record<string, boolean>>({
-    alertas: true,
-    promocoes: false,
-    email: true,
-    push: true,
-  });
-
-  const renderItem = ({ item }: { item: Opcao }) => (
-    <View style={[styles.card, styles.linha]}>
-      <Text style={[styles.negrito, { flex: 1 }]}>
-        {item.nome}
-      </Text>
-
-      <Toggle
-        ligado={ativas[item.id]}
-        onMudar={() =>
-          setAtivas({
-            ...ativas,
-            [item.id]: !ativas[item.id],
-          })
-        }
-      />
-    </View>
-  );
-
-  return (
-    <Tela
-      titulo="Notificações"
-      subtitulo="Escolha o que deseja receber."
-      onVoltar={onVoltar}
-    >
-      <FlatList
-        data={OPCOES}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.conteudo}
-      />
-    </Tela>
-  );
-}
-
-/* ---------- Privacidade e alteração de senha ---------- */
-
-function Privacidade({
-  onVoltar,
-}: {
-  onVoltar: () => void;
-}) {
-  const [atual, setAtual] = useState('');
-  const [nova, setNova] = useState('');
-  const [confirmacao, setConfirmacao] = useState('');
-  const [salvandoSenha, setSalvandoSenha] = useState(false);
-  const [excluindo, setExcluindo] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [sucesso, setSucesso] = useState(false);
-
-  async function trocarSenha() {
-    if (salvandoSenha) return;
-
-    setMsg('');
-    setSucesso(false);
-
-    if (!atual || !nova || !confirmacao) {
-      setMsg('Preencha todos os campos para alterar a senha.');
-      return;
-    }
-
-    if (nova.length < 6) {
-      setMsg('A nova senha precisa ter ao menos 6 caracteres.');
-      return;
-    }
-
-    if (nova !== confirmacao) {
-      setMsg('A nova senha e a confirmação não são iguais.');
-      return;
-    }
-
-    if (atual === nova) {
-      setMsg('A nova senha precisa ser diferente da senha atual.');
-      return;
-    }
-
-    try {
-      setSalvandoSenha(true);
-
-      const usuario = await lerUsuarioLogado();
-
-      if (!usuario) {
-        setMsg('Nenhum usuário conectado.');
-        return;
-      }
-
-      const senhaCorreta = await validarSenhaAtual(usuario, atual);
-
-      if (!senhaCorreta) {
-        setMsg('A senha atual está incorreta.');
-        return;
-      }
-
-      const senhaCriptografada = await hashSenha(nova);
-
-      await salvarDadosUsuario(usuario, {
-        senha: senhaCriptografada,
-      });
-
-      setAtual('');
-      setNova('');
-      setConfirmacao('');
-      setSucesso(true);
-      setMsg('Senha alterada com sucesso!');
-    } catch (erro) {
-      console.error('Erro ao alterar senha:', erro);
-      setMsg(
-        erro instanceof Error
-          ? erro.message
-          : 'Não foi possível alterar a senha. Tente novamente.'
-      );
-    } finally {
-      setSalvandoSenha(false);
-    }
-  }
-
-  return (
-    <Tela
-      titulo="Privacidade e segurança"
-      subtitulo="Proteja sua conta."
-      onVoltar={onVoltar}
-    >
-      <ScrollView contentContainerStyle={styles.conteudo}>
-        <Text style={styles.secao}>Alterar senha</Text>
-
-        <Text style={styles.suave}>
-          Confirme sua senha atual para cadastrar uma nova senha.
-        </Text>
-
-        <Text style={styles.label}>Senha atual</Text>
-
-        <TextInput
-          style={styles.input}
-          value={atual}
-          onChangeText={setAtual}
-          secureTextEntry
-          placeholder="Digite sua senha atual"
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Nova senha</Text>
-
-        <TextInput
-          style={styles.input}
-          value={nova}
-          onChangeText={setNova}
-          secureTextEntry
-          placeholder="Mínimo de 6 caracteres"
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Confirmar nova senha</Text>
-
-        <TextInput
-          style={styles.input}
-          value={confirmacao}
-          onChangeText={setConfirmacao}
-          secureTextEntry
-          placeholder="Digite a nova senha novamente"
-          autoCapitalize="none"
-        />
-
-        <Botao
-          titulo={salvandoSenha ? 'Atualizando...' : 'Atualizar senha'}
-          onPress={trocarSenha}
-          desativado={salvandoSenha}
-        />
-
-        {msg !== '' && (
-          <Text
-            style={[
-              styles.msg,
-              sucesso ? styles.msgSucesso : styles.msgErro,
-            ]}
-          >
-            {msg}
-          </Text>
-        )}
-
-        <View style={[styles.card, { marginTop: 28 }]}>
-          <Text style={styles.negrito}>Excluir conta</Text>
-          <Text style={styles.suave}>
-            Esta ação é permanente.
-          </Text>
-
-          {excluindo ? (
-            <>
-              <Text style={[styles.negrito, { marginTop: 12 }]}>
-                Deseja continuar?
-              </Text>
-
-              <Text style={styles.suave}>
-                A exclusão real da conta ainda não está conectada ao
-                sistema de cadastro.
-              </Text>
-
-              <Botao
-                titulo="Entendi"
-                vermelho
-                onPress={() => setExcluindo(false)}
-              />
-
-              <Pressable onPress={() => setExcluindo(false)}>
-                <Text style={styles.cancelar}>Cancelar</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Botao
-              titulo="Excluir minha conta"
-              vermelho
-              onPress={() => setExcluindo(true)}
-            />
-          )}
-        </View>
-      </ScrollView>
-    </Tela>
-  );
-}
-
-/* ---------- Ajuda ---------- */
-
-type Pergunta = {
-  id: string;
-  pergunta: string;
-  resposta: string;
-};
-
-const FAQ: Pergunta[] = [
-  {
-    id: '1',
-    pergunta: 'Como altero meus dados?',
-    resposta:
-      'Acesse Minha conta, edite as informações e toque em Salvar alterações.',
-  },
-  {
-    id: '2',
-    pergunta: 'Como adiciono um endereço?',
-    resposta:
-      'Acesse Meus endereços, preencha os campos e toque em Adicionar endereço.',
-  },
-  {
-    id: '3',
-    pergunta: 'Como desativo notificações?',
-    resposta:
-      'Em Notificações, desligue as opções que não deseja receber.',
-  },
-];
-
-function Ajuda({
-  onVoltar,
-}: {
-  onVoltar: () => void;
-}) {
-  const [aberto, setAberto] = useState('');
-  const [mensagem, setMensagem] = useState('');
-  const [msg, setMsg] = useState('');
-
-  const renderItem = ({ item }: { item: Pergunta }) => (
-    <Pressable
-      style={styles.card}
-      onPress={() =>
-        setAberto(aberto === item.id ? '' : item.id)
-      }
-    >
-      <View style={styles.linhaPergunta}>
-        <Text style={styles.negrito}>{item.pergunta}</Text>
-
-        <Ionicons
-          name={aberto === item.id ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color="#44805c"
-        />
-      </View>
-
-      {aberto === item.id && (
-        <Text style={[styles.suave, { marginTop: 10, lineHeight: 20 }]}>
-          {item.resposta}
-        </Text>
-      )}
-    </Pressable>
-  );
-
-  const contato = (
-    <View style={{ marginTop: 8 }}>
-      <Text style={styles.secao}>Fale conosco</Text>
-
-      <TextInput
-        style={styles.input}
-        value={mensagem}
-        onChangeText={setMensagem}
-        placeholder="Como podemos ajudar?"
-        multiline
-      />
-
-      <Botao
-        titulo="Enviar"
-        onPress={() => {
-          if (!mensagem.trim()) {
-            setMsg('Digite sua mensagem.');
-            return;
-          }
-
-          setMsg(
-            'O envio precisa ser conectado a um serviço de atendimento.'
-          );
-        }}
-      />
-
-      {msg !== '' && <Text style={styles.msg}>{msg}</Text>}
-    </View>
-  );
-
-  return (
-    <Tela
-      titulo="Ajuda e suporte"
-      subtitulo="Tire suas dúvidas."
-      onVoltar={onVoltar}
-    >
-      <FlatList
-        data={FAQ}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        ListFooterComponent={contato}
-        contentContainerStyle={styles.conteudo}
-        keyboardShouldPersistTaps="handled"
-      />
-    </Tela>
-  );
-}
-
-/* ---------- Página principal ---------- */
-
-type Rota =
+type Tela =
   | 'home'
   | 'conta'
   | 'enderecos'
@@ -1152,475 +41,1944 @@ type Rota =
   | 'privacidade'
   | 'ajuda';
 
-type ItemMenu = {
-  id: Rota;
-  icone: Icone;
-  titulo: string;
-  sub: string;
+type Endereco = {
+  id: string;
+  nome: string;
+  texto: string;
 };
 
-const MENU: ItemMenu[] = [
-  {
-    id: 'conta',
-    icone: 'person-outline',
-    titulo: 'Minha conta',
-    sub: 'Seus dados pessoais',
-  },
-  {
-    id: 'enderecos',
-    icone: 'location-outline',
-    titulo: 'Meus endereços',
-    sub: 'Gerencie seus locais',
-  },
-  {
-    id: 'notificacoes',
-    icone: 'notifications-outline',
-    titulo: 'Notificações',
-    sub: 'Alertas e promoções',
-  },
-  {
-    id: 'privacidade',
-    icone: 'shield-checkmark-outline',
-    titulo: 'Privacidade e segurança',
-    sub: 'Proteja sua conta',
-  },
-  {
-    id: 'ajuda',
-    icone: 'help-circle-outline',
-    titulo: 'Ajuda e suporte',
-    sub: 'Tire suas dúvidas',
-  },
-];
+type PreferenciasNotificacao = {
+  alertas: boolean;
+  promocoes: boolean;
+  email: boolean;
+  push: boolean;
+};
+
+const PREFERENCIAS_PADRAO: PreferenciasNotificacao = {
+  alertas: true,
+  promocoes: false,
+  email: true,
+  push: true,
+};
 
 export default function Configuracoes() {
   const router = useRouter();
 
   const params = useLocalSearchParams<{
     tela?: string | string[];
+    origem?: string | string[];
   }>();
 
-  const telaInicial = Array.isArray(params.tela)
+  const parametroTela = Array.isArray(params.tela)
     ? params.tela[0]
     : params.tela;
 
-  const veioDiretoParaEnderecos = telaInicial === 'enderecos';
+  const parametroOrigem = Array.isArray(params.origem)
+    ? params.origem[0]
+    : params.origem;
 
-  const [tela, setTela] = useState<Rota>(
-    veioDiretoParaEnderecos ? 'enderecos' : 'home'
+  const veioDiretoParaEnderecos = parametroTela === 'enderecos';
+
+  const {
+    usuario,
+    carregando,
+    autorizado,
+  } = useAutenticacao();
+
+  const [tela, setTela] = useState<Tela>(
+    veioDiretoParaEnderecos ? 'enderecos' : 'home',
   );
 
-  const [rotaPerfil, setRotaPerfil] =
-    useState<'/perfil' | '/perfilempresa'>('/perfil');
+  const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
+  const [identificador, setIdentificador] = useState('');
 
-  const [saindo, setSaindo] = useState(false);
+  const [carregandoDados, setCarregandoDados] = useState(false);
+
+  // Minha conta
+  const [nomeEditado, setNomeEditado] = useState('');
+  const [emailEditado, setEmailEditado] = useState('');
+  const [telefoneEditado, setTelefoneEditado] = useState('');
+
+  // Endereços
+  const [enderecos, setEnderecos] = useState<Endereco[]>([]);
+  const [carregandoEnderecos, setCarregandoEnderecos] = useState(true);
+  const [nomeEndereco, setNomeEndereco] = useState('');
+  const [textoEndereco, setTextoEndereco] = useState('');
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [confirmandoExclusao, setConfirmandoExclusao] =
+    useState<string | null>(null);
+
+  // Notificações
+  const [preferencias, setPreferencias] =
+    useState<PreferenciasNotificacao>(PREFERENCIAS_PADRAO);
+
+  // Privacidade
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarSenha, setConfirmarSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+
+  // Ajuda
+  const [perguntaAberta, setPerguntaAberta] = useState<number | null>(null);
+
+  // Mensagens de confirmação
+  const [confirmacaoConta, setConfirmacaoConta] = useState<
+    'excluir' | 'sair' | null
+  >(null);
 
   useEffect(() => {
-    async function identificarConta() {
-      const usuario = await lerUsuarioLogado();
+    if (parametroTela === 'enderecos') {
+      setTela('enderecos');
+    } else if (!parametroTela) {
+      setTela('home');
+    }
+  }, [parametroTela]);
 
-      setRotaPerfil(
-        ehEmpresa(usuario) ? '/perfilempresa' : '/perfil'
-      );
+  const criarIdentificador = (dados: any) => {
+    if (dados?.id != null) {
+      return String(dados.id);
     }
 
-    identificarConta();
-  }, []);
+    return String(dados?.email ?? '').trim().toLowerCase();
+  };
 
-  function voltarParaPerfil() {
-    router.replace(rotaPerfil as any);
+  const carregarUsuario = useCallback(async () => {
+    try {
+      const salvo = await AsyncStorage.getItem(CHAVE_USUARIO_LOGADO);
+
+      let usuarioAtualizado = usuario ?? null;
+
+      if (salvo) {
+        usuarioAtualizado = JSON.parse(salvo);
+      }
+
+      if (usuarioAtualizado) {
+        const bancoTexto = await AsyncStorage.getItem(CHAVE_USUARIOS);
+
+        if (bancoTexto) {
+          const banco = JSON.parse(bancoTexto);
+
+          if (Array.isArray(banco)) {
+            const encontrado = banco.find((item: any) => {
+              if (
+                usuarioAtualizado.id != null &&
+                item.id != null
+              ) {
+                return String(item.id) === String(usuarioAtualizado.id);
+              }
+
+              return (
+                String(item.email ?? '').trim().toLowerCase() ===
+                String(usuarioAtualizado.email ?? '').trim().toLowerCase()
+              );
+            });
+
+            if (encontrado) {
+              usuarioAtualizado = {
+                ...encontrado,
+                senha: undefined,
+              };
+            }
+          }
+        }
+      }
+
+      setUsuarioLogado(usuarioAtualizado);
+      setIdentificador(criarIdentificador(usuarioAtualizado));
+
+      setNomeEditado(
+        usuarioAtualizado?.nomeEmpresa ||
+        usuarioAtualizado?.nome ||
+        '',
+      );
+
+      setEmailEditado(usuarioAtualizado?.email || '');
+      setTelefoneEditado(usuarioAtualizado?.telefone || '');
+    } catch (erro) {
+      console.error('Erro ao carregar usuário:', erro);
+    }
+  }, [usuario]);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarUsuario();
+    }, [carregarUsuario]),
+  );
+
+  const carregarEnderecos = useCallback(async () => {
+    setCarregandoEnderecos(true);
+
+    try {
+      let id = identificador;
+
+      if (!id) {
+        const salvo = await AsyncStorage.getItem(CHAVE_USUARIO_LOGADO);
+
+        if (salvo) {
+          const dados = JSON.parse(salvo);
+          id = criarIdentificador(dados);
+          setIdentificador(id);
+        }
+      }
+
+      if (!id) {
+        setEnderecos([]);
+        return;
+      }
+
+      const conteudo = await AsyncStorage.getItem(
+        `@enderecos_usuario_${id}`,
+      );
+
+      if (conteudo) {
+        const dados: unknown = JSON.parse(conteudo);
+        setEnderecos(Array.isArray(dados) ? dados : []);
+      } else {
+        setEnderecos([]);
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar endereços:', erro);
+      setEnderecos([]);
+    } finally {
+      setCarregandoEnderecos(false);
+    }
+  }, [identificador]);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarEnderecos();
+    }, [carregarEnderecos]),
+  );
+
+  const carregarPreferencias = useCallback(async () => {
+    try {
+      if (!identificador) return;
+
+      const salvo = await AsyncStorage.getItem(
+        `@notificacoes_usuario_${identificador}`,
+      );
+
+      if (salvo) {
+        setPreferencias({
+          ...PREFERENCIAS_PADRAO,
+          ...JSON.parse(salvo),
+        });
+      } else {
+        setPreferencias(PREFERENCIAS_PADRAO);
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar notificações:', erro);
+    }
+  }, [identificador]);
+
+  useEffect(() => {
+    carregarPreferencias();
+  }, [carregarPreferencias]);
+
+  async function salvarPreferencias(
+    novasPreferencias: PreferenciasNotificacao,
+  ) {
+    setPreferencias(novasPreferencias);
+
+    try {
+      if (!identificador) return;
+
+      await AsyncStorage.setItem(
+        `@notificacoes_usuario_${identificador}`,
+        JSON.stringify(novasPreferencias),
+      );
+    } catch (erro) {
+      console.error('Erro ao salvar notificações:', erro);
+      Alert.alert('Erro', 'Não foi possível salvar suas preferências.');
+    }
   }
 
-  function voltarDaSecao() {
-    if (veioDiretoParaEnderecos) {
-      voltarParaPerfil();
+  async function salvarEnderecos(listaAtualizada: Endereco[]) {
+    try {
+      const id = identificador || criarIdentificador(usuarioLogado);
+
+      if (!id) {
+        Alert.alert('Erro', 'Não foi possível identificar sua conta.');
+        return false;
+      }
+
+      await AsyncStorage.setItem(
+        `@enderecos_usuario_${id}`,
+        JSON.stringify(listaAtualizada),
+      );
+
+      setEnderecos(listaAtualizada);
+      return true;
+    } catch (erro) {
+      console.error('Erro ao salvar endereços:', erro);
+      Alert.alert('Erro', 'Não foi possível salvar os endereços.');
+      return false;
+    }
+  }
+
+  function limparFormulario() {
+    setNomeEndereco('');
+    setTextoEndereco('');
+    setEditandoId(null);
+  }
+
+  async function salvarEndereco() {
+    const nome = nomeEndereco.trim();
+    const texto = textoEndereco.trim();
+
+    if (!nome || !texto) {
+      Alert.alert(
+        'Campos obrigatórios',
+        'Preencha o nome e o endereço completo.',
+      );
       return;
     }
 
-    setTela('home');
+    const listaAtualizada = editandoId
+      ? enderecos.map((item) =>
+          String(item.id) === String(editandoId)
+            ? { ...item, nome, texto }
+            : item,
+        )
+      : [
+          ...enderecos,
+          {
+            id: `${Date.now()}`,
+            nome,
+            texto,
+          },
+        ];
+
+    const salvo = await salvarEnderecos(listaAtualizada);
+
+    if (salvo) {
+      limparFormulario();
+      setConfirmandoExclusao(null);
+      Alert.alert('Endereço salvo', 'As informações foram salvas com sucesso.');
+    }
   }
 
-  function sairDaConta() {
-    router.replace('/' as any);
+  function iniciarEdicao(endereco: Endereco) {
+    setEditandoId(endereco.id);
+    setNomeEndereco(endereco.nome);
+    setTextoEndereco(endereco.texto);
+    setConfirmandoExclusao(null);
   }
 
-  if (tela === 'conta') {
-    return <Conta onVoltar={voltarDaSecao} />;
+  function pedirExclusao(id: string) {
+    setConfirmandoExclusao(id);
+    limparFormulario();
   }
 
-  if (tela === 'enderecos') {
-    return <Enderecos onVoltar={voltarDaSecao} />;
+  async function confirmarExclusao(id: string) {
+    const listaAtualizada = enderecos.filter(
+      (item) => String(item.id) !== String(id),
+    );
+
+    const salvo = await salvarEnderecos(listaAtualizada);
+
+    if (salvo) {
+      setConfirmandoExclusao(null);
+      limparFormulario();
+    }
   }
 
-  if (tela === 'notificacoes') {
-    return <Notificacoes onVoltar={voltarDaSecao} />;
+  async function salvarDadosConta() {
+    const nome = nomeEditado.trim();
+    const email = emailEditado.trim().toLowerCase();
+    const telefone = telefoneEditado.trim();
+
+    if (!nome || !email) {
+      Alert.alert('Campos obrigatórios', 'Informe seu nome e seu e-mail.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('E-mail inválido', 'Digite um endereço de e-mail válido.');
+      return;
+    }
+
+    const id = usuarioLogado?.id;
+
+    if (id == null) {
+      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
+      return;
+    }
+
+    setCarregandoDados(true);
+
+    try {
+      const atualizado = await userController.atualizar(String(id), {
+        nome,
+        email,
+        telefone,
+      });
+
+      const usuarioSemSenha = { ...atualizado };
+      delete (usuarioSemSenha as any).senha;
+
+      await userController.setUsuarioLogado(usuarioSemSenha);
+
+      setUsuarioLogado(usuarioSemSenha);
+      setIdentificador(criarIdentificador(usuarioSemSenha));
+
+      setNomeEditado(usuarioSemSenha.nome || '');
+      setEmailEditado(usuarioSemSenha.email || '');
+      setTelefoneEditado(usuarioSemSenha.telefone || '');
+
+      Alert.alert('Dados atualizados', 'Seus dados foram atualizados com sucesso.');
+    } catch (erro: any) {
+      console.error('Erro ao atualizar conta:', erro);
+
+      Alert.alert(
+        'Não foi possível atualizar',
+        erro?.message || 'Verifique os dados e tente novamente.',
+      );
+    } finally {
+      setCarregandoDados(false);
+    }
   }
 
-  if (tela === 'privacidade') {
-    return <Privacidade onVoltar={voltarDaSecao} />;
+  async function salvarNovaSenha() {
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+      Alert.alert('Campos obrigatórios', 'Preencha todos os campos de senha.');
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      Alert.alert('Senha muito curta', 'A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      Alert.alert('Senhas diferentes', 'A confirmação não corresponde à nova senha.');
+      return;
+    }
+
+    const id = usuarioLogado?.id;
+
+    if (id == null) {
+      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
+      return;
+    }
+
+    setCarregandoDados(true);
+
+    try {
+      const bancoTexto = await AsyncStorage.getItem(CHAVE_USUARIOS);
+      const banco = bancoTexto ? JSON.parse(bancoTexto) : [];
+
+      const usuarioBanco = Array.isArray(banco)
+        ? banco.find((item: any) => String(item.id) === String(id))
+        : null;
+
+      if (!usuarioBanco) {
+        throw new Error('Usuário não encontrado no banco de dados.');
+      }
+
+      const senhaVerificada = await userController.verificarSenha(
+        senhaAtual,
+        usuarioBanco.senha,
+      );
+
+      if (!senhaVerificada) {
+        throw new Error('A senha atual está incorreta.');
+      }
+
+      await userController.atualizar(String(id), {
+        senha: novaSenha,
+      });
+
+      setSenhaAtual('');
+      setNovaSenha('');
+      setConfirmarSenha('');
+
+      Alert.alert('Senha alterada', 'Sua senha foi alterada com sucesso.');
+    } catch (erro: any) {
+      Alert.alert(
+        'Não foi possível alterar a senha',
+        erro?.message || 'Tente novamente.',
+      );
+    } finally {
+      setCarregandoDados(false);
+    }
   }
 
-  if (tela === 'ajuda') {
-    return <Ajuda onVoltar={voltarDaSecao} />;
+  async function sairDaConta() {
+    try {
+      await userController.logout();
+      await AsyncStorage.removeItem(CHAVE_USUARIO_LOGADO);
+
+      setUsuarioLogado(null);
+      setConfirmacaoConta(null);
+
+      router.replace('/' as any);
+    } catch (erro) {
+      console.error('Erro ao sair da conta:', erro);
+      Alert.alert('Erro', 'Não foi possível sair da conta.');
+    }
   }
 
-  const renderItem = ({ item }: { item: ItemMenu }) => (
-    <Pressable
-      style={styles.item}
-      onPress={() => setTela(item.id)}
-    >
-      <View style={styles.iconeBox}>
-        <Ionicons
-          name={item.icone}
-          size={27}
-          color="#44805c"
-        />
+  async function excluirConta() {
+    const id = usuarioLogado?.id;
+
+    if (id == null) {
+      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
+      return;
+    }
+
+    setCarregandoDados(true);
+
+    try {
+      const removido = await userController.remover(String(id));
+
+      if (!removido) {
+        throw new Error('Não foi possível localizar sua conta para exclusão.');
+      }
+
+      const identificadorAtual = identificador;
+
+      await AsyncStorage.removeItem(CHAVE_USUARIO_LOGADO);
+
+      if (identificadorAtual) {
+        await AsyncStorage.removeItem(
+          `@enderecos_usuario_${identificadorAtual}`,
+        );
+
+        await AsyncStorage.removeItem(
+          `@notificacoes_usuario_${identificadorAtual}`,
+        );
+      }
+
+      await userController.logout();
+
+      setUsuarioLogado(null);
+      setConfirmacaoConta(null);
+
+      Alert.alert(
+        'Conta excluída',
+        'Sua conta foi excluída com sucesso.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/' as any),
+          },
+        ],
+      );
+    } catch (erro: any) {
+      console.error('Erro ao excluir conta:', erro);
+
+      Alert.alert(
+        'Erro ao excluir conta',
+        erro?.message || 'Não foi possível excluir sua conta.',
+      );
+    } finally {
+      setCarregandoDados(false);
+    }
+  }
+
+  function voltarDaTela() {
+    if (confirmacaoConta) {
+      setConfirmacaoConta(null);
+      return;
+    }
+
+    if (tela !== 'home' && !veioDiretoParaEnderecos) {
+      setTela('home');
+      limparFormulario();
+      setConfirmandoExclusao(null);
+      return;
+    }
+
+    const tipo = String(
+      usuarioLogado?.tipo ?? usuario?.tipo ?? '',
+    ).toLowerCase();
+
+    const veioDoPerfilEmpresa =
+      parametroOrigem === 'empresa' || tipo.includes('empresa');
+
+    if (veioDoPerfilEmpresa) {
+      router.replace('/perfilempresa' as any);
+      return;
+    }
+
+    if (parametroOrigem === 'cliente' || veioDiretoParaEnderecos) {
+      router.replace('/perfil' as any);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/perfil' as any);
+    }
+  }
+
+  function abrirTela(novaTela: Tela) {
+    setTela(novaTela);
+    limparFormulario();
+    setConfirmandoExclusao(null);
+    setConfirmacaoConta(null);
+  }
+
+  function alterarPreferencia(
+    chave: keyof PreferenciasNotificacao,
+    valor: boolean,
+  ) {
+    salvarPreferencias({
+      ...preferencias,
+      [chave]: valor,
+    });
+  }
+
+  if (carregando || !autorizado) {
+    return null;
+  }
+
+  const nomeUsuario =
+    usuarioLogado?.nomeEmpresa ||
+    usuarioLogado?.nome ||
+    usuario?.nomeEmpresa ||
+    usuario?.nome ||
+    'Minha conta';
+
+  function renderCabecalho(titulo: string, subtitulo: string) {
+    return (
+      <View style={styles.cabecalho}>
+        <Pressable
+          onPress={voltarDaTela}
+          style={styles.botaoVoltar}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </Pressable>
+
+        <View style={styles.cabecalhoTextos}>
+          <Text style={styles.tituloCabecalho}>{titulo}</Text>
+          <Text style={styles.subtituloCabecalho}>{subtitulo}</Text>
+        </View>
       </View>
+    );
+  }
 
-      <View style={styles.textosMenu}>
-        <Text style={styles.itemTitulo}>{item.titulo}</Text>
-        <Text style={styles.suave}>{item.sub}</Text>
-      </View>
-
-      <Ionicons
-        name="chevron-forward"
-        size={22}
-        color="#44805c"
-      />
-    </Pressable>
-  );
-
-  const rodape = saindo ? (
-    <View style={styles.card}>
-      <Text style={styles.negrito}>Sair da conta?</Text>
-
-      <Text style={styles.suave}>
-        Você será direcionado para a tela inicial.
-      </Text>
-
-      <Botao
-        titulo="Sair"
-        vermelho
-        onPress={sairDaConta}
-      />
-
-      <Pressable onPress={() => setSaindo(false)}>
-        <Text style={styles.cancelar}>Cancelar</Text>
-      </Pressable>
-    </View>
-  ) : (
-    <Pressable
-      style={styles.item}
-      onPress={() => setSaindo(true)}
-    >
-      <View
-        style={[
-          styles.iconeBox,
-          { backgroundColor: '#f6dedd' },
+  function renderMenuItem(
+    titulo: string,
+    descricao: string,
+    icone: keyof typeof Ionicons.glyphMap,
+    destino: Tela,
+  ) {
+    return (
+      <Pressable
+        key={destino}
+        onPress={() => abrirTela(destino)}
+        style={({ pressed }) => [
+          styles.itemMenu,
+          pressed && styles.itemPressionado,
         ]}
       >
-        <Ionicons
-          name="log-out-outline"
-          size={27}
-          color="#b3352f"
+        <View style={styles.iconeMenu}>
+          <Ionicons name={icone} size={24} color={VERDE} />
+        </View>
+
+        <View style={styles.textosMenu}>
+          <Text style={styles.tituloMenu}>{titulo}</Text>
+          <Text style={styles.descricaoMenu}>{descricao}</Text>
+        </View>
+
+        <Ionicons name="chevron-forward" size={21} color="#8A978D" />
+      </Pressable>
+    );
+  }
+
+  function renderInicio() {
+    return (
+      <>
+        {renderCabecalho(
+          'Configurações',
+          'Gerencie sua conta e suas preferências',
+        )}
+
+        <View style={styles.conteudo}>
+          <View style={styles.cartaoBoasVindas}>
+            <View style={styles.iconeBoasVindas}>
+              <Ionicons name="settings-outline" size={29} color={VERDE} />
+            </View>
+
+            <View style={styles.boasVindasTextos}>
+              <Text style={styles.boasVindasTitulo}>
+                Olá, {nomeUsuario}!
+              </Text>
+              <Text style={styles.boasVindasDescricao}>
+                O que você deseja ajustar?
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.tituloSecao}>Minha conta</Text>
+
+          <View style={styles.listaMenu}>
+            {renderMenuItem(
+              'Minha conta',
+              'Altere seu nome, e-mail e telefone',
+              'person-outline',
+              'conta',
+            )}
+
+            {renderMenuItem(
+              'Meus endereços',
+              'Cadastre e altere seus endereços',
+              'location-outline',
+              'enderecos',
+            )}
+
+            {renderMenuItem(
+              'Notificações',
+              'Gerencie alertas, promoções e avisos',
+              'notifications-outline',
+              'notificacoes',
+            )}
+
+            {renderMenuItem(
+              'Privacidade e segurança',
+              'Altere sua senha e gerencie sua conta',
+              'shield-checkmark-outline',
+              'privacidade',
+            )}
+
+            {renderMenuItem(
+              'Ajuda e suporte',
+              'Encontre respostas para suas dúvidas',
+              'help-circle-outline',
+              'ajuda',
+            )}
+          </View>
+
+          <Pressable
+            onPress={() => setConfirmacaoConta('sair')}
+            style={styles.botaoSair}
+          >
+            <Ionicons name="log-out-outline" size={21} color="#C43D3D" />
+            <Text style={styles.textoBotaoSair}>Sair da conta</Text>
+          </Pressable>
+
+          {confirmacaoConta === 'sair' && (
+            <View style={styles.confirmacaoConta}>
+              <Text style={styles.confirmacaoTitulo}>
+                Deseja sair da sua conta?
+              </Text>
+              <Text style={styles.confirmacaoDescricao}>
+                Você poderá entrar novamente usando seus dados de acesso.
+                Sua conta continuará cadastrada.
+              </Text>
+
+              <View style={styles.confirmacaoBotoes}>
+                <Pressable
+                  onPress={() => setConfirmacaoConta(null)}
+                  style={styles.botaoManter}
+                >
+                  <Text style={styles.textoBotaoManter}>Cancelar</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={sairDaConta}
+                  style={styles.botaoConfirmarExcluir}
+                >
+                  <Text style={styles.textoConfirmarExcluir}>Sair</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </>
+    );
+  }
+
+  function renderConta() {
+    return (
+      <>
+        {renderCabecalho(
+          'Minha conta',
+          'Atualize suas informações pessoais',
+        )}
+
+        <View style={styles.conteudo}>
+          <View style={styles.cartaoFormulario}>
+            <Text style={styles.tituloFormulario}>Dados pessoais</Text>
+
+            <Text style={styles.rotuloCampo}>Nome / Usuário</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite seu nome"
+              placeholderTextColor="#8A978D"
+              value={nomeEditado}
+              onChangeText={setNomeEditado}
+              selectionColor={VERDE}
+            />
+
+            <Text style={styles.rotuloCampo}>E-mail</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite seu e-mail"
+              placeholderTextColor="#8A978D"
+              value={emailEditado}
+              onChangeText={setEmailEditado}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              selectionColor={VERDE}
+            />
+
+            <Text style={styles.rotuloCampo}>Telefone</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite seu telefone"
+              placeholderTextColor="#8A978D"
+              value={telefoneEditado}
+              onChangeText={setTelefoneEditado}
+              keyboardType="phone-pad"
+              selectionColor={VERDE}
+            />
+
+            <Pressable
+              onPress={salvarDadosConta}
+              disabled={carregandoDados}
+              style={({ pressed }) => [
+                styles.botaoPrincipal,
+                pressed && styles.itemPressionado,
+              ]}
+            >
+              {carregandoDados ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="save-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.textoBotaoPrincipal}>
+                    Salvar alterações
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+
+          <View style={styles.cartaoInformacao}>
+            <Text style={styles.rotulo}>Documento cadastrado</Text>
+            <Text style={styles.valor}>
+              {usuarioLogado?.documento || 'Não informado'}
+            </Text>
+            <Text style={styles.textoObservacao}>
+              O CPF ou CNPJ não pode ser alterado por esta tela.
+            </Text>
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  function renderEnderecos() {
+    return (
+      <>
+        {renderCabecalho(
+          'Meus endereços',
+          'Gerencie os endereços da sua conta',
+        )}
+
+        <View style={styles.conteudo}>
+          <View style={styles.avisoEndereco}>
+            <Ionicons
+              name="information-circle-outline"
+              size={23}
+              color={VERDE}
+            />
+            <Text style={styles.avisoEnderecoTexto}>
+              Mantenha seus endereços atualizados para facilitar a
+              identificação da sua localização.
+            </Text>
+          </View>
+
+          <View style={styles.cartaoFormulario}>
+            <Text style={styles.tituloFormulario}>
+              {editandoId ? 'Editar endereço' : 'Adicionar endereço'}
+            </Text>
+
+            <Text style={styles.rotuloCampo}>Nome do endereço</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ex.: Loja principal"
+              placeholderTextColor="#8A978D"
+              value={nomeEndereco}
+              onChangeText={setNomeEndereco}
+              selectionColor={VERDE}
+            />
+
+            <Text style={styles.rotuloCampo}>Endereço completo</Text>
+            <TextInput
+              style={[styles.input, styles.inputMultilinha]}
+              placeholder="Rua, número, bairro, cidade..."
+              placeholderTextColor="#8A978D"
+              value={textoEndereco}
+              onChangeText={setTextoEndereco}
+              multiline
+              textAlignVertical="top"
+              selectionColor={VERDE}
+            />
+
+            <Pressable
+              onPress={salvarEndereco}
+              style={({ pressed }) => [
+                styles.botaoPrincipal,
+                pressed && styles.itemPressionado,
+              ]}
+            >
+              <Ionicons name="save-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.textoBotaoPrincipal}>
+                {editandoId ? 'Salvar alterações' : 'Salvar endereço'}
+              </Text>
+            </Pressable>
+
+            {editandoId && (
+              <Pressable onPress={limparFormulario} style={styles.botaoCancelar}>
+                <Text style={styles.textoBotaoCancelar}>Cancelar edição</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <Text style={styles.tituloSecao}>Endereços cadastrados</Text>
+
+          {carregandoEnderecos ? (
+            <ActivityIndicator
+              size="large"
+              color={VERDE}
+              style={styles.carregando}
+            />
+          ) : enderecos.length === 0 ? (
+            <View style={styles.estadoVazio}>
+              <View style={styles.estadoVazioIcone}>
+                <Ionicons name="location-outline" size={32} color={VERDE} />
+              </View>
+              <Text style={styles.estadoVazioTitulo}>
+                Nenhum endereço cadastrado
+              </Text>
+              <Text style={styles.estadoVazioDescricao}>
+                Preencha os campos acima para adicionar o primeiro endereço.
+              </Text>
+            </View>
+          ) : (
+            enderecos.map((endereco) => (
+              <View key={endereco.id} style={styles.cartaoEndereco}>
+                <View style={styles.enderecoLinha}>
+                  <View style={styles.enderecoIcone}>
+                    <Ionicons name="location" size={23} color={VERDE} />
+                  </View>
+
+                  <View style={styles.enderecoTextos}>
+                    <Text style={styles.nomeEnderecoSalvo}>
+                      {endereco.nome}
+                    </Text>
+                    <Text style={styles.textoEnderecoSalvo}>
+                      {endereco.texto}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.acoesEndereco}>
+                  <Pressable
+                    onPress={() => iniciarEdicao(endereco)}
+                    style={styles.botaoAcao}
+                  >
+                    <Ionicons name="create-outline" size={18} color={VERDE} />
+                    <Text style={styles.textoAcao}>Editar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => pedirExclusao(endereco.id)}
+                    style={styles.botaoAcao}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#C43D3D" />
+                    <Text style={styles.textoExcluir}>Excluir</Text>
+                  </Pressable>
+                </View>
+
+                {String(confirmandoExclusao) === String(endereco.id) && (
+                  <View style={styles.confirmacaoExclusao}>
+                    <Text style={styles.confirmacaoTitulo}>
+                      Excluir este endereço?
+                    </Text>
+                    <Text style={styles.confirmacaoDescricao}>
+                      Essa ação não poderá ser desfeita.
+                    </Text>
+
+                    <View style={styles.confirmacaoBotoes}>
+                      <Pressable
+                        onPress={() => setConfirmandoExclusao(null)}
+                        style={styles.botaoManter}
+                      >
+                        <Text style={styles.textoBotaoManter}>Cancelar</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => confirmarExclusao(endereco.id)}
+                        style={styles.botaoConfirmarExcluir}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                        <Text style={styles.textoConfirmarExcluir}>Excluir</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      </>
+    );
+  }
+
+  function renderLinhaNotificacao(
+    titulo: string,
+    descricao: string,
+    icone: keyof typeof Ionicons.glyphMap,
+    chave: keyof PreferenciasNotificacao,
+  ) {
+    return (
+      <View style={styles.linhaNotificacao} key={chave}>
+        <View style={styles.iconeMenu}>
+          <Ionicons name={icone} size={23} color={VERDE} />
+        </View>
+
+        <View style={styles.textosMenu}>
+          <Text style={styles.tituloMenu}>{titulo}</Text>
+          <Text style={styles.descricaoMenu}>{descricao}</Text>
+        </View>
+
+        <Switch
+          value={preferencias[chave]}
+          onValueChange={(valor) => alterarPreferencia(chave, valor)}
+          trackColor={{ false: '#D5DDD6', true: VERDE }}
+          thumbColor="#FFFFFF"
         />
       </View>
+    );
+  }
 
-      <Text style={styles.sair}>Sair da conta</Text>
+  function renderNotificacoes() {
+    return (
+      <>
+        {renderCabecalho(
+          'Notificações',
+          'Escolha quais avisos deseja receber',
+        )}
 
-      <Ionicons
-        name="chevron-forward"
-        size={22}
-        color="#b3352f"
-      />
-    </Pressable>
-  );
+        <View style={styles.conteudo}>
+          <View style={styles.cartaoInformacao}>
+            {renderLinhaNotificacao(
+              'Alertas',
+              'Avisos importantes sobre sua conta e compras.',
+              'alert-circle-outline',
+              'alertas',
+            )}
+
+            <View style={styles.divisor} />
+
+            {renderLinhaNotificacao(
+              'Promoções',
+              'Novidades, ofertas e descontos.',
+              'pricetag-outline',
+              'promocoes',
+            )}
+
+            <View style={styles.divisor} />
+
+            {renderLinhaNotificacao(
+              'E-mail',
+              'Receber comunicados pelo seu e-mail cadastrado.',
+              'mail-outline',
+              'email',
+            )}
+
+            <View style={styles.divisor} />
+
+            {renderLinhaNotificacao(
+              'Push',
+              'Receber notificações no dispositivo.',
+              'phone-portrait-outline',
+              'push',
+            )}
+          </View>
+
+          <Text style={styles.textoObservacao}>
+            Suas preferências ficam salvas nesta conta.
+          </Text>
+        </View>
+      </>
+    );
+  }
+
+  function renderPrivacidade() {
+    return (
+      <>
+        {renderCabecalho(
+          'Privacidade e segurança',
+          'Cuide das informações da sua conta',
+        )}
+
+        <View style={styles.conteudo}>
+          <View style={styles.cartaoInformacao}>
+            <View style={styles.iconeCentral}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={38}
+                color={VERDE}
+              />
+            </View>
+
+            <Text style={styles.tituloCentral}>
+              Seus dados são importantes
+            </Text>
+
+            <Text style={styles.textoCentral}>
+              Utilize o aplicativo com responsabilidade e mantenha suas
+              informações de acesso protegidas. Não compartilhe sua senha
+              com outras pessoas.
+            </Text>
+          </View>
+
+          <View style={styles.cartaoFormulario}>
+            <Text style={styles.tituloFormulario}>Alterar senha</Text>
+
+            <Text style={styles.rotuloCampo}>Senha atual</Text>
+            <View style={styles.campoSenha}>
+              <TextInput
+                style={styles.inputSenha}
+                placeholder="Digite sua senha atual"
+                placeholderTextColor="#8A978D"
+                value={senhaAtual}
+                onChangeText={setSenhaAtual}
+                secureTextEntry={!mostrarSenha}
+                autoCapitalize="none"
+              />
+              <Pressable onPress={() => setMostrarSenha(!mostrarSenha)}>
+                <Ionicons
+                  name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
+                  size={21}
+                  color="#78847A"
+                />
+              </Pressable>
+            </View>
+
+            <Text style={styles.rotuloCampo}>Nova senha</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite a nova senha"
+              placeholderTextColor="#8A978D"
+              value={novaSenha}
+              onChangeText={setNovaSenha}
+              secureTextEntry={!mostrarSenha}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.rotuloCampo}>Confirmar nova senha</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Digite novamente a nova senha"
+              placeholderTextColor="#8A978D"
+              value={confirmarSenha}
+              onChangeText={setConfirmarSenha}
+              secureTextEntry={!mostrarSenha}
+              autoCapitalize="none"
+            />
+
+            <Pressable
+              onPress={salvarNovaSenha}
+              disabled={carregandoDados}
+              style={styles.botaoPrincipal}
+            >
+              {carregandoDados ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="lock-closed-outline" size={19} color="#FFFFFF" />
+                  <Text style={styles.textoBotaoPrincipal}>Alterar senha</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+
+          <View style={styles.cartaoFormulario}>
+            <View style={styles.iconePerigo}>
+              <Ionicons name="warning-outline" size={27} color="#C43D3D" />
+            </View>
+
+            <Text style={styles.tituloPerigo}>Excluir conta</Text>
+            <Text style={styles.textoCentral}>
+              A exclusão remove seu cadastro do banco de usuários. Essa ação
+              não poderá ser desfeita.
+            </Text>
+
+            <Pressable
+              onPress={() => setConfirmacaoConta('excluir')}
+              style={styles.botaoExcluirConta}
+            >
+              <Ionicons name="trash-outline" size={19} color="#FFFFFF" />
+              <Text style={styles.textoBotaoPrincipal}>Excluir minha conta</Text>
+            </Pressable>
+
+            {confirmacaoConta === 'excluir' && (
+              <View style={styles.confirmacaoExclusao}>
+                <Text style={styles.confirmacaoTitulo}>
+                  Tem certeza que deseja excluir sua conta?
+                </Text>
+                <Text style={styles.confirmacaoDescricao}>
+                  Seu cadastro será removido. Você precisará criar uma nova
+                  conta para usar o aplicativo novamente.
+                </Text>
+
+                <View style={styles.confirmacaoBotoes}>
+                  <Pressable
+                    onPress={() => setConfirmacaoConta(null)}
+                    style={styles.botaoManter}
+                  >
+                    <Text style={styles.textoBotaoManter}>Cancelar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={excluirConta}
+                    disabled={carregandoDados}
+                    style={styles.botaoConfirmarExcluir}
+                  >
+                    {carregandoDados ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.textoConfirmarExcluir}>
+                        Confirmar exclusão
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </>
+    );
+  }
+
+  const perguntas = [
+    {
+      pergunta: 'Como altero meus dados?',
+      resposta:
+        'Acesse Minha conta, altere seu nome, e-mail ou telefone e toque em Salvar alterações.',
+    },
+    {
+      pergunta: 'Como adiciono um endereço?',
+      resposta:
+        'Entre em Meus endereços, preencha o nome do endereço e o endereço completo. Depois toque em Salvar endereço.',
+    },
+    {
+      pergunta: 'Como edito ou excluo um endereço?',
+      resposta:
+        'Na lista de endereços cadastrados, utilize os botões Editar ou Excluir. A exclusão pede uma confirmação antes de remover.',
+    },
+    {
+      pergunta: 'Como desativo as notificações?',
+      resposta:
+        'Acesse Notificações e desative individualmente Alertas, Promoções, E-mail ou Push.',
+    },
+    {
+      pergunta: 'Como altero minha senha?',
+      resposta:
+        'Entre em Privacidade e segurança, informe sua senha atual, digite a nova senha e confirme.',
+    },
+    {
+      pergunta: 'Como saio da minha conta?',
+      resposta:
+        'Na tela principal de Configurações, toque em Sair da conta. Seu cadastro continuará salvo.',
+    },
+  ];
+
+  function renderAjuda() {
+    return (
+      <>
+        {renderCabecalho(
+          'Ajuda e suporte',
+          'Encontre respostas para suas dúvidas',
+        )}
+
+        <View style={styles.conteudo}>
+          <View style={styles.cartaoInformacao}>
+            <View style={styles.iconeCentral}>
+              <Ionicons name="help-circle-outline" size={40} color={VERDE} />
+            </View>
+
+            <Text style={styles.tituloCentral}>Como podemos ajudar?</Text>
+            <Text style={styles.textoCentral}>
+              Confira as perguntas frequentes abaixo para encontrar orientações
+              sobre sua conta e as funcionalidades do Economize.
+            </Text>
+          </View>
+
+          <Text style={styles.tituloSecao}>Perguntas frequentes</Text>
+
+          {perguntas.map((item, index) => (
+            <View style={styles.cartaoPergunta} key={index}>
+              <Pressable
+                onPress={() =>
+                  setPerguntaAberta(
+                    perguntaAberta === index ? null : index,
+                  )
+                }
+                style={styles.linhaPergunta}
+              >
+                <Text style={styles.textoPergunta}>{item.pergunta}</Text>
+                <Ionicons
+                  name={
+                    perguntaAberta === index
+                      ? 'chevron-up'
+                      : 'chevron-down'
+                  }
+                  size={21}
+                  color={VERDE}
+                />
+              </Pressable>
+
+              {perguntaAberta === index && (
+                <Text style={styles.respostaPergunta}>
+                  {item.resposta}
+                </Text>
+              )}
+            </View>
+          ))}
+
+          <View style={styles.cartaoInformacao}>
+            <View style={styles.linhaInformacao}>
+              <View style={styles.iconeMenu}>
+                <Ionicons name="chatbubble-ellipses-outline" size={24} color={VERDE} />
+              </View>
+              <View style={styles.textosMenu}>
+                <Text style={styles.tituloMenu}>Fale conosco</Text>
+                <Text style={styles.descricaoMenu}>
+                  Precisa de mais ajuda? Entre em contato com a equipe
+                  responsável pelo aplicativo.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </>
+    );
+  }
 
   return (
-    <Tela
-      titulo="Configurações"
-      subtitulo="Gerencie sua conta e suas preferências."
-      onVoltar={voltarParaPerfil}
-    >
-      <FlatList
-        data={MENU}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        ListFooterComponent={rodape}
-        contentContainerStyle={styles.conteudo}
-      />
-    </Tela>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.conteudoScroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {tela === 'home' && renderInicio()}
+        {tela === 'conta' && renderConta()}
+        {tela === 'enderecos' && renderEnderecos()}
+        {tela === 'notificacoes' && renderNotificacoes()}
+        {tela === 'privacidade' && renderPrivacidade()}
+        {tela === 'ajuda' && renderAjuda()}
+      </ScrollView>
+    </View>
   );
 }
-
-/* ---------- Estilos ---------- */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F9F7',
+    backgroundColor: FUNDO,
   },
 
-  conteudo: {
-    padding: 18,
-    paddingBottom: 40,
+  scroll: {
+    flex: 1,
   },
 
-  header: {
-    paddingTop: 48,
-    paddingHorizontal: 18,
-    paddingBottom: 15,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EEE9',
+  conteudoScroll: {
+    paddingBottom: 30,
   },
 
   cabecalho: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: VERDE,
+    paddingHorizontal: 20,
+    paddingTop: 25,
+    paddingBottom: 25,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
   },
 
   botaoVoltar: {
-    width: 42,
-    height: 42,
+    width: 43,
+    height: 43,
     borderRadius: 14,
-    backgroundColor: '#E5F1E8',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.17)',
+    marginRight: 14,
   },
 
-  espacador: {
-    width: 42,
-  },
-
-  titulo: {
+  cabecalhoTextos: {
     flex: 1,
-    textAlign: 'center',
-    fontSize: 21,
+  },
+
+  tituloCabecalho: {
+    fontSize: 22,
     fontWeight: '800',
-    color: '#193D27',
+    color: '#FFFFFF',
   },
 
-  subtitulo: {
-    fontSize: 13,
-    color: '#777F78',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 19,
+  subtituloCabecalho: {
+    fontSize: 12,
+    color: '#E8F3EB',
+    marginTop: 5,
+    lineHeight: 18,
   },
 
-  item: {
+  conteudo: {
+    paddingHorizontal: 18,
+    paddingTop: 22,
+  },
+
+  cartaoBoasVindas: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
     backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E5ECE6',
-    borderRadius: 16,
-    padding: 13,
-    marginBottom: 12,
-    minHeight: 78,
+    borderColor: '#E2EBE3',
+    padding: 16,
+    marginBottom: 25,
   },
 
-  iconeBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
-    backgroundColor: '#E5F1E8',
+  iconeBoasVindas: {
+    width: 51,
+    height: 51,
+    borderRadius: 16,
+    backgroundColor: VERDE_CLARO,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 13,
+  },
+
+  boasVindasTextos: {
+    flex: 1,
+  },
+
+  boasVindasTitulo: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+  },
+
+  boasVindasDescricao: {
+    fontSize: 12,
+    color: '#748075',
+    marginTop: 4,
+  },
+
+  tituloSecao: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+    marginBottom: 13,
+  },
+
+  listaMenu: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2EBE3',
+    paddingHorizontal: 14,
+  },
+
+  itemMenu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EDF1ED',
+  },
+
+  itemPressionado: {
+    opacity: 0.65,
+  },
+
+  iconeMenu: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
 
   textosMenu: {
     flex: 1,
+    marginRight: 8,
   },
 
-  itemTitulo: {
-    fontSize: 15,
+  tituloMenu: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#26382A',
   },
 
-  sair: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#B3352F',
+  descricaoMenu: {
+    fontSize: 12,
+    color: '#7A857C',
+    marginTop: 4,
+    lineHeight: 17,
   },
 
-  card: {
+  cartaoInformacao: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E5ECE6',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderColor: '#E2EBE3',
+    padding: 18,
+    marginBottom: 18,
   },
 
-  linha: {
+  linhaInformacao: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
+    paddingVertical: 7,
   },
 
-  secao: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#193D27',
-    marginBottom: 8,
+  informacaoTextos: {
+    flex: 1,
   },
 
-  label: {
-    fontSize: 13,
+  rotulo: {
+    fontSize: 12,
+    color: '#7A857C',
+    marginBottom: 5,
+  },
+
+  valor: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#4D5A50',
-    marginTop: 15,
+    color: '#26382A',
+  },
+
+  divisor: {
+    height: 1,
+    backgroundColor: '#E9EEE9',
+    marginVertical: 12,
+  },
+
+  avisoEndereco: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: VERDE_CLARO,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 18,
+  },
+
+  avisoEnderecoTexto: {
+    flex: 1,
+    fontSize: 12,
+    color: VERDE_ESCURO,
+    lineHeight: 19,
+  },
+
+  cartaoFormulario: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 17,
+    borderWidth: 1,
+    borderColor: '#E2EBE3',
+    marginBottom: 25,
+  },
+
+  tituloFormulario: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+    marginBottom: 17,
+  },
+
+  rotuloCampo: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#425246',
     marginBottom: 7,
   },
 
   input: {
+    minHeight: 48,
     borderWidth: 1,
-    borderColor: '#DCE5DD',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
-    fontSize: 15,
+    borderColor: '#DCE6DD',
+    backgroundColor: '#FAFCFA',
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    fontSize: 14,
     color: '#26382A',
+    marginBottom: 15,
+    outlineStyle: 'none' as any,
   },
 
-  aviso: {
+  inputMultilinha: {
+    minHeight: 88,
+    paddingTop: 12,
+  },
+
+  campoSenha: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#DCE6DD',
+    backgroundColor: '#FAFCFA',
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    marginBottom: 15,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#EAF4EC',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 10,
   },
 
-  avisoTexto: {
+  inputSenha: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#315D3D',
+    fontSize: 14,
+    color: '#26382A',
+    paddingVertical: 12,
+    outlineStyle: 'none' as any,
   },
 
-  botao: {
-    backgroundColor: '#44805c',
-    borderRadius: 14,
-    padding: 15,
+  botaoPrincipal: {
+    minHeight: 49,
+    backgroundColor: VERDE,
+    borderRadius: 13,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
+    gap: 9,
+    paddingHorizontal: 14,
+    marginTop: 2,
   },
 
-  botaoVermelho: {
-    backgroundColor: '#B3352F',
-  },
-
-  botaoDesativado: {
-    opacity: 0.6,
-  },
-
-  botaoTxt: {
+  textoBotaoPrincipal: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '800',
   },
 
-  cancelar: {
-    color: '#69746B',
-    textAlign: 'center',
-    marginTop: 14,
-    fontWeight: '600',
-  },
-
-  trilho: {
-    width: 52,
-    height: 30,
-    borderRadius: 15,
-    padding: 4,
-    justifyContent: 'center',
-  },
-
-  bolinha: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFFFFF',
-  },
-
-  negrito: {
-    fontWeight: '700',
-    fontSize: 15,
-    color: '#26382A',
-  },
-
-  suave: {
-    color: '#778078',
-    fontSize: 13,
-    lineHeight: 19,
+  botaoCancelar: {
+    alignItems: 'center',
+    paddingVertical: 13,
     marginTop: 4,
   },
 
-  msg: {
-    marginTop: 14,
-    textAlign: 'center',
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-
-  msgSucesso: {
-    color: '#2F7A4B',
-  },
-
-  msgErro: {
-    color: '#B3352F',
+  textoBotaoCancelar: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#68746A',
   },
 
   carregando: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginVertical: 25,
   },
 
-  vazio: {
+  estadoVazio: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2EBE3',
+  },
+
+  estadoVazioIcone: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: VERDE_CLARO,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
+    marginBottom: 13,
+  },
+
+  estadoVazioTitulo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+    textAlign: 'center',
+  },
+
+  estadoVazioDescricao: {
+    fontSize: 12,
+    color: '#748075',
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: 7,
+  },
+
+  cartaoEndereco: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#E2EBE3',
+    padding: 15,
+    marginBottom: 12,
+  },
+
+  enderecoLinha: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  enderecoIcone: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  enderecoTextos: {
+    flex: 1,
+  },
+
+  nomeEnderecoSalvo: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#26382A',
+    marginBottom: 6,
+  },
+
+  textoEnderecoSalvo: {
+    fontSize: 13,
+    color: '#68746A',
+    lineHeight: 19,
+  },
+
+  acoesEndereco: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 18,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF1ED',
+    marginTop: 14,
+    paddingTop: 12,
+  },
+
+  botaoAcao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 4,
+  },
+
+  textoAcao: {
+    color: VERDE,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  textoExcluir: {
+    color: '#C43D3D',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  confirmacaoExclusao: {
+    backgroundColor: '#FFF7F7',
+    borderWidth: 1,
+    borderColor: '#F1DADA',
+    borderRadius: 13,
+    padding: 13,
+    marginTop: 13,
+  },
+
+  confirmacaoTitulo: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#963333',
+  },
+
+  confirmacaoDescricao: {
+    fontSize: 12,
+    color: '#795B5B',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+
+  confirmacaoBotoes: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 13,
+    flexWrap: 'wrap',
+  },
+
+  botaoManter: {
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: '#EDEFEA',
+  },
+
+  textoBotaoManter: {
+    color: '#526256',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  botaoConfirmarExcluir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: '#C43D3D',
+  },
+
+  textoConfirmarExcluir: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  linhaNotificacao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+  },
+
+  textoObservacao: {
+    fontSize: 12,
+    color: '#7A857C',
+    lineHeight: 18,
+    marginTop: 5,
+  },
+
+  iconeCentral: {
+    width: 70,
+    height: 70,
+    borderRadius: 23,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+
+  tituloCentral: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: VERDE_ESCURO,
+    textAlign: 'center',
+    marginBottom: 9,
+  },
+
+  textoCentral: {
+    fontSize: 13,
+    color: '#68746A',
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+
+  botaoSair: {
+    marginTop: 20,
+    marginBottom: 10,
+    minHeight: 52,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F0DADA',
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+
+  textoBotaoSair: {
+    color: '#C43D3D',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  confirmacaoConta: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#F1DADA',
+    padding: 15,
+    marginBottom: 18,
+  },
+
+  iconePerigo: {
+    width: 55,
+    height: 55,
+    borderRadius: 17,
+    backgroundColor: '#FFF0F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+
+  tituloPerigo: {
+    color: '#A93232',
+    fontSize: 17,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 9,
+  },
+
+  botaoExcluirConta: {
+    minHeight: 48,
+    backgroundColor: '#C43D3D',
+    borderRadius: 12,
+    marginTop: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
 
-  iconeEndereco: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: '#E5F1E8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  enderecoTexto: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  linkEndereco: {
-    alignSelf: 'flex-start',
-    marginTop: 9,
-  },
-
-  linkEnderecoTexto: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#41805A',
+  cartaoPergunta: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2EBE3',
+    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    marginBottom: 10,
   },
 
   linhaPergunta: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10,
+  },
+
+  textoPergunta: {
+    flex: 1,
+    color: '#26382A',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  respostaPergunta: {
+    color: '#68746A',
+    fontSize: 13,
+    lineHeight: 20,
+    paddingTop: 3,
+    paddingBottom: 14,
   },
 });

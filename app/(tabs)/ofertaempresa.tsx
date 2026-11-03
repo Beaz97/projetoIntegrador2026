@@ -412,56 +412,31 @@ export default function OfertasEmpresa() {
         </ScrollView>
       </View>
 
-      <View style={styles.navegacao}>
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.replace("/homeempresa" as any)}
-        >
-          <Ionicons
-            name="home-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Início</Text>
-        </Pressable>
+      {/* RODAPÉ IGUAL AO DA TELA INICIAL */}
+      <View style={styles.barraContainer}>
+        <View style={styles.barra}>
+          <Pressable
+            hitSlop={10}
+            style={styles.botaoNavegacao}
+            onPress={() => router.push('/homeempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Início"
+          >
+            <Ionicons name="home" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Início</Text>
+          </Pressable>
 
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push("/produtoempresa" as any)}
-        >
-          <Ionicons
-            name="cube-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Produtos</Text>
-        </Pressable>
-
-        <View style={styles.itemNav}>
-          <View style={styles.iconeNavAtivo}>
-            <Ionicons
-              name="pricetag"
-              size={23}
-              color="#FFFFFF"
-            />
-          </View>
-
-          <Text style={styles.textoAtivo}>Ofertas</Text>
-
-          <View style={styles.indicadorAtivo} />
+          <Pressable
+            hitSlop={10}
+            style={styles.botaoNavegacao}
+            onPress={() => router.push('/perfilempresa' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
+          >
+            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Perfil</Text>
+          </Pressable>
         </View>
-
-        <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push("/perfilempresa" as any)}
-        >
-          <Ionicons
-            name="person-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Perfil</Text>
-        </Pressable>
       </View>
 
       <Modal
@@ -525,11 +500,12 @@ const styles = StyleSheet.create({
 
   cabecalho: {
     backgroundColor: VERDE,
-    paddingTop: 55,
-    paddingHorizontal: 22,
-    paddingBottom: 23,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 28,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    flexShrink: 0,
   },
 
   topo: {
@@ -853,6 +829,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
+  espacoFinal: {
+    height: 8,
+    fontWeight: "700",
+  },
+
   navegacao: {
     height: 73,
     backgroundColor: VERDE,
@@ -978,6 +959,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+
+  indicadorAtivo: {
+    width: 21,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
   },
 
   indicadorAtivo: {

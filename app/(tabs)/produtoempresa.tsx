@@ -14,8 +14,13 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import {
+  useFocusEffect,
+  useRouter,
+  useLocalSearchParams,
+} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 import Dados, { type Produto } from '../rotaServidor/dadosProdutos';
 
@@ -41,16 +46,26 @@ function produtoValido(valor: unknown): valor is Produto {
 
 export default function ProdutosEmpresa() {
   const router = useRouter();
+  const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { width } = useWindowDimensions();
 
   const { usuario, carregando, autorizado } =
     useAutenticacao('empresa');
 
-const dados = useMemo(() => Dados(), []);
-const produtosIniciais = dados.produtos;
+  const dados = useMemo(() => Dados(), []);
+  const produtosIniciais = dados.produtos;
 
   const [busca, setBusca] = useState('');
   const [produtos, setProdutos] = useState<Produto[]>(produtosIniciais);
+
+  // VOLTAR PARA A TELA DE ONDE VEIO
+  function voltar() {
+    if (origem === 'perfil') {
+      router.replace('/perfilempresa' as any);
+    } else {
+      router.replace('/homeempresa' as any);
+    }
+  }
 
   const carregarProdutos = useCallback(async () => {
     try {
@@ -100,6 +115,7 @@ const produtosIniciais = dados.produtos;
         CHAVE_PRODUTOS,
         JSON.stringify(produtosAtualizados),
       );
+
       setProdutos(produtosAtualizados);
     } catch (erro) {
       console.error('Erro ao excluir produto:', erro);
@@ -145,9 +161,9 @@ const produtosIniciais = dados.produtos;
       <View style={styles.cabecalho}>
         <Pressable
           style={styles.botaoVoltar}
-          onPress={() => router.back()}
+          onPress={voltar}
           accessibilityRole="button"
-          accessibilityLabel="Voltar para o início"
+          accessibilityLabel="Voltar para a tela anterior"
         >
           <Ionicons
             name="arrow-back"
@@ -410,7 +426,7 @@ const produtosIniciais = dados.produtos;
         </ScrollView>
       </View>
 
-      <View style={styles.navegacao}>
+           <View style={styles.navegacao}>
         <Pressable
           style={styles.itemNav}
           onPress={() => router.push('/homeempresa' as any)}
@@ -423,32 +439,12 @@ const produtosIniciais = dados.produtos;
           <Text style={styles.textoNav}>Início</Text>
         </Pressable>
 
-        <View style={styles.itemNav}>
-          <Ionicons
-            name="cube"
-            size={23}
-            color="#FFFFFF"
-          />
-          <Text style={styles.textoAtivo}>Produtos</Text>
-
-          <View style={styles.indicadorAtivo} />
-        </View>
-
         <Pressable
-          style={styles.itemNav}
-          onPress={() => router.push('/ofertaempresa' as any)}
-        >
-          <Ionicons
-            name="pricetag-outline"
-            size={23}
-            color="#D9E9DD"
-          />
-          <Text style={styles.textoNav}>Ofertas</Text>
-        </Pressable>
-
-        <Pressable
+          hitSlop={10}
           style={styles.itemNav}
           onPress={() => router.push('/perfilempresa' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Perfil"
         >
           <Ionicons
             name="person-outline"
@@ -798,20 +794,22 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  navegacao: {
-    minHeight: 73,
-    backgroundColor: VERDE,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    paddingHorizontal: 5,
-    paddingTop: 5,
-    paddingBottom: 5,
+  // RODAPÉ IGUAL AO HOME
+  barraContainer: {
+    height: 78,
+    position: 'relative',
+    backgroundColor: '#F7F9F7',
     flexShrink: 0,
   },
-
+  navegacao: {
+    height: 75,
+    backgroundColor: VERDE,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 20,
+    flexShrink: 0,
+  },
   itemNav: {
     flex: 1,
     minWidth: 0,
@@ -823,7 +821,7 @@ const styles = StyleSheet.create({
 
   textoNav: {
     fontSize: 10,
-    color: '#D9E9DD', 
+    color: '#D9E9DD',
   },
 
   textoAtivo: {
