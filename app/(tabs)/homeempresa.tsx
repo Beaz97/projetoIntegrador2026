@@ -313,6 +313,8 @@ export default function HomeScreen() {
             <Text style={styles.textoNavegacao}>
               Início
             </Text>
+
+            <View style={styles.indicadorAtivo} />
           </Pressable>
 
           <Pressable
@@ -328,7 +330,7 @@ export default function HomeScreen() {
             accessibilityLabel="Perfil"
           >
             <Ionicons
-              name="person"
+              name="person-outline"
               size={27}
               color="#FFFFFF"
             />
@@ -537,22 +539,18 @@ const styles = StyleSheet.create({
   // RODAPÉ IGUAL AO PERFIL
   barraContainer: {
     height: 78,
-    position: 'relative',
     backgroundColor: FUNDO,
+    justifyContent: 'flex-end',
   },
 
   barra: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    height: 67,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: VERDE,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    height: 67,
     paddingHorizontal: 45,
   },
 
@@ -567,6 +565,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+
+  indicadorAtivo: {
+    width: 24,
+    height: 3,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginTop: 1,
   },
 
   itemPressionado: {

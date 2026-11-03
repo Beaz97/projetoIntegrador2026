@@ -857,15 +857,14 @@ const styles = StyleSheet.create({
   justifyContent: 'flex-end',
 },
 barra: {
-  height: 70,
-  width: '100%',
+  height: 67,
   flexDirection: 'row',
   justifyContent: 'space-around',
   alignItems: 'center',
   backgroundColor: VERDE,
   borderTopLeftRadius: 25,
   borderTopRightRadius: 25,
-  overflow: 'hidden',
+  paddingHorizontal: 45,
 },
 
   botaoNavegacao: {
