@@ -17,6 +17,8 @@ export default function Carrinho() {
     const lista = await AsyncStorage.getItem('carrinho');
     if (lista) {
       setProdutos(JSON.parse(lista));
+    } else {
+      setProdutos([]);
     }
   }
 

@@ -38,7 +38,6 @@ type Tela =
   | 'conta'
   | 'enderecos'
   | 'notificacoes'
-  | 'privacidade'
   | 'ajuda';
 
 type Endereco = {
@@ -112,18 +111,12 @@ export default function Configuracoes() {
   const [preferencias, setPreferencias] =
     useState<PreferenciasNotificacao>(PREFERENCIAS_PADRAO);
 
-  // Privacidade
-  const [senhaAtual, setSenhaAtual] = useState('');
-  const [novaSenha, setNovaSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-
   // Ajuda
   const [perguntaAberta, setPerguntaAberta] = useState<number | null>(null);
 
   // Mensagens de confirmação
   const [confirmacaoConta, setConfirmacaoConta] = useState<
-    'excluir' | 'sair' | null
+    'sair' | null
   >(null);
 
   useEffect(() => {
@@ -193,7 +186,12 @@ export default function Configuracoes() {
       );
 
       setEmailEditado(usuarioAtualizado?.email || '');
-      setTelefoneEditado(usuarioAtualizado?.telefone || '');
+      const telefoneSalvo = await AsyncStorage.getItem(
+        `@telefone_usuario_${criarIdentificador(usuarioAtualizado)}`,
+      );
+      setTelefoneEditado(
+        telefoneSalvo ?? usuarioAtualizado?.telefone ?? '',
+      );
     } catch (erro) {
       console.error('Erro ao carregar usuário:', erro);
     }
@@ -414,6 +412,8 @@ export default function Configuracoes() {
         telefone,
       });
 
+      await AsyncStorage.setItem(`@telefone_usuario_${id}`, telefone);
+
       const usuarioSemSenha = { ...atualizado };
       delete (usuarioSemSenha as any).senha;
 
@@ -439,71 +439,6 @@ export default function Configuracoes() {
     }
   }
 
-  async function salvarNovaSenha() {
-    if (!senhaAtual || !novaSenha || !confirmarSenha) {
-      Alert.alert('Campos obrigatórios', 'Preencha todos os campos de senha.');
-      return;
-    }
-
-    if (novaSenha.length < 6) {
-      Alert.alert('Senha muito curta', 'A nova senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-
-    if (novaSenha !== confirmarSenha) {
-      Alert.alert('Senhas diferentes', 'A confirmação não corresponde à nova senha.');
-      return;
-    }
-
-    const id = usuarioLogado?.id;
-
-    if (id == null) {
-      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
-      return;
-    }
-
-    setCarregandoDados(true);
-
-    try {
-      const bancoTexto = await AsyncStorage.getItem(CHAVE_USUARIOS);
-      const banco = bancoTexto ? JSON.parse(bancoTexto) : [];
-
-      const usuarioBanco = Array.isArray(banco)
-        ? banco.find((item: any) => String(item.id) === String(id))
-        : null;
-
-      if (!usuarioBanco) {
-        throw new Error('Usuário não encontrado no banco de dados.');
-      }
-
-      const senhaVerificada = await userController.verificarSenha(
-        senhaAtual,
-        usuarioBanco.senha,
-      );
-
-      if (!senhaVerificada) {
-        throw new Error('A senha atual está incorreta.');
-      }
-
-      await userController.atualizar(String(id), {
-        senha: novaSenha,
-      });
-
-      setSenhaAtual('');
-      setNovaSenha('');
-      setConfirmarSenha('');
-
-      Alert.alert('Senha alterada', 'Sua senha foi alterada com sucesso.');
-    } catch (erro: any) {
-      Alert.alert(
-        'Não foi possível alterar a senha',
-        erro?.message || 'Tente novamente.',
-      );
-    } finally {
-      setCarregandoDados(false);
-    }
-  }
-
   async function sairDaConta() {
     try {
       await userController.logout();
@@ -516,64 +451,6 @@ export default function Configuracoes() {
     } catch (erro) {
       console.error('Erro ao sair da conta:', erro);
       Alert.alert('Erro', 'Não foi possível sair da conta.');
-    }
-  }
-
-  async function excluirConta() {
-    const id = usuarioLogado?.id;
-
-    if (id == null) {
-      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
-      return;
-    }
-
-    setCarregandoDados(true);
-
-    try {
-      const removido = await userController.remover(String(id));
-
-      if (!removido) {
-        throw new Error('Não foi possível localizar sua conta para exclusão.');
-      }
-
-      const identificadorAtual = identificador;
-
-      await AsyncStorage.removeItem(CHAVE_USUARIO_LOGADO);
-
-      if (identificadorAtual) {
-        await AsyncStorage.removeItem(
-          `@enderecos_usuario_${identificadorAtual}`,
-        );
-
-        await AsyncStorage.removeItem(
-          `@notificacoes_usuario_${identificadorAtual}`,
-        );
-      }
-
-      await userController.logout();
-
-      setUsuarioLogado(null);
-      setConfirmacaoConta(null);
-
-      Alert.alert(
-        'Conta excluída',
-        'Sua conta foi excluída com sucesso.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/' as any),
-          },
-        ],
-      );
-    } catch (erro: any) {
-      console.error('Erro ao excluir conta:', erro);
-
-      Alert.alert(
-        'Erro ao excluir conta',
-        erro?.message || 'Não foi possível excluir sua conta.',
-      );
-    } finally {
-      setCarregandoDados(false);
     }
   }
 
@@ -607,11 +484,7 @@ export default function Configuracoes() {
       return;
     }
 
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/perfil' as any);
-    }
+    router.replace('/perfil' as any);
   }
 
   function abrirTela(novaTela: Tela) {
@@ -737,13 +610,6 @@ export default function Configuracoes() {
               'Gerencie alertas, promoções e avisos',
               'notifications-outline',
               'notificacoes',
-            )}
-
-            {renderMenuItem(
-              'Privacidade e segurança',
-              'Altere sua senha e gerencie sua conta',
-              'shield-checkmark-outline',
-              'privacidade',
             )}
 
             {renderMenuItem(
@@ -1114,155 +980,6 @@ export default function Configuracoes() {
     );
   }
 
-  function renderPrivacidade() {
-    return (
-      <>
-        {renderCabecalho(
-          'Privacidade e segurança',
-          'Cuide das informações da sua conta',
-        )}
-
-        <View style={styles.conteudo}>
-          <View style={styles.cartaoInformacao}>
-            <View style={styles.iconeCentral}>
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={38}
-                color={VERDE}
-              />
-            </View>
-
-            <Text style={styles.tituloCentral}>
-              Seus dados são importantes
-            </Text>
-
-            <Text style={styles.textoCentral}>
-              Utilize o aplicativo com responsabilidade e mantenha suas
-              informações de acesso protegidas. Não compartilhe sua senha
-              com outras pessoas.
-            </Text>
-          </View>
-
-          <View style={styles.cartaoFormulario}>
-            <Text style={styles.tituloFormulario}>Alterar senha</Text>
-
-            <Text style={styles.rotuloCampo}>Senha atual</Text>
-            <View style={styles.campoSenha}>
-              <TextInput
-                style={styles.inputSenha}
-                placeholder="Digite sua senha atual"
-                placeholderTextColor="#8A978D"
-                value={senhaAtual}
-                onChangeText={setSenhaAtual}
-                secureTextEntry={!mostrarSenha}
-                autoCapitalize="none"
-              />
-              <Pressable onPress={() => setMostrarSenha(!mostrarSenha)}>
-                <Ionicons
-                  name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'}
-                  size={21}
-                  color="#78847A"
-                />
-              </Pressable>
-            </View>
-
-            <Text style={styles.rotuloCampo}>Nova senha</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Digite a nova senha"
-              placeholderTextColor="#8A978D"
-              value={novaSenha}
-              onChangeText={setNovaSenha}
-              secureTextEntry={!mostrarSenha}
-              autoCapitalize="none"
-            />
-
-            <Text style={styles.rotuloCampo}>Confirmar nova senha</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Digite novamente a nova senha"
-              placeholderTextColor="#8A978D"
-              value={confirmarSenha}
-              onChangeText={setConfirmarSenha}
-              secureTextEntry={!mostrarSenha}
-              autoCapitalize="none"
-            />
-
-            <Pressable
-              onPress={salvarNovaSenha}
-              disabled={carregandoDados}
-              style={styles.botaoPrincipal}
-            >
-              {carregandoDados ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="lock-closed-outline" size={19} color="#FFFFFF" />
-                  <Text style={styles.textoBotaoPrincipal}>Alterar senha</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-
-          <View style={styles.cartaoFormulario}>
-            <View style={styles.iconePerigo}>
-              <Ionicons name="warning-outline" size={27} color="#C43D3D" />
-            </View>
-
-            <Text style={styles.tituloPerigo}>Excluir conta</Text>
-            <Text style={styles.textoCentral}>
-              A exclusão remove seu cadastro do banco de usuários. Essa ação
-              não poderá ser desfeita.
-            </Text>
-
-            <Pressable
-              onPress={() => setConfirmacaoConta('excluir')}
-              style={styles.botaoExcluirConta}
-            >
-              <Ionicons name="trash-outline" size={19} color="#FFFFFF" />
-              <Text style={styles.textoBotaoPrincipal}>Excluir minha conta</Text>
-            </Pressable>
-
-            {confirmacaoConta === 'excluir' && (
-              <View style={styles.confirmacaoExclusao}>
-                <Text style={styles.confirmacaoTitulo}>
-                  Tem certeza que deseja excluir sua conta?
-                </Text>
-                <Text style={styles.confirmacaoDescricao}>
-                  Seu cadastro será removido. Você precisará criar uma nova
-                  conta para usar o aplicativo novamente.
-                </Text>
-
-                <View style={styles.confirmacaoBotoes}>
-                  <Pressable
-                    onPress={() => setConfirmacaoConta(null)}
-                    style={styles.botaoManter}
-                  >
-                    <Text style={styles.textoBotaoManter}>Cancelar</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={excluirConta}
-                    disabled={carregandoDados}
-                    style={styles.botaoConfirmarExcluir}
-                  >
-                    {carregandoDados ? (
-                      <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.textoConfirmarExcluir}>
-                        Confirmar exclusão
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
-      </>
-    );
-  }
-
   const perguntas = [
     {
       pergunta: 'Como altero meus dados?',
@@ -1283,11 +1000,6 @@ export default function Configuracoes() {
       pergunta: 'Como desativo as notificações?',
       resposta:
         'Acesse Notificações e desative individualmente Alertas, Promoções, E-mail ou Push.',
-    },
-    {
-      pergunta: 'Como altero minha senha?',
-      resposta:
-        'Entre em Privacidade e segurança, informe sua senha atual, digite a nova senha e confirme.',
     },
     {
       pergunta: 'Como saio da minha conta?',
@@ -1380,7 +1092,6 @@ export default function Configuracoes() {
         {tela === 'conta' && renderConta()}
         {tela === 'enderecos' && renderEnderecos()}
         {tela === 'notificacoes' && renderNotificacoes()}
-        {tela === 'privacidade' && renderPrivacidade()}
         {tela === 'ajuda' && renderAjuda()}
       </ScrollView>
     </View>
@@ -1631,26 +1342,6 @@ const styles = StyleSheet.create({
   inputMultilinha: {
     minHeight: 88,
     paddingTop: 12,
-  },
-
-  campoSenha: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: '#DCE6DD',
-    backgroundColor: '#FAFCFA',
-    borderRadius: 12,
-    paddingHorizontal: 13,
-    marginBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  inputSenha: {
-    flex: 1,
-    fontSize: 14,
-    color: '#26382A',
-    paddingVertical: 12,
-    outlineStyle: 'none' as any,
   },
 
   botaoPrincipal: {
