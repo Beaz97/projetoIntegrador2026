@@ -1,3 +1,4 @@
+
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 
 import { useState, useRef } from 'react';
@@ -75,23 +77,18 @@ export default function Index() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* TOPO COM LOGO */}
         <View style={styles.topo}>
-          <View style={styles.logoIcone}>
-            <Ionicons
-              name="cart"
-              size={32}
-              color="#FFFFFF"
-            />
-          </View>
-
-          <Text style={styles.logoTexto}>Economize</Text>
-
-          <Text style={styles.logoSubtitulo}>
-            Economize mais em suas compras
-          </Text>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logoImagem}
+            resizeMode="contain"
+          />
         </View>
 
+        {/* CARD DE LOGIN */}
         <View style={styles.card}>
+
           <View style={styles.cabecalho}>
             <Text style={styles.entrar}>Bem-vindo!</Text>
 
@@ -130,8 +127,6 @@ export default function Index() {
               underlineColorAndroid="transparent"
               {...(Platform.OS === 'web'
                 ? {
-                    // Evita que o navegador aplique estilos padrão ao campo.
-                    // Mantém a seleção de texto normal e o cursor no ponto clicado.
                     outlineStyle: 'none',
                     outlineWidth: 0,
                     boxShadow: 'none',
@@ -272,17 +267,15 @@ export default function Index() {
               Cadastre-se
             </Link>
           </View>
-        </View>
 
-        <Text style={styles.textoFinal}>
-          Economize • Compre melhor
-        </Text>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -295,33 +288,17 @@ const styles = StyleSheet.create({
   topo: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 28,
-    paddingBottom: 26,
+    paddingTop: 20,
+    paddingBottom: 20,
     paddingHorizontal: 20,
   },
 
-  logoIcone: {
-    width: 58,
-    height: 58,
-    borderRadius: 19,
-    backgroundColor: '#2F7045',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-
-  logoTexto: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#245D39',
-    letterSpacing: -0.8,
-  },
-
-  logoSubtitulo: {
-    fontSize: 13,
-    color: '#78847B',
-    marginTop: 5,
-    fontWeight: '400',
+  // LOGO MAIOR E CENTRALIZADA
+  logoImagem: {
+    width: 310,
+    height: 210,
+    resizeMode: 'contain',
+    alignSelf: 'center',
   },
 
   card: {
@@ -491,11 +468,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  textoFinal: {
-    textAlign: 'center',
-    color: '#A0AAA2',
-    fontSize: 11,
-    paddingTop: 16,
-    paddingBottom: 18,
-  },
 });

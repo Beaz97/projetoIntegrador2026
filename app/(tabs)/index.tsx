@@ -351,19 +351,20 @@ const styles = StyleSheet.create({
   // =========================
 
   containerBranco: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingBottom: 28,
-    paddingHorizontal: 25,
-  },
+  flex: 1,
+  backgroundColor: '#FFFFFF',
+  justifyContent: 'space-between',
+  paddingTop: 50,
+  paddingBottom: 28,
+  paddingHorizontal: 25,
+},
 
   conteudo: {
-    alignItems: 'center',
-    paddingTop: 45,
-  },
-
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingTop: 0,
+},
   tituloVerde: {
     color: '#315F3C',
     fontSize: 33,
@@ -386,19 +387,19 @@ const styles = StyleSheet.create({
   // IMAGENS
   // =========================
 
-  imagemProdutos: {
-    width: 270,
-    height: 220,
-    resizeMode: 'contain',
-    marginTop: 7,
-  },
+imagemProdutos: {
+  width: 270,
+  height: 220,
+  resizeMode: 'contain',
+  marginTop: 15,
+},
 
-  imagemPorquinho: {
-    width: 205,
-    height: 190,
-    resizeMode: 'contain',
-    marginTop: 20,
-  },
+imagemPorquinho: {
+  width: 205,
+  height: 190,
+  resizeMode: 'contain',
+  marginTop: 20,
+},
 
   // =========================
   // RODAPÉ

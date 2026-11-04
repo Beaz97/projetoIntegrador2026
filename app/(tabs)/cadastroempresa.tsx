@@ -189,14 +189,6 @@ export default function Cadastro() {
       >
         {/* Cabeçalho e logo */}
         <View style={styles.topo}>
-          <View style={styles.logoIcone}>
-            <Ionicons
-              name="cart"
-              size={31}
-              color="#FFFFFF"
-            />
-          </View>
-
           <Text style={styles.logoTexto}>
             Economize
           </Text>
@@ -508,11 +500,6 @@ export default function Cadastro() {
             </Link>
           </View>
         </View>
-
-        {/* Rodapé da página */}
-        <Text style={styles.textoFinal}>
-          Economize • Compre melhor
-        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
