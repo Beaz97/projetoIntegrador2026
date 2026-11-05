@@ -15,7 +15,10 @@ import {
 } from "react-native";
 
 import { useEffect, useState } from "react";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Dados from "../../../rotaServidor/dadosProdutos";
@@ -39,10 +42,9 @@ export default function ProdutoDetalhe() {
   const origemAtual = Array.isArray(origem) ? origem[0] : origem;
   const modoEmpresa = origemAtual === "empresa";
 
-  const {
-    carregando,
-    autorizado,
-  } = useAutenticacao(modoEmpresa ? "empresa" : "cliente");
+  const { carregando, autorizado } = useAutenticacao(
+    modoEmpresa ? "empresa" : "cliente"
+  );
 
   const [produto, setProduto] = useState<any>(
     produtosIniciais.find(
@@ -60,6 +62,7 @@ export default function ProdutoDetalhe() {
 
       try {
         const produtosSalvos = await AsyncStorage.getItem("produtos");
+
         const listaSalva = produtosSalvos
           ? JSON.parse(produtosSalvos)
           : [];
@@ -76,7 +79,8 @@ export default function ProdutoDetalhe() {
 
         if (ativo) {
           setProduto(
-            produtoSalvo ?? (produtosSalvos ? null : produtoInicial ?? null)
+            produtoSalvo ??
+              (produtosSalvos ? null : produtoInicial ?? null)
           );
         }
       } catch (erro) {
@@ -118,25 +122,50 @@ export default function ProdutoDetalhe() {
     }
   };
 
+  // Verifica se o produto possui uma oferta válida
+  const valorOferta = Number(
+    String(produto?.precoOferta ?? "").replace(",", ".")
+  );
+
+  const temOferta =
+    produto?.oferta === true &&
+    Number.isFinite(valorOferta) &&
+    valorOferta > 0;
+
+  // Define qual preço deve ser utilizado
+  const precoExibido = temOferta
+    ? valorOferta
+    : Number(produto?.preco || 0);
+
   const addItemCarrinho = async () => {
     if (!produto || modoEmpresa) return;
 
     try {
       const listaCarrinho = await AsyncStorage.getItem("carrinho");
+
       const carrinhoArray = listaCarrinho
         ? JSON.parse(listaCarrinho)
         : [];
+
+      const produtoParaCarrinho = {
+        ...produto,
+        preco: precoExibido,
+      };
 
       const produtoIndex = carrinhoArray.findIndex(
         (item: any) => String(item.id) === String(produto.id)
       );
 
       if (produtoIndex >= 0) {
-        carrinhoArray[produtoIndex].quantidade =
-          (carrinhoArray[produtoIndex].quantidade || 0) + 1;
+        carrinhoArray[produtoIndex] = {
+          ...carrinhoArray[produtoIndex],
+          preco: precoExibido,
+          quantidade:
+            (carrinhoArray[produtoIndex].quantidade || 0) + 1,
+        };
       } else {
         carrinhoArray.push({
-          ...produto,
+          ...produtoParaCarrinho,
           quantidade: 1,
         });
       }
@@ -202,8 +231,6 @@ export default function ProdutoDetalhe() {
       </View>
     );
   }
-
-  const temOferta = produto.oferta === true;
 
   return (
     <ScrollView
@@ -272,8 +299,14 @@ export default function ProdutoDetalhe() {
             </Text>
           ) : null}
 
+          {temOferta && (
+            <Text style={styles.precoAntigo}>
+              {formatarPreco(Number(produto.preco))}
+            </Text>
+          )}
+
           <Text style={styles.preco}>
-            {formatarPreco(produto.preco)}
+            {formatarPreco(precoExibido)}
           </Text>
 
           {temOferta && (
@@ -454,6 +487,13 @@ const styles = StyleSheet.create({
     color: "#777",
     fontSize: 14,
     marginBottom: 12,
+  },
+
+  precoAntigo: {
+    color: "#999",
+    fontSize: 16,
+    textDecorationLine: "line-through",
+    marginTop: 8,
   },
 
   preco: {

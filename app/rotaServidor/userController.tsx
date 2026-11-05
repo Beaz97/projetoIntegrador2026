@@ -87,13 +87,10 @@ async function sincronizarStorage(): Promise<User[]> {
  * Salva a lista de usuários atualizada no AsyncStorage e fisicamente no user.json via FS.
  */
 async function persistirStorage(): Promise<void> {
-    // Salva no AsyncStorage (disco local do dispositivo/app)
-    try {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(usuariosEmMemoria));
-    } catch (error) {
-        console.warn('Erro ao persistir no AsyncStorage:', error);
-    }
-
+  await AsyncStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(usuariosEmMemoria)
+  );
 }
 
 /**
