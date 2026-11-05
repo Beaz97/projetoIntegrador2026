@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
@@ -85,7 +86,6 @@ export default function Configuracoes() {
 
   const [usuarioLogado, setUsuarioLogado] = useState<any>(null);
   const [identificador, setIdentificador] = useState('');
-
   const [carregandoDados, setCarregandoDados] = useState(false);
 
   // Minha conta
@@ -109,9 +109,9 @@ export default function Configuracoes() {
   // Ajuda
   const [perguntaAberta, setPerguntaAberta] = useState<number | null>(null);
 
-  // Mensagens de confirmação
+  // Confirmação de sair ou excluir
   const [confirmacaoConta, setConfirmacaoConta] = useState<
-    'sair' | null
+    'sair' | 'excluir' | null
   >(null);
 
   useEffect(() => {
@@ -433,6 +433,7 @@ export default function Configuracoes() {
     }
   }
 
+  // Sair da conta sem apagar o cadastro
   async function sairDaConta() {
     try {
       await userController.logout();
@@ -445,6 +446,53 @@ export default function Configuracoes() {
     } catch (erro) {
       console.error('Erro ao sair da conta:', erro);
       Alert.alert('Erro', 'Não foi possível sair da conta.');
+    }
+  }
+
+  // Primeiro mostra a confirmação na própria tela
+  function excluirConta() {
+    setConfirmacaoConta('excluir');
+  }
+
+  // Só executa a exclusão quando a pessoa confirma
+  async function confirmarExclusaoConta() {
+    const idUsuario = usuarioLogado?.id ?? usuario?.id;
+    const idDados = identificador || criarIdentificador(usuarioLogado);
+
+    if (idUsuario == null) {
+      Alert.alert('Erro', 'Não foi possível identificar sua conta.');
+      return;
+    }
+
+    setCarregandoDados(true);
+
+    try {
+      await userController.remover(String(idUsuario));
+
+      await AsyncStorage.multiRemove([
+        CHAVE_USUARIO_LOGADO,
+        `@telefone_usuario_${idDados}`,
+        `@enderecos_usuario_${idDados}`,
+        `@notificacoes_usuario_${idDados}`,
+      ]);
+
+      await userController.logout();
+
+      setUsuarioLogado(null);
+      setIdentificador('');
+      setEnderecos([]);
+      setConfirmacaoConta(null);
+
+      router.replace('/' as any);
+    } catch (erro: any) {
+      console.error('Erro ao excluir conta:', erro);
+
+      Alert.alert(
+        'Erro',
+        erro?.message || 'Não foi possível excluir sua conta.',
+      );
+    } finally {
+      setCarregandoDados(false);
     }
   }
 
@@ -621,6 +669,7 @@ export default function Configuracoes() {
             )}
           </View>
 
+          {/* BOTÃO SAIR */}
           <Pressable
             onPress={() => setConfirmacaoConta('sair')}
             style={styles.botaoSair}
@@ -629,30 +678,82 @@ export default function Configuracoes() {
             <Text style={styles.textoBotaoSair}>Sair da conta</Text>
           </Pressable>
 
-          {confirmacaoConta === 'sair' && (
+          {/* BOTÃO EXCLUIR */}
+          <Pressable
+            onPress={excluirConta}
+            disabled={carregandoDados}
+            style={({ pressed }) => [
+              styles.botaoExcluirConta,
+              pressed && styles.itemPressionado,
+              carregandoDados && { opacity: 0.6 },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={21} color="#C43D3D" />
+            <Text style={styles.textoExcluirConta}>
+              Excluir minha conta permanentemente
+            </Text>
+          </Pressable>
+
+          <Text style={styles.avisoExcluirConta}>
+            Essa opção apaga seu cadastro e os dados associados a ele.
+          </Text>
+
+          {/* CAIXINHA DE CONFIRMAÇÃO */}
+          {confirmacaoConta !== null && (
             <View style={styles.confirmacaoConta}>
               <Text style={styles.confirmacaoTitulo}>
-                Deseja sair da sua conta?
+                {confirmacaoConta === 'sair'
+                  ? 'Deseja sair da sua conta?'
+                  : 'Deseja excluir sua conta?'}
               </Text>
 
               <Text style={styles.confirmacaoDescricao}>
-                Você poderá entrar novamente usando seus dados de acesso.
-                Sua conta continuará cadastrada.
+                {confirmacaoConta === 'sair'
+                  ? 'Você poderá entrar novamente usando seus dados de acesso. Sua conta continuará cadastrada.'
+                  : 'Seu cadastro, endereços e preferências serão apagados permanentemente. Essa ação não poderá ser desfeita.'}
               </Text>
 
               <View style={styles.confirmacaoBotoes}>
                 <Pressable
                   onPress={() => setConfirmacaoConta(null)}
                   style={styles.botaoManter}
+                  disabled={carregandoDados}
                 >
-                  <Text style={styles.textoBotaoManter}>Cancelar</Text>
+                  <Text style={styles.textoBotaoManter}>
+                    Cancelar
+                  </Text>
                 </Pressable>
 
                 <Pressable
-                  onPress={sairDaConta}
+                  onPress={
+                    confirmacaoConta === 'sair'
+                      ? sairDaConta
+                      : confirmarExclusaoConta
+                  }
                   style={styles.botaoConfirmarExcluir}
+                  disabled={carregandoDados}
                 >
-                  <Text style={styles.textoConfirmarExcluir}>Sair</Text>
+                  {carregandoDados ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name={
+                          confirmacaoConta === 'sair'
+                            ? 'log-out-outline'
+                            : 'trash-outline'
+                        }
+                        size={16}
+                        color="#FFFFFF"
+                      />
+
+                      <Text style={styles.textoConfirmarExcluir}>
+                        {confirmacaoConta === 'sair'
+                          ? 'Sair'
+                          : 'Excluir conta'}
+                      </Text>
+                    </>
+                  )}
                 </Pressable>
               </View>
             </View>
@@ -1031,6 +1132,11 @@ export default function Configuracoes() {
       pergunta: 'Como saio da minha conta?',
       resposta:
         'Na tela principal de Configurações, toque em Sair da conta. Seu cadastro continuará salvo.',
+    },
+    {
+      pergunta: 'Como excluo minha conta?',
+      resposta:
+        'Na tela principal de Configurações, toque em Excluir minha conta permanentemente e confirme a exclusão.',
     },
   ];
 
@@ -1629,6 +1735,35 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
+  botaoExcluirConta: {
+    minHeight: 52,
+    backgroundColor: '#FFF0F0',
+    borderWidth: 1,
+    borderColor: '#F1DADA',
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+
+  textoExcluirConta: {
+    color: '#C43D3D',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  avisoExcluirConta: {
+    color: '#8A7777',
+    fontSize: 11,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 15,
+  },
+
   confirmacaoConta: {
     backgroundColor: '#FFFFFF',
     borderRadius: 15,
@@ -1655,17 +1790,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 9,
-  },
-
-  botaoExcluirConta: {
-    minHeight: 48,
-    backgroundColor: '#C43D3D',
-    borderRadius: 12,
-    marginTop: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
   },
 
   cartaoPergunta: {

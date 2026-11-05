@@ -158,13 +158,6 @@ export default function ProdutosEmpresa() {
           <Text style={styles.titulo}>Meus produtos</Text>
           <Text style={styles.subtitulo}>Gerencie seu catálogo</Text>
         </View>
-
-        <View style={styles.contador}>
-          <Text style={styles.contadorNumero}>
-            {produtosDaEmpresa.length}
-          </Text>
-          <Text style={styles.contadorTexto}>produtos</Text>
-        </View>
       </View>
 
       <View style={styles.conteudo}>
@@ -462,28 +455,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-  contador: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 53,
-    paddingVertical: 8,
-    paddingHorizontal: 7,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.17)',
-  },
-
-  contadorNumero: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-
-  contadorTexto: {
-    fontSize: 9,
-    color: '#E2EFE5',
-    marginTop: 2,
-  },
-
   conteudo: {
     flex: 1,
     minHeight: 0,
@@ -755,7 +726,6 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // RODAPÉ IGUAL AO HOME
   barraContainer: {
     height: 78,
     position: 'relative',
