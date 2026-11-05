@@ -1,3 +1,4 @@
+
 import {
   View,
   Text,
@@ -15,14 +16,17 @@ import {
 import { useState, useRef } from 'react';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
 import userController, {
   setUsuarioLogado,
 } from '@/app/rotaServidor/userController';
 
+// Validar e-mail
 function emailValido(valor: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor.trim());
 }
 
+// Validar CNPJ
 function cnpjValido(valor: string) {
   const numeros = valor.replace(/\D/g, '');
 
@@ -36,7 +40,8 @@ function cnpjValido(valor: string) {
 
   function calcularDigito(base: string, pesos: number[]) {
     const soma = pesos.reduce(
-      (total, peso, indice) => total + Number(base[indice]) * peso,
+      (total, peso, indice) =>
+        total + Number(base[indice]) * peso,
       0
     );
 
@@ -44,16 +49,26 @@ function cnpjValido(valor: string) {
     return resto < 2 ? 0 : 11 - resto;
   }
 
-  const pesosPrimeiro = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  const pesosSegundo = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const pesosPrimeiro = [
+    5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2,
+  ];
+
+  const pesosSegundo = [
+    6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2,
+  ];
 
   const base = numeros.slice(0, 12);
+
   const primeiro = calcularDigito(base, pesosPrimeiro);
-  const segundo = calcularDigito(base + primeiro, pesosSegundo);
+  const segundo = calcularDigito(
+    base + primeiro,
+    pesosSegundo
+  );
 
   return numeros === base + String(primeiro) + String(segundo);
 }
 
+// Exibir alertas
 function mostrarAlerta(titulo: string, mensagem: string) {
   if (Platform.OS === 'web') {
     globalThis.alert(`${titulo}\n\n${mensagem}`);
@@ -71,10 +86,13 @@ export default function Cadastro() {
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
+
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+
   const [empresa, setEmpresa] = useState(false);
   const [carregando, setCarregando] = useState(false);
+
   const [erroEmail, setErroEmail] = useState('');
   const [erroDocumento, setErroDocumento] = useState('');
 
@@ -126,12 +144,16 @@ export default function Cadastro() {
     let temErro = false;
 
     if (!emailValido(email)) {
-      setErroEmail('E-mail inválido. Confira e tente novamente.');
+      setErroEmail(
+        'E-mail inválido. Confira e tente novamente.'
+      );
       temErro = true;
     }
 
     if (empresa && !cnpjValido(cpf)) {
-      setErroDocumento('CNPJ inválido. Confira os números digitados.');
+      setErroDocumento(
+        'CNPJ inválido. Confira os números digitados.'
+      );
       temErro = true;
     }
 
@@ -159,14 +181,17 @@ export default function Cadastro() {
       });
 
       await setUsuarioLogado(usuarioCriado);
+
       router.replace(empresa ? '/homeempresa' : '/home');
+
     } catch (error: any) {
       console.error('Erro ao cadastrar usuário:', error);
 
       mostrarAlerta(
         'Não foi possível cadastrar',
-        error.message || 'Ocorreu um erro ao realizar o cadastro.'
+        error?.message || 'Ocorreu um erro ao realizar o cadastro.'
       );
+
     } finally {
       setCarregando(false);
     }
@@ -187,6 +212,7 @@ export default function Cadastro() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+
         {/* Cabeçalho e logo */}
         <View style={styles.topo}>
           <Text style={styles.logoTexto}>
@@ -200,7 +226,8 @@ export default function Cadastro() {
 
         {/* Cartão de cadastro */}
         <View style={styles.card}>
-          {/* Título e tipo de conta */}
+
+          {/* Título */}
           <View style={styles.titulo}>
             <View style={styles.tituloConteudo}>
               <Text style={styles.cadastro}>
@@ -215,6 +242,7 @@ export default function Cadastro() {
 
           {/* Seletor de tipo */}
           <View style={styles.seletorContainer}>
+
             <Pressable
               style={[
                 styles.opcaoTipo,
@@ -264,6 +292,7 @@ export default function Cadastro() {
                 Empresa
               </Text>
             </Pressable>
+
           </View>
 
           {/* Nome */}
@@ -271,10 +300,7 @@ export default function Cadastro() {
             {empresa ? 'Nome da empresa' : 'Nome completo'}
           </Text>
 
-          <Pressable
-            style={styles.campo}
-            onPress={() => nomeRef.current?.focus()}
-          >
+          <View style={styles.campo}>
             <Ionicons
               name={empresa ? 'storefront-outline' : 'person-outline'}
               size={20}
@@ -292,20 +318,20 @@ export default function Cadastro() {
               returnKeyType="next"
               onSubmitEditing={() => emailRef.current?.focus()}
               accessibilityLabel={empresa ? 'Nome da empresa' : 'Nome completo'}
+              selectTextOnFocus={false}
             />
-          </Pressable>
+          </View>
 
           {/* E-mail */}
           <Text style={styles.label}>
             E-mail
           </Text>
 
-          <Pressable
+          <View
             style={[
               styles.campo,
               erroEmail !== '' && styles.campoErro,
             ]}
-            onPress={() => emailRef.current?.focus()}
           >
             <Ionicons
               name="mail-outline"
@@ -326,11 +352,14 @@ export default function Cadastro() {
               returnKeyType="next"
               onSubmitEditing={() => cpfRef.current?.focus()}
               accessibilityLabel="E-mail"
+              selectTextOnFocus={false}
             />
-          </Pressable>
+          </View>
 
           {erroEmail !== '' && (
-            <Text style={styles.textoErro}>{erroEmail}</Text>
+            <Text style={styles.textoErro}>
+              {erroEmail}
+            </Text>
           )}
 
           {/* CPF ou CNPJ */}
@@ -338,12 +367,11 @@ export default function Cadastro() {
             {textoDocumento}
           </Text>
 
-          <Pressable
+          <View
             style={[
               styles.campo,
               erroDocumento !== '' && styles.campoErro,
             ]}
-            onPress={() => cpfRef.current?.focus()}
           >
             <Ionicons
               name="card-outline"
@@ -362,11 +390,14 @@ export default function Cadastro() {
               returnKeyType="next"
               onSubmitEditing={() => senhaRef.current?.focus()}
               accessibilityLabel={textoDocumento}
+              selectTextOnFocus={false}
             />
-          </Pressable>
+          </View>
 
           {erroDocumento !== '' && (
-            <Text style={styles.textoErro}>{erroDocumento}</Text>
+            <Text style={styles.textoErro}>
+              {erroDocumento}
+            </Text>
           )}
 
           {/* Senha */}
@@ -374,10 +405,7 @@ export default function Cadastro() {
             Senha
           </Text>
 
-          <Pressable
-            style={styles.campo}
-            onPress={() => senhaRef.current?.focus()}
-          >
+          <View style={styles.campo}>
             <Ionicons
               name="lock-closed-outline"
               size={20}
@@ -393,9 +421,11 @@ export default function Cadastro() {
               value={senha}
               onChangeText={setSenha}
               autoCapitalize="none"
+              autoCorrect={false}
               returnKeyType="next"
               onSubmitEditing={() => confirmarRef.current?.focus()}
               accessibilityLabel="Senha"
+              selectTextOnFocus={false}
             />
 
             <Pressable
@@ -411,17 +441,14 @@ export default function Cadastro() {
                 color="#78847B"
               />
             </Pressable>
-          </Pressable>
+          </View>
 
           {/* Confirmar senha */}
           <Text style={styles.label}>
             Confirmar senha
           </Text>
 
-          <Pressable
-            style={styles.campo}
-            onPress={() => confirmarRef.current?.focus()}
-          >
+          <View style={styles.campo}>
             <Ionicons
               name="shield-checkmark-outline"
               size={20}
@@ -437,9 +464,11 @@ export default function Cadastro() {
               value={confirmar}
               onChangeText={setConfirmar}
               autoCapitalize="none"
+              autoCorrect={false}
               returnKeyType="done"
               onSubmitEditing={handleCadastrar}
               accessibilityLabel="Confirmar senha"
+              selectTextOnFocus={false}
             />
 
             <Pressable
@@ -461,7 +490,7 @@ export default function Cadastro() {
                 color="#78847B"
               />
             </Pressable>
-          </Pressable>
+          </View>
 
           {/* Botão cadastrar */}
           <Pressable
@@ -499,6 +528,7 @@ export default function Cadastro() {
               Entrar
             </Link>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -662,7 +692,8 @@ const styles = StyleSheet.create({
     color: '#263A2C',
     marginLeft: 11,
     paddingVertical: 0,
-  },
+    outlineStyle: 'none',
+  } as any,
 
   // Botão
   botao: {

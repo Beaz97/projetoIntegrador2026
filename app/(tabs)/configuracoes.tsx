@@ -1,6 +1,4 @@
-
 import React, { useCallback, useEffect, useState } from 'react';
-
 import {
   View,
   Text,
@@ -12,16 +10,13 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
-
 import {
   useRouter,
   useLocalSearchParams,
   useFocusEffect,
 } from 'expo-router';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
 import { useAutenticacao } from '@/app/components/autenticaTelas';
 import * as userController from '@/app/rotaServidor/userController';
 
@@ -186,9 +181,11 @@ export default function Configuracoes() {
       );
 
       setEmailEditado(usuarioAtualizado?.email || '');
+
       const telefoneSalvo = await AsyncStorage.getItem(
         `@telefone_usuario_${criarIdentificador(usuarioAtualizado)}`,
       );
+
       setTelefoneEditado(
         telefoneSalvo ?? usuarioAtualizado?.telefone ?? '',
       );
@@ -352,7 +349,6 @@ export default function Configuracoes() {
     if (salvo) {
       limparFormulario();
       setConfirmandoExclusao(null);
-      Alert.alert('Endereço salvo', 'As informações foram salvas com sucesso.');
     }
   }
 
@@ -425,8 +421,6 @@ export default function Configuracoes() {
       setNomeEditado(usuarioSemSenha.nome || '');
       setEmailEditado(usuarioSemSenha.email || '');
       setTelefoneEditado(usuarioSemSenha.telefone || '');
-
-      Alert.alert('Dados atualizados', 'Seus dados foram atualizados com sucesso.');
     } catch (erro: any) {
       console.error('Erro ao atualizar conta:', erro);
 
@@ -514,6 +508,13 @@ export default function Configuracoes() {
     usuario?.nomeEmpresa ||
     usuario?.nome ||
     'Minha conta';
+
+  const tipoUsuario = String(
+    usuarioLogado?.tipo ?? usuario?.tipo ?? parametroOrigem ?? '',
+  ).toLowerCase();
+
+  const ehEmpresa =
+    tipoUsuario.includes('empresa') || parametroOrigem === 'empresa';
 
   function renderCabecalho(titulo: string, subtitulo: string) {
     return (
@@ -633,6 +634,7 @@ export default function Configuracoes() {
               <Text style={styles.confirmacaoTitulo}>
                 Deseja sair da sua conta?
               </Text>
+
               <Text style={styles.confirmacaoDescricao}>
                 Você poderá entrar novamente usando seus dados de acesso.
                 Sua conta continuará cadastrada.
@@ -750,18 +752,6 @@ export default function Configuracoes() {
         )}
 
         <View style={styles.conteudo}>
-          <View style={styles.avisoEndereco}>
-            <Ionicons
-              name="information-circle-outline"
-              size={23}
-              color={VERDE}
-            />
-            <Text style={styles.avisoEnderecoTexto}>
-              Mantenha seus endereços atualizados para facilitar a
-              identificação da sua localização.
-            </Text>
-          </View>
-
           <View style={styles.cartaoFormulario}>
             <Text style={styles.tituloFormulario}>
               {editandoId ? 'Editar endereço' : 'Adicionar endereço'}
@@ -770,7 +760,7 @@ export default function Configuracoes() {
             <Text style={styles.rotuloCampo}>Nome do endereço</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ex.: Loja principal"
+              placeholder={ehEmpresa ? 'Ex.: Loja principal' : 'Ex.: Casa'}
               placeholderTextColor="#8A978D"
               value={nomeEndereco}
               onChangeText={setNomeEndereco}
@@ -803,8 +793,13 @@ export default function Configuracoes() {
             </Pressable>
 
             {editandoId && (
-              <Pressable onPress={limparFormulario} style={styles.botaoCancelar}>
-                <Text style={styles.textoBotaoCancelar}>Cancelar edição</Text>
+              <Pressable
+                onPress={limparFormulario}
+                style={styles.botaoCancelar}
+              >
+                <Text style={styles.textoBotaoCancelar}>
+                  Cancelar edição
+                </Text>
               </Pressable>
             )}
           </View>
@@ -820,27 +815,41 @@ export default function Configuracoes() {
           ) : enderecos.length === 0 ? (
             <View style={styles.estadoVazio}>
               <View style={styles.estadoVazioIcone}>
-                <Ionicons name="location-outline" size={32} color={VERDE} />
+                <Ionicons
+                  name="location-outline"
+                  size={32}
+                  color={VERDE}
+                />
               </View>
+
               <Text style={styles.estadoVazioTitulo}>
                 Nenhum endereço cadastrado
               </Text>
+
               <Text style={styles.estadoVazioDescricao}>
                 Preencha os campos acima para adicionar o primeiro endereço.
               </Text>
             </View>
           ) : (
             enderecos.map((endereco) => (
-              <View key={endereco.id} style={styles.cartaoEndereco}>
+              <View
+                key={endereco.id}
+                style={styles.cartaoEndereco}
+              >
                 <View style={styles.enderecoLinha}>
                   <View style={styles.enderecoIcone}>
-                    <Ionicons name="location" size={23} color={VERDE} />
+                    <Ionicons
+                      name="location"
+                      size={23}
+                      color={VERDE}
+                    />
                   </View>
 
                   <View style={styles.enderecoTextos}>
                     <Text style={styles.nomeEnderecoSalvo}>
                       {endereco.nome}
                     </Text>
+
                     <Text style={styles.textoEnderecoSalvo}>
                       {endereco.texto}
                     </Text>
@@ -852,7 +861,11 @@ export default function Configuracoes() {
                     onPress={() => iniciarEdicao(endereco)}
                     style={styles.botaoAcao}
                   >
-                    <Ionicons name="create-outline" size={18} color={VERDE} />
+                    <Ionicons
+                      name="create-outline"
+                      size={18}
+                      color={VERDE}
+                    />
                     <Text style={styles.textoAcao}>Editar</Text>
                   </Pressable>
 
@@ -860,7 +873,11 @@ export default function Configuracoes() {
                     onPress={() => pedirExclusao(endereco.id)}
                     style={styles.botaoAcao}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#C43D3D" />
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color="#C43D3D"
+                    />
                     <Text style={styles.textoExcluir}>Excluir</Text>
                   </Pressable>
                 </View>
@@ -870,6 +887,7 @@ export default function Configuracoes() {
                     <Text style={styles.confirmacaoTitulo}>
                       Excluir este endereço?
                     </Text>
+
                     <Text style={styles.confirmacaoDescricao}>
                       Essa ação não poderá ser desfeita.
                     </Text>
@@ -879,15 +897,23 @@ export default function Configuracoes() {
                         onPress={() => setConfirmandoExclusao(null)}
                         style={styles.botaoManter}
                       >
-                        <Text style={styles.textoBotaoManter}>Cancelar</Text>
+                        <Text style={styles.textoBotaoManter}>
+                          Cancelar
+                        </Text>
                       </Pressable>
 
                       <Pressable
                         onPress={() => confirmarExclusao(endereco.id)}
                         style={styles.botaoConfirmarExcluir}
                       >
-                        <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
-                        <Text style={styles.textoConfirmarExcluir}>Excluir</Text>
+                        <Ionicons
+                          name="trash-outline"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                        <Text style={styles.textoConfirmarExcluir}>
+                          Excluir
+                        </Text>
                       </Pressable>
                     </View>
                   </View>
@@ -1019,20 +1045,32 @@ export default function Configuracoes() {
         <View style={styles.conteudo}>
           <View style={styles.cartaoInformacao}>
             <View style={styles.iconeCentral}>
-              <Ionicons name="help-circle-outline" size={40} color={VERDE} />
+              <Ionicons
+                name="help-circle-outline"
+                size={40}
+                color={VERDE}
+              />
             </View>
 
-            <Text style={styles.tituloCentral}>Como podemos ajudar?</Text>
+            <Text style={styles.tituloCentral}>
+              Como podemos ajudar?
+            </Text>
+
             <Text style={styles.textoCentral}>
               Confira as perguntas frequentes abaixo para encontrar orientações
               sobre sua conta e as funcionalidades do Economize.
             </Text>
           </View>
 
-          <Text style={styles.tituloSecao}>Perguntas frequentes</Text>
+          <Text style={styles.tituloSecao}>
+            Perguntas frequentes
+          </Text>
 
           {perguntas.map((item, index) => (
-            <View style={styles.cartaoPergunta} key={index}>
+            <View
+              style={styles.cartaoPergunta}
+              key={index}
+            >
               <Pressable
                 onPress={() =>
                   setPerguntaAberta(
@@ -1041,7 +1079,10 @@ export default function Configuracoes() {
                 }
                 style={styles.linhaPergunta}
               >
-                <Text style={styles.textoPergunta}>{item.pergunta}</Text>
+                <Text style={styles.textoPergunta}>
+                  {item.pergunta}
+                </Text>
+
                 <Ionicons
                   name={
                     perguntaAberta === index
@@ -1064,8 +1105,13 @@ export default function Configuracoes() {
           <View style={styles.cartaoInformacao}>
             <View style={styles.linhaInformacao}>
               <View style={styles.iconeMenu}>
-                <Ionicons name="chatbubble-ellipses-outline" size={24} color={VERDE} />
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={24}
+                  color={VERDE}
+                />
               </View>
+
               <View style={styles.textosMenu}>
                 <Text style={styles.tituloMenu}>Fale conosco</Text>
                 <Text style={styles.descricaoMenu}>
@@ -1285,23 +1331,6 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 
-  avisoEndereco: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: VERDE_CLARO,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 18,
-  },
-
-  avisoEnderecoTexto: {
-    flex: 1,
-    fontSize: 12,
-    color: VERDE_ESCURO,
-    lineHeight: 19,
-  },
-
   cartaoFormulario: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -1336,7 +1365,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#26382A',
     marginBottom: 15,
-    outlineStyle: 'none' as any,
   },
 
   inputMultilinha: {

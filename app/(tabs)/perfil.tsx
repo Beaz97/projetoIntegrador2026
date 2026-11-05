@@ -1,4 +1,3 @@
-
 import {
   View,
   Text,
@@ -27,6 +26,8 @@ export default function Perfil() {
   const [historicoAtualizado, setHistoricoAtualizado] = useState<any[]>([]);
   const [nomeAtualizado, setNomeAtualizado] = useState('');
   const [emailAtualizado, setEmailAtualizado] = useState('');
+  const [telefoneAtualizado, setTelefoneAtualizado] = useState('');
+  const [enderecoAtualizado, setEnderecoAtualizado] = useState<any>(null);
 
   const { usuario, carregando, autorizado } =
     useAutenticacao('cliente');
@@ -39,6 +40,8 @@ export default function Perfil() {
 
       if (!usuarioSalvoTexto) {
         setHistoricoAtualizado([]);
+        setTelefoneAtualizado('');
+        setEnderecoAtualizado(null);
         return;
       }
 
@@ -83,8 +86,39 @@ export default function Perfil() {
 
       setNomeAtualizado(usuarioAtualizado.nome || '');
       setEmailAtualizado(usuarioAtualizado.email || '');
+
+      // Identificador usado também na tela de configurações
+      const identificador =
+        usuarioAtualizado.id != null
+          ? String(usuarioAtualizado.id)
+          : String(usuarioAtualizado.email || '').trim().toLowerCase();
+
+      // Telefone cadastrado
+      const telefoneSalvo = await AsyncStorage.getItem(
+        `@telefone_usuario_${identificador}`,
+      );
+
+      setTelefoneAtualizado(
+        telefoneSalvo ?? usuarioAtualizado.telefone ?? '',
+      );
+
+      // Endereços cadastrados
+      const enderecosTexto = await AsyncStorage.getItem(
+        `@enderecos_usuario_${identificador}`,
+      );
+
+      const listaEnderecos = enderecosTexto
+        ? JSON.parse(enderecosTexto)
+        : [];
+
+      setEnderecoAtualizado(
+        Array.isArray(listaEnderecos) && listaEnderecos.length > 0
+          ? listaEnderecos[0]
+          : null,
+      );
+
     } catch (erro) {
-      console.error('Erro ao carregar histórico de compras:', erro);
+      console.error('Erro ao carregar informações do perfil:', erro);
     }
   }, []);
 
@@ -99,7 +133,9 @@ export default function Perfil() {
   }
 
   const historico = historicoAtualizado;
+
   const nome = nomeAtualizado || usuario?.nome || 'Meu perfil';
+
   const email =
     emailAtualizado || usuario?.email || 'E-mail não informado';
 
@@ -121,6 +157,7 @@ export default function Perfil() {
         contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
       >
+        {/* CABEÇALHO */}
         <View style={styles.cabecalho}>
           <View style={styles.cabecalhoSuperior}>
             <View>
@@ -149,6 +186,7 @@ export default function Perfil() {
             </Pressable>
           </View>
 
+          {/* INFORMAÇÕES PESSOAIS */}
           <View style={styles.perfilUsuario}>
             <View style={styles.avatar}>
               <Ionicons
@@ -163,9 +201,29 @@ export default function Perfil() {
                 {nome}
               </Text>
 
-              <Text style={styles.email} numberOfLines={1}>
-                {email}
-              </Text>
+              <View style={styles.informacaoVerdeLinha}>
+                <Ionicons
+                  name="mail-outline"
+                  size={15}
+                  color="#E7F2E9"
+                />
+
+                <Text style={styles.email} numberOfLines={1}>
+                  {email}
+                </Text>
+              </View>
+
+              <View style={styles.informacaoVerdeLinha}>
+                <Ionicons
+                  name="call-outline"
+                  size={15}
+                  color="#E7F2E9"
+                />
+
+                <Text style={styles.telefoneVerde} numberOfLines={1}>
+                  {telefoneAtualizado || 'Telefone não informado'}
+                </Text>
+              </View>
 
               <View style={styles.seloCliente}>
                 <Ionicons
@@ -182,6 +240,7 @@ export default function Perfil() {
           </View>
         </View>
 
+        {/* CONTEÚDO */}
         <View style={styles.conteudoPrincipal}>
           <Text style={styles.tituloSecao}>
             Minha conta
@@ -191,6 +250,7 @@ export default function Perfil() {
             Gerencie seus dados e acompanhe suas compras.
           </Text>
 
+          {/* CONFIGURAÇÕES */}
           <Pressable
             style={({ pressed }) => [
               styles.cartao,
@@ -223,38 +283,61 @@ export default function Perfil() {
             />
           </Pressable>
 
+          {/* ENDEREÇO CADASTRADO */}
           <Pressable
             style={({ pressed }) => [
-              styles.cartao,
+              styles.cartaoEnderecoPerfil,
               pressed && styles.cartaoPressionado,
             ]}
             onPress={abrirEnderecos}
           >
-            <View style={styles.iconeCartao}>
+            <View style={styles.enderecoCabecalho}>
+              <View style={styles.iconeEnderecoPerfil}>
+                <Ionicons
+                  name="location"
+                  size={23}
+                  color={VERDE}
+                />
+              </View>
+
+              <View style={styles.enderecoTituloContainer}>
+                <Text style={styles.tituloCartao}>
+                  Endereço de entrega
+                </Text>
+
+                <Text style={styles.enderecoNomePerfil}>
+                  {enderecoAtualizado?.nome ||
+                    'Nenhum endereço cadastrado'}
+                </Text>
+              </View>
+
               <Ionicons
-                name="location-outline"
-                size={25}
-                color={VERDE}
+                name="chevron-forward"
+                size={21}
+                color="#8B968C"
               />
             </View>
 
-            <View style={styles.textosCartao}>
-              <Text style={styles.tituloCartao}>
-                Meu endereço
-              </Text>
+            {enderecoAtualizado?.texto ? (
+              <View style={styles.enderecoDetalhe}>
+                <Ionicons
+                  name="navigate-outline"
+                  size={17}
+                  color="#718174"
+                />
 
-              <Text style={styles.descricaoCartao}>
-                Consulte ou altere seu endereço
+                <Text style={styles.enderecoTextoPerfil}>
+                  {enderecoAtualizado.texto}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.enderecoVazioPerfil}>
+                Toque para cadastrar seu endereço.
               </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={21}
-              color="#8B968C"
-            />
+            )}
           </Pressable>
 
+          {/* HISTÓRICO DE COMPRAS */}
           <Pressable
             style={({ pressed }) => [
               styles.cartao,
@@ -320,6 +403,7 @@ export default function Perfil() {
                       <Text style={styles.historicoTitulo}>
                         Compra realizada
                       </Text>
+
                       <Text style={styles.historicoData}>
                         {new Date(compra.data).toLocaleDateString('pt-BR')}
                       </Text>
@@ -349,6 +433,7 @@ export default function Perfil() {
             </View>
           )}
 
+          {/* DICA */}
           <View style={styles.cartaoDica}>
             <View style={styles.dicaIcone}>
               <Ionicons
@@ -372,6 +457,7 @@ export default function Perfil() {
         </View>
       </ScrollView>
 
+      {/* RODAPÉ */}
       <View style={styles.barraContainer}>
         <View style={styles.barra}>
           <Pressable
@@ -436,12 +522,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F7F9F7',
   },
+
   scroll: {
     flex: 1,
   },
+
   conteudo: {
     paddingBottom: 22,
   },
+
   cabecalho: {
     backgroundColor: VERDE,
     paddingTop: 24,
@@ -450,23 +539,27 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
   },
+
   cabecalhoSuperior: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 27,
   },
+
   tituloCabecalho: {
     fontSize: 25,
     fontWeight: '800',
     color: '#FFFFFF',
     letterSpacing: -0.4,
   },
+
   subtituloCabecalho: {
     fontSize: 13,
     color: '#E7F2E9',
     marginTop: 5,
   },
+
   botaoConfiguracoes: {
     width: 44,
     height: 44,
@@ -475,11 +568,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   perfilUsuario: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 15,
   },
+
   avatar: {
     width: 76,
     height: 76,
@@ -490,20 +585,37 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#DCEFE3',
   },
+
   informacoesUsuario: {
     flex: 1,
     minWidth: 0,
   },
+
   nome: {
     fontSize: 21,
     fontWeight: '800',
     color: '#FFFFFF',
   },
+
   email: {
     fontSize: 13,
     color: '#E7F2E9',
+    marginTop: 0,
+    flex: 1,
+  },
+
+  informacaoVerdeLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     marginTop: 5,
   },
+
+  telefoneVerde: {
+    fontSize: 13,
+    color: '#E7F2E9',
+  },
+
   seloCliente: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -515,21 +627,25 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     marginTop: 10,
   },
+
   seloClienteTexto: {
     fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
   },
+
   conteudoPrincipal: {
     paddingHorizontal: 18,
     paddingTop: 25,
   },
+
   tituloSecao: {
     fontSize: 21,
     fontWeight: '800',
     color: '#193D27',
     letterSpacing: -0.3,
   },
+
   descricaoSecao: {
     fontSize: 13,
     color: '#7B837B',
@@ -537,6 +653,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     lineHeight: 19,
   },
+
   cartao: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,9 +665,11 @@ const styles = StyleSheet.create({
     borderColor: '#E5ECE6',
     minHeight: 80,
   },
+
   cartaoPressionado: {
     opacity: 0.75,
   },
+
   iconeCartao: {
     width: 49,
     height: 49,
@@ -559,23 +678,89 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   textosCartao: {
     flex: 1,
     minWidth: 0,
     marginLeft: 13,
     marginRight: 8,
   },
+
   tituloCartao: {
     fontSize: 15,
     fontWeight: '700',
     color: '#26382A',
   },
+
   descricaoCartao: {
     fontSize: 12,
     color: '#7B837B',
     marginTop: 5,
     lineHeight: 17,
   },
+
+  // CARTÃO DE ENDEREÇO
+  cartaoEnderecoPerfil: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 17,
+    marginBottom: 13,
+    borderWidth: 1,
+    borderColor: '#E3EBE4',
+  },
+
+  enderecoCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  iconeEnderecoPerfil: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: VERDE_CLARO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  enderecoTituloContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  enderecoNomePerfil: {
+    fontSize: 13,
+    color: VERDE_ESCURO,
+    fontWeight: '600',
+    marginTop: 5,
+  },
+
+  enderecoDetalhe: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 15,
+    paddingTop: 13,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF1ED',
+  },
+
+  enderecoTextoPerfil: {
+    flex: 1,
+    fontSize: 13,
+    color: '#68746A',
+    lineHeight: 20,
+  },
+
+  enderecoVazioPerfil: {
+    fontSize: 12,
+    color: '#8B968C',
+    marginTop: 13,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF1ED',
+  },
+
   listaHistorico: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -585,6 +770,7 @@ const styles = StyleSheet.create({
     marginTop: -3,
     marginBottom: 14,
   },
+
   itemHistorico: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -592,9 +778,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEF2EE',
   },
+
   ultimoItemHistorico: {
     borderBottomWidth: 0,
   },
+
   historicoIcone: {
     width: 38,
     height: 38,
@@ -603,37 +791,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   historicoTextos: {
     flex: 1,
     minWidth: 0,
     marginLeft: 10,
     marginRight: 8,
   },
+
   historicoTitulo: {
     fontSize: 13,
     fontWeight: '700',
     color: '#26382A',
   },
+
   historicoData: {
     fontSize: 11,
     color: '#7B837B',
     marginTop: 4,
   },
+
   historicoPreco: {
     fontSize: 14,
     fontWeight: '800',
     color: VERDE_ESCURO,
   },
+
   historicoVazio: {
     alignItems: 'center',
     paddingVertical: 24,
     gap: 8,
   },
+
   historicoVazioTexto: {
     fontSize: 13,
     color: '#7B837B',
     textAlign: 'center',
   },
+
   cartaoDica: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -642,6 +837,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 8,
   },
+
   dicaIcone: {
     width: 47,
     height: 47,
@@ -650,26 +846,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   dicaTextos: {
     flex: 1,
     marginLeft: 13,
   },
+
   dicaTitulo: {
     fontSize: 15,
     fontWeight: '800',
     color: VERDE_ESCURO,
   },
+
   dicaDescricao: {
     fontSize: 12,
     lineHeight: 18,
     color: '#46664D',
     marginTop: 5,
   },
+
+  // RODAPÉ
   barraContainer: {
     height: 78,
     position: 'relative',
     backgroundColor: '#F7F9F7',
   },
+
   barra: {
     position: 'absolute',
     bottom: 0,
@@ -684,17 +886,20 @@ const styles = StyleSheet.create({
     height: 67,
     paddingHorizontal: 45,
   },
+
   botaoNavegacao: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
   },
+
   textoNavegacao: {
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: '600',
   },
+
   carrinho: {
     position: 'absolute',
     top: -7,
@@ -709,6 +914,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   botaoPressionado: {
     opacity: 0.65,
   },
