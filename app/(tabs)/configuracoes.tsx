@@ -613,155 +613,193 @@ export default function Configuracoes() {
     );
   }
 
-  function renderInicio() {
-    return (
-      <>
-        {renderCabecalho(
-          'Configurações',
-          'Gerencie sua conta e suas preferências',
-        )}
+  
+function renderInicio() {
+  return (
+    <>
+      {renderCabecalho(
+        'Configurações',
+        'Gerencie sua conta e suas preferências',
+      )}
 
-        <View style={styles.conteudo}>
-          <View style={styles.cartaoBoasVindas}>
-            <View style={styles.iconeBoasVindas}>
-              <Ionicons name="settings-outline" size={29} color={VERDE} />
-            </View>
-
-            <View style={styles.boasVindasTextos}>
-              <Text style={styles.boasVindasTitulo}>
-                Olá, {nomeUsuario}!
-              </Text>
-              <Text style={styles.boasVindasDescricao}>
-                O que você deseja ajustar?
-              </Text>
-            </View>
+      <View style={styles.conteudo}>
+        <View style={styles.cartaoBoasVindas}>
+          <View style={styles.iconeBoasVindas}>
+            <Ionicons name="settings-outline" size={29} color={VERDE} />
           </View>
 
-          <Text style={styles.tituloSecao}>Minha conta</Text>
-
-          <View style={styles.listaMenu}>
-            {renderMenuItem(
-              'Minha conta',
-              'Altere seu nome, e-mail e telefone',
-              'person-outline',
-              'conta',
-            )}
-
-            {renderMenuItem(
-              'Meus endereços',
-              'Cadastre e altere seus endereços',
-              'location-outline',
-              'enderecos',
-            )}
-
-            {renderMenuItem(
-              'Notificações',
-              'Gerencie alertas, promoções e avisos',
-              'notifications-outline',
-              'notificacoes',
-            )}
-
-            {renderMenuItem(
-              'Ajuda e suporte',
-              'Encontre respostas para suas dúvidas',
-              'help-circle-outline',
-              'ajuda',
-            )}
-          </View>
-
-          {/* BOTÃO SAIR */}
-          <Pressable
-            onPress={() => setConfirmacaoConta('sair')}
-            style={styles.botaoSair}
-          >
-            <Ionicons name="log-out-outline" size={21} color="#C43D3D" />
-            <Text style={styles.textoBotaoSair}>Sair da conta</Text>
-          </Pressable>
-
-          {/* BOTÃO EXCLUIR */}
-          <Pressable
-            onPress={excluirConta}
-            disabled={carregandoDados}
-            style={({ pressed }) => [
-              styles.botaoExcluirConta,
-              pressed && styles.itemPressionado,
-              carregandoDados && { opacity: 0.6 },
-            ]}
-          >
-            <Ionicons name="trash-outline" size={21} color="#C43D3D" />
-            <Text style={styles.textoExcluirConta}>
-              Excluir minha conta permanentemente
+          <View style={styles.boasVindasTextos}>
+            <Text style={styles.boasVindasTitulo}>
+              Olá, {nomeUsuario}!
             </Text>
-          </Pressable>
+            <Text style={styles.boasVindasDescricao}>
+              O que você deseja ajustar?
+            </Text>
+          </View>
+        </View>
 
-          <Text style={styles.avisoExcluirConta}>
-            Essa opção apaga seu cadastro e os dados associados a ele.
-          </Text>
+        <Text style={styles.tituloSecao}>Minha conta</Text>
 
-          {/* CAIXINHA DE CONFIRMAÇÃO */}
-          {confirmacaoConta !== null && (
-            <View style={styles.confirmacaoConta}>
-              <Text style={styles.confirmacaoTitulo}>
-                {confirmacaoConta === 'sair'
-                  ? 'Deseja sair da sua conta?'
-                  : 'Deseja excluir sua conta?'}
-              </Text>
+        <View style={styles.listaMenu}>
+          {renderMenuItem(
+            'Minha conta',
+            'Altere seu nome, e-mail e telefone',
+            'person-outline',
+            'conta',
+          )}
 
-              <Text style={styles.confirmacaoDescricao}>
-                {confirmacaoConta === 'sair'
-                  ? 'Você poderá entrar novamente usando seus dados de acesso. Sua conta continuará cadastrada.'
-                  : 'Seu cadastro, endereços e preferências serão apagados permanentemente. Essa ação não poderá ser desfeita.'}
-              </Text>
+          {renderMenuItem(
+            'Meus endereços',
+            'Cadastre e altere seus endereços',
+            'location-outline',
+            'enderecos',
+          )}
 
-              <View style={styles.confirmacaoBotoes}>
-                <Pressable
-                  onPress={() => setConfirmacaoConta(null)}
-                  style={styles.botaoManter}
-                  disabled={carregandoDados}
-                >
-                  <Text style={styles.textoBotaoManter}>
-                    Cancelar
-                  </Text>
-                </Pressable>
+          {renderMenuItem(
+            'Notificações',
+            'Gerencie alertas, promoções e avisos',
+            'notifications-outline',
+            'notificacoes',
+          )}
 
-                <Pressable
-                  onPress={
-                    confirmacaoConta === 'sair'
-                      ? sairDaConta
-                      : confirmarExclusaoConta
-                  }
-                  style={styles.botaoConfirmarExcluir}
-                  disabled={carregandoDados}
-                >
-                  {carregandoDados ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name={
-                          confirmacaoConta === 'sair'
-                            ? 'log-out-outline'
-                            : 'trash-outline'
-                        }
-                        size={16}
-                        color="#FFFFFF"
-                      />
-
-                      <Text style={styles.textoConfirmarExcluir}>
-                        {confirmacaoConta === 'sair'
-                          ? 'Sair'
-                          : 'Excluir conta'}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              </View>
-            </View>
+          {renderMenuItem(
+            'Ajuda e suporte',
+            'Encontre respostas para suas dúvidas',
+            'help-circle-outline',
+            'ajuda',
           )}
         </View>
-      </>
-    );
-  }
+
+        {/* SAIR DA CONTA */}
+        <Pressable
+          onPress={() =>
+            setConfirmacaoConta(
+              confirmacaoConta === 'sair' ? null : 'sair',
+            )
+          }
+          style={styles.botaoSair}
+        >
+          <Ionicons name="log-out-outline" size={21} color="#C43D3D" />
+          <Text style={styles.textoBotaoSair}>Sair da conta</Text>
+        </Pressable>
+
+        {/* CONFIRMAÇÃO DE SAIR - FICA LOGO ABAIXO DO BOTÃO */}
+        {confirmacaoConta === 'sair' && (
+          <View style={styles.confirmacaoConta}>
+            <Text style={styles.confirmacaoTitulo}>
+              Deseja sair da sua conta?
+            </Text>
+
+            <Text style={styles.confirmacaoDescricao}>
+              Você poderá entrar novamente usando seus dados de acesso.
+              Sua conta continuará cadastrada.
+            </Text>
+
+            <View style={styles.confirmacaoBotoes}>
+              <Pressable
+                onPress={() => setConfirmacaoConta(null)}
+                style={styles.botaoManter}
+                disabled={carregandoDados}
+              >
+                <Text style={styles.textoBotaoManter}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={sairDaConta}
+                style={styles.botaoConfirmarExcluir}
+                disabled={carregandoDados}
+              >
+                {carregandoDados ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="log-out-outline"
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.textoConfirmarExcluir}>
+                      Sair
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* EXCLUIR CONTA */}
+        <Pressable
+          onPress={excluirConta}
+          disabled={carregandoDados}
+          style={({ pressed }) => [
+            styles.botaoExcluirConta,
+            pressed && styles.itemPressionado,
+            carregandoDados && { opacity: 0.6 },
+          ]}
+        >
+          <Ionicons name="trash-outline" size={21} color="#C43D3D" />
+          <Text style={styles.textoExcluirConta}>
+            Excluir minha conta permanentemente
+          </Text>
+        </Pressable>
+
+        <Text style={styles.avisoExcluirConta}>
+          Essa opção apaga seu cadastro e os dados associados a ele.
+        </Text>
+
+        {/* CONFIRMAÇÃO DE EXCLUIR - FICA LOGO ABAIXO DO BOTÃO */}
+        {confirmacaoConta === 'excluir' && (
+          <View style={styles.confirmacaoConta}>
+            <Text style={styles.confirmacaoTitulo}>
+              Deseja excluir sua conta?
+            </Text>
+
+            <Text style={styles.confirmacaoDescricao}>
+              Seu cadastro, endereços e preferências serão apagados
+              permanentemente. Essa ação não poderá ser desfeita.
+            </Text>
+
+            <View style={styles.confirmacaoBotoes}>
+              <Pressable
+                onPress={() => setConfirmacaoConta(null)}
+                style={styles.botaoManter}
+                disabled={carregandoDados}
+              >
+                <Text style={styles.textoBotaoManter}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={confirmarExclusaoConta}
+                style={styles.botaoConfirmarExcluir}
+                disabled={carregandoDados}
+              >
+                {carregandoDados ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="trash-outline"
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.textoConfirmarExcluir}>
+                      Excluir conta
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </View>
+    </>
+  );
+}
 
   function renderConta() {
     return (

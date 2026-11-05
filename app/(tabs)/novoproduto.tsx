@@ -125,6 +125,7 @@ export default function NovoProduto() {
 
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
+  const [unidade, setUnidade] = useState('');
   const [preco, setPreco] = useState('');
   const [imagem, setImagem] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -137,6 +138,7 @@ export default function NovoProduto() {
   const camposCompletos =
     nome.trim().length > 0 &&
     categoria !== '' &&
+    unidade.trim().length > 0 &&
     Number.isFinite(precoNumerico) &&
     precoNumerico > 0;
 
@@ -213,7 +215,7 @@ export default function NovoProduto() {
       const novoProduto: Produto & { descricao?: string } = {
         id: String(maiorId + 1),
         nome: nome.trim(),
-        unidade: 'Un',
+        unidade: unidade.trim(),
         preco: precoNumerico,
         icone: 'basket-outline',
         imagem: imagem.trim() || undefined,
@@ -237,6 +239,7 @@ export default function NovoProduto() {
 
       setNome('');
       setCategoria('');
+      setUnidade('');
       setPreco('');
       setImagem('');
       setDescricao('');
@@ -292,7 +295,6 @@ export default function NovoProduto() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* CABEÇALHO IGUAL AO DE MEUS PRODUTOS */}
         <View style={styles.cabecalho}>
           <TouchableOpacity
             style={styles.botaoVoltar}
@@ -350,7 +352,7 @@ export default function NovoProduto() {
 
             <Campo
               titulo="Nome do produto *"
-              placeholder="Ex.: Arroz branco 5 kg"
+              placeholder="Ex.: Arroz branco"
               valor={nome}
               aoMudar={setNome}
               icone="pricetag-outline"
@@ -393,6 +395,14 @@ export default function NovoProduto() {
                 })}
               </View>
             </View>
+
+            <Campo
+              titulo="Quantidade / Unidade *"
+              placeholder="Ex.: 1,5 L, 500 ml, 1 kg, 12 un"
+              valor={unidade}
+              aoMudar={setUnidade}
+              icone="scale-outline"
+            />
 
             <Campo
               titulo="Preço *"
@@ -502,7 +512,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // CABEÇALHO NO MESMO PADRÃO DE MEUS PRODUTOS
   cabecalho: {
     backgroundColor: VERDE,
     paddingTop: 25,
