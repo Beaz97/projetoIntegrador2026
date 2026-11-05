@@ -90,9 +90,11 @@ export default function OfertasEmpresa() {
     }, [carregarProdutos])
   );
 
+  // EXCLUI SOMENTE A OFERTA, SEM APAGAR O PRODUTO
   async function excluirProduto(produto: Produto) {
     try {
       const conteudo = await AsyncStorage.getItem(CHAVE_PRODUTOS);
+
       const parseado: unknown = conteudo
         ? JSON.parse(conteudo)
         : produtos;
@@ -104,9 +106,17 @@ export default function OfertasEmpresa() {
         throw new Error('Lista de produtos inválida.');
       }
 
-      const atualizados = parseado.filter(
-        (item) => String(item.id) !== String(produto.id)
-      );
+      const atualizados = parseado.map((item) => {
+        if (String(item.id) === String(produto.id)) {
+          return {
+            ...item,
+            oferta: false,
+            precoOferta: undefined,
+          };
+        }
+
+        return item;
+      });
 
       await AsyncStorage.setItem(
         CHAVE_PRODUTOS,
@@ -116,6 +126,7 @@ export default function OfertasEmpresa() {
       setProdutos(atualizados);
     } catch (erro) {
       console.error('Erro ao excluir oferta:', erro);
+
       Alert.alert(
         'Não foi possível excluir',
         'A oferta não foi removida. Tente novamente.'
@@ -397,7 +408,7 @@ export default function OfertasEmpresa() {
         </ScrollView>
       </View>
 
-      {/* RODAPÉ IGUAL AO DA TELA INICIAL */}
+      {/* RODAPÉ */}
       <View style={styles.barraContainer}>
         <View style={styles.barra}>
           <Pressable
@@ -752,21 +763,6 @@ const styles = StyleSheet.create({
 
   espacoFinal: {
     height: 8,
-    fontWeight: "700",
-  },
-
-  navegacao: {
-    height: 73,
-    backgroundColor: VERDE,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    paddingHorizontal: 5,
-    paddingTop: 5,
-    paddingBottom: 5,
-    flexShrink: 0,
   },
 
   barraContainer: {
@@ -801,21 +797,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: '600',
-  },
-
-  indicadorAtivo: {
-    width: 21,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
-  },
-
-  indicadorAtivo: {
-    width: 21,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
   },
 });

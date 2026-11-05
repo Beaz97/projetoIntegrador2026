@@ -24,16 +24,19 @@ const CHAVE_USUARIOS = '@banco_usuarios';
 const CHAVE_USUARIO_LOGADO = '@usuario_logado';
 
 type Endereco = {
-  id: string;
-  nome: string;
-  texto: string;
+  id?: string;
+  nome?: string;
+  texto?: string;
 };
 
 export default function PerfilEmpresa() {
   const router = useRouter();
 
   const [nomeEmpresa, setNomeEmpresa] = useState('');
-  const [enderecoEmpresa, setEnderecoEmpresa] = useState('');
+  const [emailEmpresa, setEmailEmpresa] = useState('');
+  const [telefoneEmpresa, setTelefoneEmpresa] = useState('');
+  const [documentoEmpresa, setDocumentoEmpresa] = useState('');
+  const [enderecoEmpresa, setEnderecoEmpresa] = useState<Endereco | null>(null);
 
   const { usuario, carregando, autorizado } =
     useAutenticacao('empresa');
@@ -46,7 +49,10 @@ export default function PerfilEmpresa() {
 
       if (!usuarioTexto) {
         setNomeEmpresa('');
-        setEnderecoEmpresa('');
+        setEmailEmpresa('');
+        setTelefoneEmpresa('');
+        setDocumentoEmpresa('');
+        setEnderecoEmpresa(null);
         return;
       }
 
@@ -66,19 +72,13 @@ export default function PerfilEmpresa() {
               usuarioSalvo.id != null &&
               u.id != null
             ) {
-              return (
-                String(u.id) === String(usuarioSalvo.id)
-              );
+              return String(u.id) === String(usuarioSalvo.id);
             }
 
             return Boolean(
               usuarioSalvo.email &&
-                String(u.email ?? '')
-                  .trim()
-                  .toLowerCase() ===
-                  String(usuarioSalvo.email)
-                    .trim()
-                    .toLowerCase(),
+                String(u.email ?? '').trim().toLowerCase() ===
+                  String(usuarioSalvo.email).trim().toLowerCase(),
             );
           });
 
@@ -96,6 +96,22 @@ export default function PerfilEmpresa() {
           '',
       );
 
+      setEmailEmpresa(
+        empresaAtualizada.email ||
+          usuarioSalvo.email ||
+          '',
+      );
+
+      setDocumentoEmpresa(
+        empresaAtualizada.documento ||
+          empresaAtualizada.cnpj ||
+          empresaAtualizada.cpf ||
+          usuarioSalvo.documento ||
+          usuarioSalvo.cnpj ||
+          usuarioSalvo.cpf ||
+          '',
+      );
+
       const identificador =
         empresaAtualizada.id != null
           ? String(empresaAtualizada.id)
@@ -103,11 +119,26 @@ export default function PerfilEmpresa() {
               empresaAtualizada.email ||
                 usuarioSalvo.email ||
                 '',
-            )
-              .trim()
-              .toLowerCase();
+            ).trim().toLowerCase();
 
-      let enderecoEncontrado =
+      // TELEFONE
+      const telefoneSalvo = identificador
+        ? await AsyncStorage.getItem(
+            `@telefone_usuario_${identificador}`,
+          )
+        : null;
+
+      setTelefoneEmpresa(
+        telefoneSalvo ||
+          empresaAtualizada.telefone ||
+          usuarioSalvo.telefone ||
+          '',
+      );
+
+      // ENDEREÇO
+      let enderecoEncontrado: Endereco | null = null;
+
+      const enderecoAntigo =
         empresaAtualizada.enderecoCompleto ||
         empresaAtualizada.endereco ||
         usuarioSalvo.enderecoCompleto ||
@@ -115,24 +146,32 @@ export default function PerfilEmpresa() {
         '';
 
       if (identificador) {
-        const chaveEnderecos =
-          `@enderecos_usuario_${identificador}`;
-
         const enderecosTexto = await AsyncStorage.getItem(
-          chaveEnderecos,
+          `@enderecos_usuario_${identificador}`,
         );
 
         if (enderecosTexto !== null) {
-          const enderecos: Endereco[] =
-            JSON.parse(enderecosTexto);
+          const enderecos = JSON.parse(enderecosTexto);
 
-          if (Array.isArray(enderecos)) {
+          if (Array.isArray(enderecos) && enderecos.length > 0) {
+            const primeiro = enderecos[0];
+
             enderecoEncontrado =
-              enderecos.length > 0
-                ? enderecos[0].texto || ''
-                : '';
+              typeof primeiro === 'string'
+                ? { nome: 'Endereço principal', texto: primeiro }
+                : primeiro;
           }
         }
+      }
+
+      if (!enderecoEncontrado && enderecoAntigo) {
+        enderecoEncontrado = {
+          nome: 'Endereço principal',
+          texto:
+            typeof enderecoAntigo === 'string'
+              ? enderecoAntigo
+              : enderecoAntigo.texto || '',
+        };
       }
 
       setEnderecoEmpresa(enderecoEncontrado);
@@ -161,11 +200,11 @@ export default function PerfilEmpresa() {
     'Minha empresa';
 
   function abrirConfiguracoes() {
-  router.push({
-    pathname: '/configuracoes',
-    params: { origem: 'empresa' },
-  } as any);
-}
+    router.push({
+      pathname: '/configuracoes',
+      params: { origem: 'empresa' },
+    } as any);
+  }
 
   function alterarEndereco() {
     router.push({
@@ -187,13 +226,13 @@ export default function PerfilEmpresa() {
         {/* CABEÇALHO */}
         <View style={styles.cabecalho}>
           <View style={styles.cabecalhoSuperior}>
-            <View style={styles.titulosCabecalho}>
+            <View>
               <Text style={styles.tituloCabecalho}>
                 Meu perfil
               </Text>
 
               <Text style={styles.subtituloCabecalho}>
-                Informações da sua empresa
+                Suas informações e dados empresariais
               </Text>
             </View>
 
@@ -213,22 +252,56 @@ export default function PerfilEmpresa() {
             </Pressable>
           </View>
 
+          {/* INFORMAÇÕES DA EMPRESA */}
           <View style={styles.perfilEmpresa}>
             <View style={styles.avatar}>
               <Ionicons
                 name="business"
-                size={36}
+                size={38}
                 color={VERDE}
               />
             </View>
 
             <View style={styles.informacoesEmpresa}>
-              <Text
-                style={styles.nome}
-                numberOfLines={2}
-              >
+              <Text style={styles.nome} numberOfLines={2}>
                 {nome}
               </Text>
+
+              <View style={styles.informacaoVerdeLinha}>
+                <Ionicons
+                  name="mail-outline"
+                  size={15}
+                  color="#E7F2E9"
+                />
+
+                <Text style={styles.email} numberOfLines={1}>
+                  {emailEmpresa || 'E-mail não informado'}
+                </Text>
+              </View>
+
+              <View style={styles.informacaoVerdeLinha}>
+                <Ionicons
+                  name="call-outline"
+                  size={15}
+                  color="#E7F2E9"
+                />
+
+                <Text style={styles.telefone} numberOfLines={1}>
+                  {telefoneEmpresa || 'Telefone não informado'}
+                </Text>
+              </View>
+
+              <View style={styles.informacaoVerdeLinha}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={15}
+                  color="#E7F2E9"
+                />
+
+                <Text style={styles.telefone} numberOfLines={1}>
+                  CNPJ: {documentoEmpresa || 'Não informado'}
+                </Text>
+              </View>
 
               <View style={styles.seloEmpresa}>
                 <Ionicons
@@ -245,111 +318,71 @@ export default function PerfilEmpresa() {
           </View>
         </View>
 
-        {/* CONTEÚDO DO PERFIL */}
+        {/* CONTEÚDO */}
         <View style={styles.conteudoPrincipal}>
           <Text style={styles.tituloSecao}>
             Área da empresa
           </Text>
 
           <Text style={styles.descricaoSecao}>
-            Confira as informações da sua empresa.
+            Confira as informações e a localização da sua empresa.
           </Text>
 
           {/* ENDEREÇO DA EMPRESA */}
-          <View style={styles.cartaoEndereco}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.cartaoEndereco,
+              pressed && styles.cartaoPressionado,
+            ]}
+            onPress={alterarEndereco}
+          >
             <View style={styles.enderecoCabecalho}>
               <View style={styles.iconeEndereco}>
                 <Ionicons
                   name="location"
-                  size={25}
+                  size={23}
                   color={VERDE}
                 />
               </View>
 
               <View style={styles.enderecoTitulos}>
-                <Text style={styles.tituloEndereco}>
+                <Text style={styles.tituloCartao}>
                   Endereço da empresa
                 </Text>
 
-                <Text style={styles.subtituloEndereco}>
-                  Localização da sua loja
+                <Text style={styles.enderecoNome}>
+                  {enderecoEmpresa?.nome ||
+                    'Nenhum endereço cadastrado'}
                 </Text>
               </View>
-            </View>
 
-            <View style={styles.enderecoConteudo}>
-              {enderecoEmpresa ? (
-                <>
-                  <View style={styles.enderecoStatus}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color={VERDE}
-                    />
-
-                    <Text style={styles.enderecoStatusTexto}>
-                      Endereço cadastrado
-                    </Text>
-                  </View>
-
-                  <Text style={styles.valorEndereco}>
-                    {enderecoEmpresa}
-                  </Text>
-                </>
-              ) : (
-                <View style={styles.enderecoVazio}>
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={21}
-                    color={VERDE}
-                  />
-
-                  <View style={styles.enderecoVazioTextos}>
-                    <Text style={styles.enderecoVazioTitulo}>
-                      Nenhum endereço cadastrado
-                    </Text>
-
-                    <Text style={styles.enderecoVazioDescricao}>
-                      Adicione o endereço para manter os dados
-                      da sua empresa atualizados.
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
-            <Pressable
-              onPress={alterarEndereco}
-              style={({ pressed }) => [
-                styles.botaoEndereco,
-                pressed && styles.botaoPressionado,
-              ]}
-            >
               <Ionicons
-                name={
-                  enderecoEmpresa
-                    ? 'create-outline'
-                    : 'add-circle-outline'
-                }
-                size={19}
-                color="#FFFFFF"
+                name="chevron-forward"
+                size={21}
+                color="#8B968C"
               />
+            </View>
 
-              <Text style={styles.textoBotaoEndereco}>
-                {enderecoEmpresa
-                  ? 'Alterar endereço'
-                  : 'Cadastrar endereço'}
+            {enderecoEmpresa?.texto ? (
+              <View style={styles.enderecoDetalhe}>
+                <Ionicons
+                  name="navigate-outline"
+                  size={17}
+                  color="#718174"
+                />
+
+                <Text style={styles.enderecoTexto}>
+                  {enderecoEmpresa.texto}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.enderecoVazio}>
+                Toque para cadastrar o endereço da sua loja.
               </Text>
+            )}
+          </Pressable>
 
-              <Ionicons
-                name="arrow-forward"
-                size={17}
-                color="#FFFFFF"
-              />
-            </Pressable>
-          </View>
-
-          {/* ODS 12 — CONSUMO E PRODUÇÃO RESPONSÁVEIS */}
+          {/* ODS 12 */}
           <View style={styles.cartaoODS}>
             <View style={styles.odsCabecalho}>
               <View style={styles.odsIcone}>
@@ -438,7 +471,7 @@ export default function PerfilEmpresa() {
         </View>
       </ScrollView>
 
-      {/* BARRA INFERIOR */}
+      {/* RODAPÉ IGUAL AO HOME */}
       <View style={styles.barraContainer}>
         <View style={styles.barra}>
           <Pressable
@@ -450,10 +483,12 @@ export default function PerfilEmpresa() {
             onPress={() =>
               router.push('/homeempresa' as any)
             }
+            accessibilityRole="button"
+            accessibilityLabel="Início"
           >
             <Ionicons
-              name="home-outline"
-              size={26}
+              name="home"
+              size={27}
               color="#FFFFFF"
             />
 
@@ -471,37 +506,20 @@ export default function PerfilEmpresa() {
             onPress={() =>
               router.push('/perfilempresa' as any)
             }
+            accessibilityRole="button"
+            accessibilityLabel="Perfil"
           >
             <Ionicons
               name="person"
-              size={26}
+              size={27}
               color="#FFFFFF"
             />
 
             <Text style={styles.textoNavegacao}>
               Perfil
             </Text>
-
-            <View style={styles.indicadorAtivo} />
           </Pressable>
         </View>
-        {/*
-        <Pressable
-          style={({ pressed }) => [
-            styles.carrinho,
-            pressed && styles.botaoPressionado,
-          ]}
-          onPress={() =>
-            router.push('/carrinho' as any)
-          }
-        >
-          <Ionicons
-            name="cart-outline"
-            size={31}
-            color="#FFFFFF"
-          />
-        </Pressable>
-         */}
       </View>
     </View>
   );
@@ -521,6 +539,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 
+  // CABEÇALHO
   cabecalho: {
     backgroundColor: VERDE,
     paddingTop: 24,
@@ -535,11 +554,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 27,
-  },
-
-  titulosCabecalho: {
-    flex: 1,
-    marginRight: 12,
   },
 
   tituloCabecalho: {
@@ -592,6 +606,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
+  informacaoVerdeLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 5,
+  },
+
+  email: {
+    fontSize: 13,
+    color: '#E7F2E9',
+    flex: 1,
+  },
+
+  telefone: {
+    fontSize: 13,
+    color: '#E7F2E9',
+    flex: 1,
+  },
+
   seloEmpresa: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -610,6 +643,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
+  // CONTEÚDO
   conteudoPrincipal: {
     paddingHorizontal: 18,
     paddingTop: 25,
@@ -630,21 +664,18 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  // ENDEREÇO
   cartaoEndereco: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 17,
-    marginBottom: 18,
+    marginBottom: 13,
     borderWidth: 1,
-    borderColor: '#E1EAE2',
-    shadowColor: '#193D27',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: '#E3EBE4',
+  },
+
+  cartaoPressionado: {
+    opacity: 0.75,
   },
 
   enderecoCabecalho: {
@@ -653,9 +684,9 @@ const styles = StyleSheet.create({
   },
 
   iconeEndereco: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: VERDE_CLARO,
     alignItems: 'center',
     justifyContent: 'center',
@@ -663,106 +694,57 @@ const styles = StyleSheet.create({
 
   enderecoTitulos: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 12,
+    marginRight: 8,
   },
 
-  tituloEndereco: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#26382A',
-  },
-
-  subtituloEndereco: {
-    fontSize: 12,
-    color: '#7B837B',
-    marginTop: 4,
-  },
-
-  enderecoConteudo: {
-    backgroundColor: '#F7FAF7',
-    borderRadius: 14,
-    padding: 13,
-    marginTop: 17,
-  },
-
-  enderecoStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-
-  enderecoStatusTexto: {
-    fontSize: 12,
+  tituloCartao: {
+    fontSize: 15,
     fontWeight: '700',
-    color: VERDE_ESCURO,
-  },
-
-  valorEndereco: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '600',
     color: '#26382A',
   },
 
-  enderecoVazio: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 9,
-  },
-
-  enderecoVazioTextos: {
-    flex: 1,
-  },
-
-  enderecoVazioTitulo: {
+  enderecoNome: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#26382A',
-  },
-
-  enderecoVazioDescricao: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#6F7B71',
+    color: VERDE_ESCURO,
+    fontWeight: '600',
     marginTop: 5,
   },
 
-  botaoEndereco: {
+  enderecoDetalhe: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    backgroundColor: VERDE,
-    borderRadius: 13,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: 15,
+    paddingTop: 13,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF1ED',
   },
 
-  textoBotaoEndereco: {
+  enderecoTexto: {
     flex: 1,
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: 13,
+    color: '#68746A',
+    lineHeight: 20,
   },
 
+  enderecoVazio: {
+    fontSize: 12,
+    color: '#8B968C',
+    marginTop: 13,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF1ED',
+  },
+
+  // ODS 12
   cartaoODS: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 18,
-    marginTop: 2,
+    marginTop: 5,
     borderWidth: 1,
     borderColor: '#DCE9DE',
-    shadowColor: '#193D27',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
 
   odsCabecalho: {
@@ -851,22 +833,27 @@ const styles = StyleSheet.create({
     color: VERDE_ESCURO,
   },
 
-    barraContainer: {
-  height: 78,
-  backgroundColor: FUNDO,
-  justifyContent: 'flex-end',
-},
-barra: {
-  height: 70,
-  width: '100%',
-  flexDirection: 'row',
-  justifyContent: 'space-around',
-  alignItems: 'center',
-  backgroundColor: VERDE,
-  borderTopLeftRadius: 25,
-  borderTopRightRadius: 25,
-  overflow: 'hidden',
-},
+  // RODAPÉ
+  barraContainer: {
+    height: 78,
+    position: 'relative',
+    backgroundColor: FUNDO,
+  },
+
+  barra: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: VERDE,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    height: 67,
+    paddingHorizontal: 45,
+  },
 
   botaoNavegacao: {
     flex: 1,
@@ -879,14 +866,6 @@ barra: {
     fontSize: 11,
     color: '#FFFFFF',
     fontWeight: '600',
-  },
-
-  indicadorAtivo: {
-    width: 24,
-    height: 3,
-    borderRadius: 3,
-    backgroundColor: '#FFFFFF',
-    marginTop: 1,
   },
 
   botaoPressionado: {
