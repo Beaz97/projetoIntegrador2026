@@ -409,7 +409,7 @@ export default function ProdutosEmpresa() {
             accessibilityRole="button"
             accessibilityLabel="Início"
           >
-            <Ionicons name="home" size={27} color="#FFFFFF" />
+            <Ionicons name="home-outline" size={27} color="#FFFFFF" />
             <Text style={styles.textoNavegacao}>Início</Text>
           </Pressable>
 
@@ -423,7 +423,7 @@ export default function ProdutosEmpresa() {
             accessibilityRole="button"
             accessibilityLabel="Perfil"
           >
-            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Ionicons name="person-outline" size={27} color="#FFFFFF" />
             <Text style={styles.textoNavegacao}>Perfil</Text>
           </Pressable>
         </View>
