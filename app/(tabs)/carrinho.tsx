@@ -302,12 +302,15 @@ export default function Carrinho() {
             <Text style={styles.textoPagamento}>
               Pagamento
             </Text>
+          </Pressable>
 
-            <Ionicons
-              name="arrow-forward"
-              size={25}
-              color="#fff"
-            />
+          <Pressable
+            style={styles.botaoContinuarComProdutos}
+            onPress={() => router.push('/home')}
+          >
+            <Text style={styles.textoContinuarComProdutos}>
+              Continuar comprando
+            </Text>
           </Pressable>
 
         </ScrollView>
@@ -541,6 +544,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+
+  botaoContinuarComProdutos: {
+    height: 48,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#41805a',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  textoContinuarComProdutos: {
+    color: '#41805a',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   textoContinuar: {
