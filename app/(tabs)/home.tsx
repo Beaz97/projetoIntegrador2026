@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 
 import { useState, useRef, useCallback } from 'react';
@@ -30,6 +31,7 @@ const dados = Dados();
 const categorias = dados.categorias;
 const PRODUTOS_STORAGE_KEY = 'produtos';
 const USUARIOS_STORAGE_KEY = '@banco_usuarios';
+const LARGURA_MAXIMA_CONTEUDO = 1200;
 
 const EMPRESAS_FIXAS: Record<string, string> = {};
 
@@ -66,6 +68,16 @@ function montarMapaEmpresas(json: string | null) {
 
 const corVerde = '#41805a';
 const verdeEscuro = '#245D39';
+
+function precoParaOrdenacao(produto: Produto) {
+  return produto.oferta === true &&
+    typeof produto.precoOferta === 'number' &&
+    Number.isFinite(produto.precoOferta) &&
+    produto.precoOferta > 0 &&
+    produto.precoOferta < produto.preco
+    ? produto.precoOferta
+    : produto.preco;
+}
 
 function isProduto(value: unknown): value is Produto {
   if (typeof value !== 'object' || value === null) {
@@ -134,6 +146,7 @@ type CardProps = {
   imagem?: string;
   oferta?: boolean;
   empresaNome: string;
+  alturaImagem: number;
 };
 
 function CardProduto({
@@ -146,6 +159,7 @@ function CardProduto({
   imagem,
   oferta,
   empresaNome,
+  alturaImagem,
 }: CardProps) {
   const router = useRouter();
 
@@ -175,7 +189,7 @@ function CardProduto({
       ]}
       onPress={() => router.push(`/rotas/produtos/${id}`)}
     >
-      <View style={styles.cardImagem}>
+      <View style={[styles.cardImagem, { height: alturaImagem }]}>
         <Foto
           uri={imagem}
           icone={icone}
@@ -257,6 +271,12 @@ function CardProduto({
 export default function Home() {
   const router = useRouter();
   const buscaRef = useRef<TextInput>(null);
+  const { width: larguraTela } = useWindowDimensions();
+  const numeroColunas = larguraTela >= 900 ? 4 : larguraTela >= 600 ? 3 : 2;
+  const larguraConteudo = Math.min(larguraTela, LARGURA_MAXIMA_CONTEUDO);
+  const larguraCard =
+    (larguraConteudo - 36 - (numeroColunas - 1) * 12) / numeroColunas;
+  const alturaImagem = Math.min(190, Math.max(130, larguraCard * 0.65));
 
   const [busca, setBusca] = useState('');
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -268,6 +288,9 @@ export default function Home() {
   const [filtroOferta, setFiltroOferta] = useState<
     'todos' | 'ofertas'
   >('ofertas');
+  const [ordemPreco, setOrdemPreco] = useState<
+    'crescente' | 'decrescente' | null
+  >(null);
 
   const [produtos, setProdutos] = useState<Produto[]>(
     dados.produtos
@@ -356,7 +379,7 @@ export default function Home() {
 
   /* ---------- Filtrar produtos ---------- */
 
-  const produtosLista = produtos.filter((produto) => {
+  const produtosFiltrados = produtos.filter((produto) => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR');
 
     if (modoLista === 'busca') {
@@ -417,6 +440,18 @@ export default function Home() {
 
     return true;
   });
+
+  const produtosLista =
+    ordemPreco === null
+      ? produtosFiltrados
+      : [...produtosFiltrados].sort((a, b) => {
+          const diferenca = precoParaOrdenacao(a) - precoParaOrdenacao(b);
+          return ordemPreco === 'crescente' ? diferenca : -diferenca;
+        });
+
+  function selecionarOrdemPreco(ordem: 'crescente' | 'decrescente') {
+    setOrdemPreco((atual) => (atual === ordem ? null : ordem));
+  }
 
   /* ---------- Título da lista ---------- */
 
@@ -507,10 +542,13 @@ export default function Home() {
 
   /* ---------- Grade de produtos ---------- */
 
-  const dadosGrade: (Produto | null)[] =
-    produtosLista.length % 2 === 1
-      ? [...produtosLista, null]
-      : produtosLista;
+  const espacosRestantes =
+    (numeroColunas - (produtosLista.length % numeroColunas)) %
+    numeroColunas;
+  const dadosGrade: (Produto | null)[] = [
+    ...produtosLista,
+    ...Array.from({ length: espacosRestantes }, () => null),
+  ];
 
   /* ---------- Cabeçalho da lista ---------- */
 
@@ -710,6 +748,60 @@ export default function Home() {
           </Pressable>
         )}
       </View>
+
+      <View style={styles.ordenacaoContainer}>
+        <Text style={styles.ordenacaoRotulo}>Preço:</Text>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ordenar do menor para o maior preço"
+          accessibilityState={{ selected: ordemPreco === 'crescente' }}
+          style={[
+            styles.ordenacaoBotao,
+            ordemPreco === 'crescente' && styles.ordenacaoBotaoAtivo,
+          ]}
+          onPress={() => selecionarOrdemPreco('crescente')}
+        >
+          <Ionicons
+            name="arrow-up"
+            size={15}
+            color={ordemPreco === 'crescente' ? '#fff' : verdeEscuro}
+          />
+          <Text
+            style={[
+              styles.ordenacaoTexto,
+              ordemPreco === 'crescente' && styles.ordenacaoTextoAtivo,
+            ]}
+          >
+            Menor preço
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ordenar do maior para o menor preço"
+          accessibilityState={{ selected: ordemPreco === 'decrescente' }}
+          style={[
+            styles.ordenacaoBotao,
+            ordemPreco === 'decrescente' && styles.ordenacaoBotaoAtivo,
+          ]}
+          onPress={() => selecionarOrdemPreco('decrescente')}
+        >
+          <Ionicons
+            name="arrow-down"
+            size={15}
+            color={ordemPreco === 'decrescente' ? '#fff' : verdeEscuro}
+          />
+          <Text
+            style={[
+              styles.ordenacaoTexto,
+              ordemPreco === 'decrescente' && styles.ordenacaoTextoAtivo,
+            ]}
+          >
+            Maior preço
+          </Text>
+        </Pressable>
+      </View>
     </>
   );
 
@@ -765,13 +857,14 @@ export default function Home() {
   return (
     <View style={styles.container}>
       <FlatList
+        key={`grade-${numeroColunas}`}
         style={styles.scroll}
         contentContainerStyle={styles.conteudo}
         data={carregandoProdutos ? [] : dadosGrade}
         keyExtractor={(item, indice) =>
           item ? String(item.id) : `espacador-${indice}`
         }
-        numColumns={2}
+        numColumns={numeroColunas}
         columnWrapperStyle={styles.linhaProdutos}
         renderItem={({ item }) =>
           item ? (
@@ -784,6 +877,7 @@ export default function Home() {
               icone={item.icone}
               imagem={item.imagem}
               oferta={item.oferta === true}
+              alturaImagem={alturaImagem}
               empresaNome={
                 empresas[String(item.empresa)] ??
                 'Empresa não informada'
@@ -862,6 +956,9 @@ const styles = StyleSheet.create({
   },
 
   conteudo: {
+    width: '100%',
+    maxWidth: LARGURA_MAXIMA_CONTEUDO,
+    alignSelf: 'center',
     paddingTop: 22,
     paddingHorizontal: 18,
     paddingBottom: 12,
@@ -1006,6 +1103,47 @@ const styles = StyleSheet.create({
   },
 
   filtroTextoAtivo: {
+    color: '#fff',
+  },
+
+  ordenacaoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 17,
+  },
+
+  ordenacaoRotulo: {
+    color: '#707970',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  ordenacaoBotao: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#DCE7DE',
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    borderRadius: 11,
+  },
+
+  ordenacaoBotaoAtivo: {
+    backgroundColor: corVerde,
+    borderColor: corVerde,
+  },
+
+  ordenacaoTexto: {
+    color: verdeEscuro,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  ordenacaoTextoAtivo: {
     color: '#fff',
   },
 
@@ -1245,6 +1383,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxWidth: 720,
+    alignSelf: 'center',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',

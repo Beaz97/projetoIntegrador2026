@@ -9,6 +9,7 @@ export interface Produto {
   nome: string;
   unidade: string;
   preco: number;
+  precoOferta?: number;
   icone: string;
   imagem?: string;
   oferta?: boolean;
