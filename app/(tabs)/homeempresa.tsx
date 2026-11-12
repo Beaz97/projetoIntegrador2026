@@ -21,12 +21,12 @@ const VERDE = '#41805a';
 const VERDE_ESCURO = '#245D39';
 const FUNDO = '#F7F9F7';
 const CHAVE_PRODUTOS = 'produtos';
+const CHAVE_USUARIOS = '@banco_usuarios';
+const CHAVE_USUARIO_LOGADO = '@usuario_logado';
 const PRODUTOS_INICIAIS = Dados().produtos;
 
 function produtoValido(valor: unknown): valor is Produto {
-  if (!valor || typeof valor !== 'object') {
-    return false;
-  }
+  if (!valor || typeof valor !== 'object') return false;
 
   const produto = valor as Produto;
 
@@ -65,11 +65,7 @@ function MenuCard({
     >
       <View style={styles.cardTopo}>
         <View style={styles.iconeContainer}>
-          <Ionicons
-            name={icone}
-            size={28}
-            color={VERDE_ESCURO}
-          />
+          <Ionicons name={icone} size={28} color={VERDE_ESCURO} />
         </View>
 
         <Ionicons
@@ -80,13 +76,8 @@ function MenuCard({
       </View>
 
       <View style={styles.cardTexto}>
-        <Text style={styles.cardTitulo}>
-          {titulo}
-        </Text>
-
-        <Text style={styles.cardDescricao}>
-          {descricao}
-        </Text>
+        <Text style={styles.cardTitulo}>{titulo}</Text>
+        <Text style={styles.cardDescricao}>{descricao}</Text>
       </View>
     </Pressable>
   );
@@ -105,11 +96,57 @@ export default function HomeScreen() {
   const [produtos, setProdutos] =
     useState<Produto[]>(PRODUTOS_INICIAIS);
 
+  const [nomeEmpresa, setNomeEmpresa] = useState('');
+
+  // RECUPERA O NOME DO USUÁRIO CADASTRADO
   useFocusEffect(
     useCallback(() => {
       let ativo = true;
 
-      async function carregarProdutos() {
+      async function carregarDados() {
+        try {
+          const [usuarioSalvo, usuariosSalvos] =
+            await Promise.all([
+              AsyncStorage.getItem(CHAVE_USUARIO_LOGADO),
+              AsyncStorage.getItem(CHAVE_USUARIOS),
+            ]);
+
+          const usuarioLogado = usuarioSalvo
+            ? JSON.parse(usuarioSalvo)
+            : null;
+
+          const usuarios = usuariosSalvos
+            ? JSON.parse(usuariosSalvos)
+            : [];
+
+          const usuarioEncontrado = Array.isArray(usuarios)
+            ? usuarios.find(
+                (item: any) =>
+                  String(item.id) === String(
+                    usuario?.id ?? usuarioLogado?.id
+                  )
+              )
+            : null;
+
+          const nome =
+            usuario?.nome ||
+            usuario?.nomeEmpresa ||
+            usuario?.razaoSocial ||
+            usuarioLogado?.nome ||
+            usuarioLogado?.nomeEmpresa ||
+            usuarioLogado?.razaoSocial ||
+            usuarioEncontrado?.nome ||
+            usuarioEncontrado?.nomeEmpresa ||
+            usuarioEncontrado?.razaoSocial ||
+            '';
+
+          if (ativo) {
+            setNomeEmpresa(nome.trim());
+          }
+        } catch (erro) {
+          console.error('Erro ao carregar nome da empresa:', erro);
+        }
+
         try {
           const conteudo =
             await AsyncStorage.getItem(CHAVE_PRODUTOS);
@@ -122,19 +159,14 @@ export default function HomeScreen() {
             !Array.isArray(produtosSalvos) ||
             !produtosSalvos.every(produtoValido)
           ) {
-            throw new Error(
-              'A lista de produtos armazenada não está em formato válido.',
-            );
+            throw new Error('Lista de produtos inválida.');
           }
 
           if (ativo) {
             setProdutos(produtosSalvos);
           }
         } catch (erro) {
-          console.error(
-            'Erro ao carregar produtos:',
-            erro,
-          );
+          console.error('Erro ao carregar produtos:', erro);
 
           if (ativo) {
             Alert.alert(
@@ -145,12 +177,12 @@ export default function HomeScreen() {
         }
       }
 
-      void carregarProdutos();
+      void carregarDados();
 
       return () => {
         ativo = false;
       };
-    }, []),
+    }, [usuario?.id, usuario?.nome]),
   );
 
   const totalProdutos = produtos.filter(
@@ -171,14 +203,11 @@ export default function HomeScreen() {
         backgroundColor={VERDE}
       />
 
-      {/* CABEÇALHO FIXO */}
+      {/* CABEÇALHO */}
       <View style={styles.cabecalho}>
         <View style={styles.cabecalhoTexto}>
-          <Text
-            style={styles.boasVindas}
-            numberOfLines={2}
-          >
-            Olá, {usuario?.nome}
+          <Text style={styles.boasVindas} numberOfLines={2}>
+            Olá, {nomeEmpresa || 'Empresa'}!
           </Text>
 
           <Text style={styles.subtitulo}>
@@ -191,13 +220,12 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      {/* CONTEÚDO ROLÁVEL */}
+      {/* CONTEÚDO */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
       >
-        {/* TOTAL DE PRODUTOS */}
         <View style={styles.totalCard}>
           <View style={styles.totalIcone}>
             <Ionicons
@@ -222,7 +250,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ACESSO RÁPIDO */}
         <View style={styles.tituloSecao}>
           <View>
             <Text style={styles.tituloMenu}>
@@ -235,7 +262,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* CARDS */}
         <View style={styles.grade}>
           <View style={{ width: larguraCard }}>
             <MenuCard
@@ -243,9 +269,7 @@ export default function HomeScreen() {
               descricao="Consulte e edite seu catálogo."
               icone="cube-outline"
               corFundo="#EAF5ED"
-              onPress={() =>
-                router.push('/produtoempresa' as any)
-              }
+              onPress={() => router.push('/produtoempresa' as any)}
             />
           </View>
 
@@ -255,9 +279,7 @@ export default function HomeScreen() {
               descricao="Crie e gerencie promoções."
               icone="pricetag-outline"
               corFundo="#FFF6E4"
-              onPress={() =>
-                router.push('/ofertaempresa' as any)
-              }
+              onPress={() => router.push('/ofertaempresa' as any)}
             />
           </View>
 
@@ -267,9 +289,7 @@ export default function HomeScreen() {
               descricao="Adicione novos produtos ao seu catálogo."
               icone="add-circle-outline"
               corFundo="#F0ECFA"
-              onPress={() =>
-                router.push('/novoproduto' as any)
-              }
+              onPress={() => router.push('/novoproduto' as any)}
             />
           </View>
 
@@ -279,9 +299,7 @@ export default function HomeScreen() {
               descricao="Crie promoções e destaque seus produtos."
               icone="add-circle-outline"
               corFundo="#EAF2FA"
-              onPress={() =>
-                router.push('/novaoferta' as any)
-              }
+              onPress={() => router.push('/novaoferta' as any)}
             />
           </View>
         </View>
@@ -289,7 +307,7 @@ export default function HomeScreen() {
         <View style={styles.espacoFinal} />
       </ScrollView>
 
-      {/* RODAPÉ IGUAL AO PERFIL DA EMPRESA */}
+      {/* RODAPÉ */}
       <View style={styles.barraContainer}>
         <View style={styles.barra}>
           <Pressable
@@ -298,21 +316,12 @@ export default function HomeScreen() {
               styles.botaoNavegacao,
               pressed && styles.itemPressionado,
             ]}
-            onPress={() =>
-              router.push('/homeempresa' as any)
-            }
+            onPress={() => router.push('/homeempresa' as any)}
             accessibilityRole="button"
             accessibilityLabel="Início"
           >
-            <Ionicons
-              name="home"
-              size={27}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoNavegacao}>
-              Início
-            </Text>
+            <Ionicons name="home" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Início</Text>
           </Pressable>
 
           <Pressable
@@ -321,21 +330,12 @@ export default function HomeScreen() {
               styles.botaoNavegacao,
               pressed && styles.itemPressionado,
             ]}
-            onPress={() =>
-              router.push('/perfilempresa' as any)
-            }
+            onPress={() => router.push('/perfilempresa' as any)}
             accessibilityRole="button"
             accessibilityLabel="Perfil"
           >
-            <Ionicons
-              name="person"
-              size={27}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.textoNavegacao}>
-              Perfil
-            </Text>
+            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Text style={styles.textoNavegacao}>Perfil</Text>
           </Pressable>
         </View>
       </View>
@@ -349,7 +349,6 @@ const styles = StyleSheet.create({
     backgroundColor: FUNDO,
   },
 
-  // CABEÇALHO FIXO
   cabecalho: {
     backgroundColor: VERDE,
     paddingTop: 24,
@@ -383,7 +382,6 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
 
-  // CONTEÚDO ROLÁVEL
   scroll: {
     flex: 1,
     minHeight: 0,
@@ -395,7 +393,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 
-  // RESUMO DOS PRODUTOS
   totalCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
@@ -405,10 +402,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#244D32',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
@@ -446,7 +440,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // TÍTULO DA SEÇÃO
   tituloSecao: {
     marginTop: 28,
     marginBottom: 17,
@@ -464,7 +457,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // GRADE DE CARDS
   grade: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -481,10 +473,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8EDE8',
     shadowColor: '#1F3D29',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
@@ -534,7 +523,6 @@ const styles = StyleSheet.create({
     height: 8,
   },
 
-  // RODAPÉ IGUAL AO PERFIL
   barraContainer: {
     height: 78,
     position: 'relative',
