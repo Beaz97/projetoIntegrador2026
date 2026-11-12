@@ -334,7 +334,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel="Perfil"
           >
-            <Ionicons name="person" size={27} color="#FFFFFF" />
+            <Ionicons name="person-outline" size={27} color="#FFFFFF" />
             <Text style={styles.textoNavegacao}>Perfil</Text>
           </Pressable>
         </View>

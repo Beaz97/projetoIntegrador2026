@@ -487,7 +487,7 @@ export default function PerfilEmpresa() {
             accessibilityLabel="Início"
           >
             <Ionicons
-              name="home"
+              name="home-outline"
               size={27}
               color="#FFFFFF"
             />
